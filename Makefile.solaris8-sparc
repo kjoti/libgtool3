@@ -1,0 +1,107 @@
+# -*- Makefile -*-
+#
+#  Makefile for Solaris8/sparc
+#
+SHELL		= /bin/sh
+
+prefix		= /usr/local
+bindir		= $(prefix)/bin
+libdir		= $(prefix)/lib
+includedir	= $(prefix)/include
+
+CC		= cc
+RANLIB		= ranlib
+INSTALL		= ./install-sh
+MKDIR		= ./install-sh -d
+
+DEBUG		= # -g
+
+CPPFLAGS	= -UHAVE_CONFIG_H -DWORDS_BIGENDIAN \
+		-DHAVE_FSEEKO -DHAVE_ILOGB -DHAVE_SCALBN \
+		-DHAVE_INTTYPES_H -DHAVE_UINT32_T \
+		-D_FILE_OFFSET_BITS=64
+
+LDFLAGS		= $(DEBUG)
+CFLAGS		= $(DEBUG) -O
+
+OBJS		= \
+		bits_set.o \
+		error.o \
+		file.o \
+		grid.o \
+		gtdim.o \
+		header.o \
+		nr-gauleg.o \
+		reverse.o \
+		urc_pack.o \
+		varbuf.o \
+		write.o
+
+LDADD		= -lgtool3 -lm
+
+
+LIBS		= libgtool3.a
+HEADERS		= gtool3.h
+BINS		= ngtls
+
+TARGETS		= $(LIBS) $(BINS)
+
+
+all: $(LIBS) $(BINS)
+
+libgtool3.a: $(OBJS)
+	$(AR) $(ARFLAGS) $@ $(OBJS)
+	$(RANLIB) $@
+
+ngtls: libgtool3.a ngtls.o
+	$(CC) $(LDFLAGS) -L. -o $@ ngtls.o $(LDADD)
+
+install: all
+	$(MKDIR) $(bindir)
+	$(MKDIR) $(libdir)
+	$(MKDIR) $(includedir)
+	$(INSTALL) $(BINS) $(bindir)
+	$(INSTALL) -m 644 $(LIBS) $(libdir)
+	$(INSTALL) -m 644 $(HEADERS) $(includedir)
+
+#
+TESTCC	= $(CC) -DTEST_MAIN $(LDFLAGS) $(CFLAGS) $(CPPFLAGS)
+test: $(LIBS)
+	@for obj in $(OBJS); do \
+	    f=`basename $$obj .o`.c ; \
+	    grep "ifdef  *TEST_MAIN" $$f > /dev/null; \
+	    if [ $$? -eq 0 ]; then \
+	        echo "**** TESTING $$f ****"; \
+		$(TESTCC) -L. $$f $(LDADD); \
+	        if [ $$? -ne 0 ]; then \
+		    echo "**** $$f: ERROR IN COMPILE-TIME."; \
+		    exit; \
+	        fi; \
+	        ./a.out; \
+	        if [ $$? -ne 0 ]; then \
+		    echo "**** $$f: FAILED."; \
+		    rm a.out; \
+		    exit; \
+	        fi; \
+	        rm a.out; \
+	    fi; \
+	done; \
+	echo "**** All tests passed."
+
+clean:
+	@rm -f $(TARGETS) a.out *.o
+
+##
+MAIN_HEADERS	= gtool3.h internal.h
+
+bits_set.o: bits_set.h
+error.o: $(MAIN_HEADERS)
+file.o: $(MAIN_HEADERS)
+grid.o: $(MAIN_HEADERS)
+gtdim.o: $(MAIN_HEADERS)
+header.o: $(MAIN_HEADERS)
+ngtls.o: $(MAIN_HEADERS)
+reverse.o: $(MAIN_HEADERS)
+urc_pack.o: $(MAIN_HEADERS)
+varbuf.o: $(MAIN_HEADERS)
+write: $(MAIN_HEADERS)

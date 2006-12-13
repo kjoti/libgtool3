@@ -1,0 +1,8 @@
+libgtool3
+
+A library to read/write GTOOL3 formatted files
+
+This package installs the following:
+  * libgtool3.a  (in /usr/local/lib)
+  * gtool3.h     (in /usr/local/include) 
+  * ngtls        (in /usr/local/bin)
