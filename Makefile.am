@@ -1,21 +1,22 @@
 lib_LIBRARIES = libgtool3.a
-bin_PROGRAMS = ngtls
+bin_PROGRAMS = ngtls ngtsumm
 include_HEADERS = gtool3.h
 
 libgtool3_a_SOURCES = \
 		bits_set.c \
 		error.c \
 		file.c \
+		gauss-legendre.c \
 		grid.c \
 		gtdim.c \
 		header.c \
-		nr-gauleg.c \
 		reverse.c \
 		urc_pack.c \
 		varbuf.c \
 		write.c
 
 ngtls_SOURCES = ngtls.c
+ngtsumm_SOURCES = ngtsumm.c seq.c
 
 LDADD = libgtool3.a -lm
 

@@ -16,7 +16,7 @@ RANLIB		= ranlib
 INSTALL		= /usr/bin/install
 MKDIR		= /usr/bin/install -d
 
-DEBUG		= # -g
+DEBUG		= -g
 
 CPPFLAGS	= -UHAVE_CONFIG_H -UWORDS_BIGENDIAN \
 		-DHAVE_FSEEKO -DHAVE_ILOGB -DHAVE_SCALBN \
@@ -29,10 +29,10 @@ OBJS		= \
 		bits_set.o \
 		error.o \
 		file.o \
+		gauss-legendre.o \
 		grid.o \
 		gtdim.o \
 		header.o \
-		nr-gauleg.o \
 		reverse.o \
 		urc_pack.o \
 		varbuf.o \
@@ -43,7 +43,7 @@ LDADD		= -lgtool3 -lm
 
 LIBS		= libgtool3.a
 HEADERS		= gtool3.h
-BINS		= ngtls
+BINS		= ngtls ngtsumm
 
 TARGETS		= $(LIBS) $(BINS)
 
@@ -54,8 +54,11 @@ libgtool3.a: $(OBJS)
 	$(AR) $(ARFLAGS) $@ $(OBJS)
 	$(RANLIB) $@
 
-ngtls: libgtool3.a ngtls.o
-	$(CC) $(LDFLAGS) -L. -o $@ ngtls.o $(LDADD)
+ngtls: libgtool3.a ngtls.o seq.o fileiter.o
+	$(CC) $(LDFLAGS) -L. -o $@ ngtls.o seq.o fileiter.o $(LDADD)
+
+ngtsumm: libgtool3.a ngtsumm.o seq.o fileiter.o
+	$(CC) $(LDFLAGS) -L. -o $@ ngtsumm.o seq.o fileiter.o $(LDADD)
 
 install: all
 	$(MKDIR) $(bindir)

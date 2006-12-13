@@ -13,6 +13,8 @@
 #include <unistd.h>
 
 #include "gtool3.h"
+#include "seq.h"
+#include "fileiter.h"
 
 static const char *usage_message =
 	"Usage: ngtls [-hn] [files...]\n"
@@ -20,6 +22,7 @@ static const char *usage_message =
 	"Options:\n"
 	"    -h: print help message\n"
 	"    -n: print axis-size instead of axis-name\n";
+
 
 static int (*print_item)(int cnt, GT3_File *fp);
 
@@ -99,49 +102,74 @@ print_item2(int cnt, GT3_File *fp)
 
 
 int
-print_list(const char *path)
+print_list(const char *path, struct sequence *seq)
 {
 	GT3_File *fp;
-	int cnt;
-	int rval = 0;
+	int stat, rval = 0;
+
 
 	if ((fp = GT3_open(path)) == NULL) {
 		GT3_printErrorMessages(stderr);
 		return -1;
 	}
 
-	cnt = 0;
-	while (!GT3_eof(fp)) {
-		++cnt;
-		if ((*print_item)(cnt, fp) < 0) {
-			print_error(cnt);
-			rval = -1;
-			break;
-		}
+	if (seq == NULL)
+		while (!GT3_eof(fp)) {
+			if ((*print_item)(fp->curr + 1, fp) < 0) {
+				print_error(fp->curr + 1);
+				rval = -1;
+				break;
+			}
 
-		if (GT3_next(fp) < 0) {
-			print_error(cnt + 1);
-			rval = -1;
-			break;
+			if (GT3_next(fp) < 0) {
+				print_error(fp->curr + 2);
+				rval = -1;
+				break;
+			}
 		}
-	}
+	else
+		while ((stat = iterate_chunk(fp, seq)) != ITER_END) {
+			if (stat == ITER_ERROR)
+				break;
+
+			if (stat == ITER_OUTRANGE)
+				continue;
+
+			if (stat == ITER_ERRORCHUNK) {
+				print_error(fp->curr + 1);
+				rval = -1;
+				break;
+			}
+
+			if ((*print_item)(fp->curr + 1, fp) < 0) {
+				print_error(fp->curr + 1);
+				rval = -1;
+				break;
+			}
+		}
 
 	GT3_close(fp);
 	return rval;
 }
 
 
+
 int
 main(int argc, char **argv)
 {
 	int ch;
+	struct sequence *seq = NULL;
 
 	print_item = print_item1;
 
-	while ((ch = getopt(argc, argv, "nh")) != -1)
+	while ((ch = getopt(argc, argv, "nht:")) != -1)
 		switch (ch) {
 		case 'n':
 			print_item = print_item2;
+			break;
+
+		case 't':
+			seq = initSeq(optarg, 1, 0x7ffffff);
 			break;
 
 		case 'h':
@@ -156,7 +184,7 @@ main(int argc, char **argv)
 	GT3_setProgname("ngtls");
 
 	while (argc > 0 && *argv) {
-		print_list(*argv);
+		print_list(*argv, seq);
 
 		--argc;
 		++argv;

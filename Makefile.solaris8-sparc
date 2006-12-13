@@ -28,10 +28,10 @@ OBJS		= \
 		bits_set.o \
 		error.o \
 		file.o \
+		gauss-legendre.o \
 		grid.o \
 		gtdim.o \
 		header.o \
-		nr-gauleg.o \
 		reverse.o \
 		urc_pack.o \
 		varbuf.o \
