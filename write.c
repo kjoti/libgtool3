@@ -3,7 +3,7 @@
  *
  *  write.c  -- writing data in GT3_Var.
  *
- *  $Date: 2006/11/07 00:53:11 $
+ *  $Date: 2006/12/04 06:52:53 $
  */
 #include "internal.h"
 
@@ -393,8 +393,6 @@ GT3_write(const void *ptr, int type,
 	}
 
 	if (dfmt) {
-		int i;
-
 		for (i = 0; i < sizeof dict / sizeof dict[0]; i++)
 			if (strcmp(dfmt, dict[i].key) == 0) {
 				fmt = dict[i].val;
@@ -474,9 +472,9 @@ GT3_write(const void *ptr, int type,
 
 
 #ifdef TEST
-#define NX  5
-#define NY  3
-#define NZ  4
+#define NX  9
+#define NY  5
+#define NZ  3
 
 int
 main(int argc, char **argv)
@@ -492,6 +490,9 @@ main(int argc, char **argv)
 			data[k][ij] = 100. * k + ij;
 
 	GT3_initHeader(&head);
+	GT3_setHeaderString(&head, "AITM1", "GLON9");
+	GT3_setHeaderString(&head, "AITM2", "GLAT5");
+	GT3_setHeaderString(&head, "AITM3", "NUMBER1000");
 
 	for (n = 0; n < sizeof dfmt / sizeof dfmt[0]; n++) {
 		snprintf(item, sizeof item, "TEST%02d", n);

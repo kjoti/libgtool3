@@ -3,7 +3,7 @@
  *
  *  file.c -- support GTOOL3-formatted file.
  *
- *  $Date: 2006/11/07 00:53:11 $
+ *  $Date: 2006/12/04 06:54:28 $
  */
 #include "internal.h"
 
@@ -24,9 +24,9 @@
 static int
 get_dimsize(int dim[], const GT3_HEADER *hh)
 {
-	char *axis[] = {"ASTR1", "AEND1",
-					"ASTR2", "AEND2",
-					"ASTR3", "AEND3"};
+	const char *axis[] = {"ASTR1", "AEND1",
+						  "ASTR2", "AEND2",
+						  "ASTR3", "AEND3"};
 	int i, idx[6];
 
 	for (i = 0; i < 6; i++)
@@ -164,7 +164,7 @@ GT3_isHistfile(GT3_File *fp)
 int
 GT3_format(const char *str)
 {
-	struct { char *key; int val; } ftab[] = {
+	struct { const char *key; int val; } ftab[] = {
 		{ "UR4",  GT3_FMT_UR4   },
 		{ "URC2", GT3_FMT_URC   },
 		{ "URC",  GT3_FMT_URC1  },

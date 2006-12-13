@@ -1,7 +1,7 @@
 /*
  *  bits_set.h
  *
- *  $Date: 2006/11/07 00:53:11 $
+ *  $Date: 2006/12/04 06:54:02 $
  */
 #ifndef BITS_SET__H
 #define BITS_SET__H

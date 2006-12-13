@@ -3,7 +3,7 @@
  *
  *  reverse.c -- reversing byte-order.
  *
- *  $Date: 2006/11/07 00:53:11 $
+ *  $Date: 2006/11/29 03:08:14 $
  */
 #include "internal.h"
 
@@ -20,8 +20,8 @@ reverse_words(void *vptr, int nwords)
 
 	for (i = 0; i < nwords; i++) {
 		u = uptr[i];
-		uptr[i] = (u >> 24) | ((u & 0xff0000) >> 8)
-			| ((u & 0xff00) << 8) | ((u & 0xff) << 24);
+		uptr[i] = (u >> 24) | ((u & 0xff0000U) >> 8)
+			| ((u & 0xff00U) << 8) | ((u & 0xffU) << 24);
 	}
 	return vptr;
 }
@@ -41,10 +41,10 @@ reverse_dwords(void *vptr, int nwords)
 		u1 = uptr[i];
 		u2 = uptr[i+1];
 
-		uptr[i]   = (u2 >> 24) | ((u2 & 0xff0000) >> 8)
-			| ((u2 & 0xff00) << 8) | ((u2 & 0xff) << 24);
-		uptr[i+1] = (u1 >> 24) | ((u1 & 0xff0000) >> 8)
-			| ((u1 & 0xff00) << 8) | ((u1 & 0xff) << 24);
+		uptr[i]   = (u2 >> 24) | ((u2 & 0xff0000U) >> 8)
+			| ((u2 & 0xff00U) << 8) | ((u2 & 0xffU) << 24);
+		uptr[i+1] = (u1 >> 24) | ((u1 & 0xff0000U) >> 8)
+			| ((u1 & 0xff00U) << 8) | ((u1 & 0xffU) << 24);
 	}
 	return vptr;
 }

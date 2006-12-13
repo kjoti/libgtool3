@@ -3,7 +3,7 @@
  *
  *  internal.h -- a header file for using libgtool3
  *
- *  $Date: 2006/11/07 00:53:11 $
+ *  $Date: 2006/12/04 06:55:36 $
  */
 #ifndef GT3_INTERNAL__H
 #define GT3_INTERNAL__H
@@ -77,8 +77,8 @@ void *reverse_dwords(void *vptr, int nwords);
 int uniform_center(double *grid, double x0, double x1, int len);
 int uniform_bnd(double *grid, double x0, double x1, int len);
 
-/* nr-gauleg.c */
-void gauleg(double x1, double x2, double x[], double w[], int n);
+/* gauss-legendre.c */
+void gauss_legendre(double sol[], double wght[], int nth);
 
 /*
  * error.c

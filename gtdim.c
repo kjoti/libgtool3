@@ -3,7 +3,7 @@
  *
  *  gtdim.c -- gtool3 axes
  *
- *  $Date: 2006/11/07 03:26:06 $
+ *  $Date: 2006/12/04 06:55:36 $
  */
 #include "internal.h"
 
@@ -288,7 +288,7 @@ make_ggla(int len, int idiv, unsigned flag)
 	/*
 	 *  get Gauss-Legendre
 	 */
-	gauleg(-1., 1., grid, wght, len);
+	gauss_legendre(grid, wght, len);
 
 	if (idiv > 1) {
 		if (latitude_mosaic(grid, wght, len, idiv) < 0) {
