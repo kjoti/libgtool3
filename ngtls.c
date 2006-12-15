@@ -17,12 +17,12 @@
 #include "fileiter.h"
 
 static const char *usage_message =
-	"Usage: ngtls [-hn] [files...]\n"
+	"Usage: ngtls [options] [files...]\n"
 	"\n"
 	"Options:\n"
-	"    -h: print help message\n"
-	"    -n: print axis-size instead of axis-name\n";
-
+	"    -h          print help message\n"
+	"    -n          print axis-size instead of axis-name\n"
+	"    -t LIST     specify a list of data numbers\n";
 
 static int (*print_item)(int cnt, GT3_File *fp);
 
@@ -151,7 +151,6 @@ print_list(const char *path, struct sequence *seq)
 	GT3_close(fp);
 	return rval;
 }
-
 
 
 int
