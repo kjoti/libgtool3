@@ -371,7 +371,7 @@ main(int argc, char **argv)
 	int ch;
 	struct sequence *seq = NULL;
 
-	while ((ch = getopt(argc, argv, "lt:x:y:z:")) != EOF)
+	while ((ch = getopt(argc, argv, "hlt:x:y:z:")) != EOF)
 		switch (ch) {
 		case 'l':
 			each_plane = 1;
