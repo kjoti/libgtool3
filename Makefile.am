@@ -15,8 +15,8 @@ libgtool3_a_SOURCES = \
 		varbuf.c \
 		write.c
 
-ngtls_SOURCES = ngtls.c
-ngtsumm_SOURCES = ngtsumm.c seq.c
+ngtls_SOURCES = ngtls.c seq.c fileiter.c
+ngtsumm_SOURCES = ngtsumm.c seq.c fileiter.c
 
 LDADD = libgtool3.a -lm
 
