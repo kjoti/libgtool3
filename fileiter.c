@@ -22,8 +22,8 @@ iterate_chunk(GT3_File *fp, struct sequence *seq)
 		stat = GT3_seek(fp, seq->curr - 1, SEEK_SET);
 		if (GT3_eof(fp)) {
 			seq->last = fp->num_chunk;
-			if (seq->step > 0)
-				seq->tail = fp->num_chunk;
+			if (seq->step > 0 && seq->tail > seq->last)
+				seq->tail = seq->last;
 			return ITER_OUTRANGE;
 		}
 	}
@@ -35,8 +35,8 @@ iterate_chunk(GT3_File *fp, struct sequence *seq)
 		}
 		if (fp->num_chunk > 0) {
 			seq->last = fp->num_chunk;
-			if (seq->step > 0)
-				seq->tail = fp->num_chunk;
+			if (seq->step > 0 && seq->tail > seq->last)
+				seq->tail = seq->last;
 		}
 		return ITER_OUTRANGE;
 	}
