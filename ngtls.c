@@ -107,7 +107,6 @@ print_list(const char *path, struct sequence *seq)
 	GT3_File *fp;
 	int stat, rval = 0;
 
-
 	if ((fp = GT3_open(path)) == NULL) {
 		GT3_printErrorMessages(stderr);
 		return -1;
@@ -129,9 +128,10 @@ print_list(const char *path, struct sequence *seq)
 		}
 	else
 		while ((stat = iterate_chunk(fp, seq)) != ITER_END) {
-			if (stat == ITER_ERROR)
+			if (stat == ITER_ERROR) {
+				rval = -1;
 				break;
-
+			}
 			if (stat == ITER_OUTRANGE)
 				continue;
 
