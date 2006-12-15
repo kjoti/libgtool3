@@ -14,10 +14,18 @@
  *  "::2"          =>    FIRST FIRST+2 ...
  *  "4:1:-1"       =>    4 3 2 1
  *  "1:3  7:10"    =>    1 2 3 7 8 9 10
+ *  "2,3, 5, 7"    =>    2 3 5 7
  *
  *  NOTE: ',' is also treated as a while-space.
  *
- *  "2,3, 5, 7"    =>    2 3 5 7
+ *  Usage:
+ *
+ *      seq = initSeq(specifier, first, last);
+ *      while (nextSeq(seq) > 0) {
+ *          printf("current number is %d.\n", seq->curr);
+ *          do_something(seq->curr, ...);
+ *      }
+ *      freeSeq(seq);
  *
  */
 #include <assert.h>
@@ -88,10 +96,10 @@ initSeq(const char *spec, int first, int last)
 {
 	struct sequence *p;
 
-	if ((p = (struct sequence *)malloc(sizeof(struct sequence))) == NULL)
+	if ((p = (struct sequence *)malloc(sizeof(struct sequence))) == NULL
+		|| (p->spec = strdup(spec)) == NULL)
 		return NULL;
 
-	p->spec = strdup(spec);
 	p->spec_tail = p->spec + strlen(p->spec);
 	p->first = first;
 	p->last  = last;
