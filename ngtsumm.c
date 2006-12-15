@@ -215,7 +215,6 @@ print_summary(FILE *output, GT3_Varbuf *var)
 	int (*pack_slice)(void *, const GT3_Varbuf *);
 	int rval, len, elem_size;
 	void *data;
-	int len2;
 
 	if (GT3_readVarZ(var, 0) < 0)
 		return -1;

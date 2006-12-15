@@ -6,3 +6,4 @@ This package installs the following:
   * libgtool3.a  (in /usr/local/lib)
   * gtool3.h     (in /usr/local/include) 
   * ngtls        (in /usr/local/bin)
+  * ngtsumm      (in /usr/local/bin)
