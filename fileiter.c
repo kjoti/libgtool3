@@ -33,6 +33,11 @@ iterate_chunk(GT3_File *fp, struct sequence *seq)
 			GT3_printLastErrorMessage(stderr);
 			return ITER_ERRORCHUNK;
 		}
+		if (fp->num_chunk > 0) {
+			seq->last = fp->num_chunk;
+			if (seq->step > 0)
+				seq->tail = fp->num_chunk;
+		}
 		return ITER_OUTRANGE;
 	}
 
