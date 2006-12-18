@@ -109,12 +109,15 @@ update(GT3_File *fp, const GT3_HEADER *headp)
 static int
 seekhist(GT3_File *fp, int ch)
 {
-	if (fseeko(fp->fp, ch * fp->chsize, SEEK_SET) < 0) {
+	off_t nextoff = ch;
+
+	nextoff *= fp->chsize;
+	if (fseeko(fp->fp, nextoff, SEEK_SET) < 0) {
 		gt3_error(SYSERR, NULL);
 		return -1;
 	}
 	fp->curr = ch;
-	fp->off  = ch * fp->chsize;
+	fp->off  = nextoff;
 
 	return 0;
 }
