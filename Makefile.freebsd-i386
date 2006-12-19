@@ -43,7 +43,7 @@ LDADD		= -lgtool3 -lm
 
 LIBS		= libgtool3.a
 HEADERS		= gtool3.h
-BINS		= ngtls ngtsumm
+BINS		= ngtcat ngtls ngtsumm
 
 TARGETS		= $(LIBS) $(BINS)
 
@@ -53,6 +53,9 @@ all: $(LIBS) $(BINS)
 libgtool3.a: $(OBJS)
 	$(AR) $(ARFLAGS) $@ $(OBJS)
 	$(RANLIB) $@
+
+ngtcat: libgtool3.a ngtcat.o seq.o fileiter.o
+	$(CC) $(LDFLAGS) -L. -o $@ ngtcat.o seq.o fileiter.o $(LDADD)
 
 ngtls: libgtool3.a ngtls.o seq.o fileiter.o
 	$(CC) $(LDFLAGS) -L. -o $@ ngtls.o seq.o fileiter.o $(LDADD)

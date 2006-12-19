@@ -91,6 +91,18 @@ get_ints(int vals[], int numval, const char *str, char delim)
 }
 
 
+void
+reinitSeq(struct sequence *seq, int first, int last)
+{
+	seq->first = first;
+	seq->last  = last;
+
+	seq->it   = seq->spec;
+	seq->curr = 0;
+	seq->head = seq->tail = seq->step = 0;
+}
+
+
 struct sequence *
 initSeq(const char *spec, int first, int last)
 {
@@ -101,12 +113,7 @@ initSeq(const char *spec, int first, int last)
 		return NULL;
 
 	p->spec_tail = p->spec + strlen(p->spec);
-	p->first = first;
-	p->last  = last;
-
-	p->it   = p->spec;
-	p->curr = 0;
-	p->head = p->tail = p->step = 0;
+	reinitSeq(p, first, last);
 	return p;
 }
 
