@@ -4,6 +4,7 @@ A library to read/write GTOOL3 formatted files
 
 This package installs the following:
   * libgtool3.a  (in /usr/local/lib)
-  * gtool3.h     (in /usr/local/include) 
+  * gtool3.h     (in /usr/local/include)
+  * ngtcat       (in /usr/local/bin)
   * ngtls        (in /usr/local/bin)
   * ngtsumm      (in /usr/local/bin)
