@@ -213,7 +213,7 @@ print_summary(FILE *output, GT3_Varbuf *var)
 	char item[17];
 	void (*get_dataprof)(const void *, int, struct data_profile *);
 	int (*pack_slice)(void *, const GT3_Varbuf *);
-	int rval, len, elem_size;
+	int rval, len = 0, elem_size;
 	void *data;
 
 	if (GT3_readVarZ(var, 0) < 0)

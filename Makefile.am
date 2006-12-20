@@ -1,5 +1,5 @@
 lib_LIBRARIES = libgtool3.a
-bin_PROGRAMS = ngtls ngtsumm
+bin_PROGRAMS = ngtcat ngtls ngtsumm
 include_HEADERS = gtool3.h
 
 libgtool3_a_SOURCES = \
@@ -15,6 +15,7 @@ libgtool3_a_SOURCES = \
 		varbuf.c \
 		write.c
 
+ngtcat_SOURCES = ngtcat.c seq.c fileiter.c
 ngtls_SOURCES = ngtls.c seq.c fileiter.c
 ngtsumm_SOURCES = ngtsumm.c seq.c fileiter.c
 

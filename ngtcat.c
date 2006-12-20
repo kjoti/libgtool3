@@ -5,7 +5,6 @@
  */
 #include "internal.h"
 
-#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -19,7 +18,7 @@
 static const char *usage_messages =
 	"Usage: ngtcat [options] [files...]\n"
 	"\n"
-	"concatenate gtool files.\n"
+	"concatenate gtool files (output into stdout).\n"
 	"\n"
 	"Options:\n"
 	"    -h        print help message\n"
@@ -35,21 +34,15 @@ fcopy(FILE *dest, FILE *src, size_t size)
 {
 	char buf[BUFSIZ];
 	size_t nread;
-	int rval;
 
-	rval = 0;
 	while (size > 0) {
 		nread = size > sizeof buf ? sizeof buf : size;
 		if (fread(buf, 1, nread, src) != nread
-			|| fwrite(buf, 1, nread, dest) != nread) {
-			perror(NULL);
-			rval = -1;
+			|| fwrite(buf, 1, nread, dest) != nread)
 			break;
-		}
-
 		size -= nread;
 	}
-	return rval;
+	return (size == 0) ? 0 : -1;
 }
 
 
@@ -57,7 +50,7 @@ int
 gtcat_cyclic(int num, char *path[], struct sequence *seq)
 {
 	GT3_File *fp;
-	int i, last, stat, rval;
+	int i, last, stat, errflag;
 
 	if (num < 1)
 		return 0;
@@ -68,9 +61,9 @@ gtcat_cyclic(int num, char *path[], struct sequence *seq)
 	}
 	reinitSeq(seq, 1, last);
 
-	rval = 0;
-	while (nextSeq(seq) != ITER_END) {
-		for (i = 0; i < num; i++) {
+	errflag = 0;
+	while (nextSeq(seq) != ITER_END && errflag == 0) {
+		for (i = 0; i < num && errflag == 0; i++) {
 			if ((fp = GT3_open(path[i])) == NULL) {
 				GT3_printErrorMessages(stderr);
 				return -1;
@@ -82,19 +75,18 @@ gtcat_cyclic(int num, char *path[], struct sequence *seq)
 
 			if (stat == 0) {
 				if (fcopy(stdout, fp->fp, fp->chsize) < 0) {
-					rval = -1;
-					break;
+					perror(path[i]);
+					errflag = 1;
 				}
-			} else if (stat != GT3_ERR_INDEX) {
-				rval = -1;
-				break;
-			}
+			} else if (stat != GT3_ERR_INDEX)
+				errflag = 1;
+
 			/* GT3_ERR_INDEX (out of range) is ignored. */
 
 			GT3_close(fp);
 		}
 	}
-	return rval;
+	return errflag ? -1 : 0;
 }
 
 
@@ -114,9 +106,13 @@ gtcat(const char *path, struct sequence *seq)
 		if (stat == ITER_OUTRANGE)
 			continue;
 
-		if (stat == ITER_ERROR
-			|| stat == ITER_ERRORCHUNK
-			|| fcopy(stdout, fp->fp, fp->chsize) < 0) {
+		if (stat == ITER_ERROR || stat == ITER_ERRORCHUNK) {
+			rval = -1;
+			break;
+		}
+
+		if (fcopy(stdout, fp->fp, fp->chsize) < 0) {
+			perror(path);
 			rval = -1;
 			break;
 		}

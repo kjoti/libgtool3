@@ -133,8 +133,8 @@ freeSeq(struct sequence *seq)
  *
  *  RETURN VALUE
  *   -1: error
- *    0: reach the end of sequence
- *    1: continued
+ *    0: reach the end of the sequence
+ *    1: to be continued
  */
 int
 nextSeq(struct sequence *seq)

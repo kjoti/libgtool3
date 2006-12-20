@@ -17,7 +17,6 @@ iterate_chunk(GT3_File *fp, struct sequence *seq)
 
 	if (seq->curr < 0) {
 		stat = GT3_seek(fp, seq->curr, SEEK_END);
-		seq->last = fp->num_chunk;
 	} else {
 		stat = GT3_seek(fp, seq->curr - 1, SEEK_SET);
 		if (GT3_eof(fp)) {

@@ -137,7 +137,6 @@ read_header(GT3_HEADER *header, FILE *fp)
 		|| temp[1030] != 4 || temp[1031] != 0
 		|| memcmp(temp + 4, magic, 16) != 0) {
 
-		gt3_error(GT3_ERR_BROKEN, NULL);
 		return -1;
 	}
 
@@ -150,10 +149,14 @@ int
 GT3_readHeader(GT3_HEADER *header, GT3_File *fp)
 {
 	if (fseeko(fp->fp, fp->off, SEEK_SET) < 0) {
-		gt3_error(SYSERR, NULL);
+		gt3_error(SYSERR, fp->path);
 		return -1;
 	}
-	return read_header(header, fp->fp);
+	if (read_header(header, fp->fp) < 0) {
+		gt3_error(GT3_ERR_BROKEN, fp->path);
+		return -1;
+	}
+	return 0;
 }
 
 
@@ -222,7 +225,6 @@ GT3_open(const char *path)
 	}
 
 	if (read_header(&head, fp) < 0) {
-		GT3_clearLastError();
 		gt3_error(GT3_ERR_FILE, path);
 		goto error;
 	}
@@ -309,10 +311,13 @@ GT3_next(GT3_File *fp)
 	 */
 	broken = 0;
 	if (nextoff < fp->size) { /* not EOF yet */
-		if (read_header(&head, fp->fp) < 0 || update(fp, &head) < 0)
+		if (read_header(&head, fp->fp) < 0) {
+			gt3_error(GT3_ERR_BROKEN, fp->path);			
+			broken = 1;
+		} else if (update(fp, &head) < 0)
 			broken = 1;
 		else if (nextoff + fp->chsize > fp->size) {
-			gt3_error(GT3_ERR_BROKEN, "unexpected EOF");
+			gt3_error(GT3_ERR_BROKEN, "unexpected EOF(%s)", fp->path);
 			broken = 1;
 		}
 	}
