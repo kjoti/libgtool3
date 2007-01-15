@@ -312,7 +312,7 @@ GT3_next(GT3_File *fp)
 	broken = 0;
 	if (nextoff < fp->size) { /* not EOF yet */
 		if (read_header(&head, fp->fp) < 0) {
-			gt3_error(GT3_ERR_BROKEN, fp->path);			
+			gt3_error(GT3_ERR_BROKEN, fp->path);
 			broken = 1;
 		} else if (update(fp, &head) < 0)
 			broken = 1;
