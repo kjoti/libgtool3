@@ -414,6 +414,8 @@ main(int argc, char **argv)
 			printf("%-5s %12s %14s %14s %10s %5s %5s\n",
 				   "#", "ITEM", "MIN", "MAX", "MISS", "NaN", "Inf");
 
+		if (seq)
+			reinitSeq(seq, 1, 0x7fffffff);
 		summ_file(*argv, seq);
 	}
 	return 0;

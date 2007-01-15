@@ -183,6 +183,8 @@ main(int argc, char **argv)
 	GT3_setProgname("ngtls");
 
 	while (argc > 0 && *argv) {
+		if (seq)
+			reinitSeq(seq, 1, 0x7fffffff);
 		print_list(*argv, seq);
 
 		--argc;
