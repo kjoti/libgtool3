@@ -36,7 +36,8 @@ POST_INSTALL = :
 NORMAL_UNINSTALL = :
 PRE_UNINSTALL = :
 POST_UNINSTALL = :
-bin_PROGRAMS = ngtcat$(EXEEXT) ngtls$(EXEEXT) ngtsumm$(EXEEXT)
+bin_PROGRAMS = ngtcat$(EXEEXT) ngtls$(EXEEXT) ngtsumm$(EXEEXT) \
+	ngtstat$(EXEEXT)
 subdir = .
 DIST_COMMON = README $(am__configure_deps) $(include_HEADERS) \
 	$(srcdir)/Makefile.am $(srcdir)/Makefile.in \
@@ -80,6 +81,11 @@ am_ngtls_OBJECTS = ngtls.$(OBJEXT) seq.$(OBJEXT) fileiter.$(OBJEXT)
 ngtls_OBJECTS = $(am_ngtls_OBJECTS)
 ngtls_LDADD = $(LDADD)
 ngtls_DEPENDENCIES = libgtool3.a
+am_ngtstat_OBJECTS = ngtstat.$(OBJEXT) seq.$(OBJEXT) \
+	fileiter.$(OBJEXT)
+ngtstat_OBJECTS = $(am_ngtstat_OBJECTS)
+ngtstat_LDADD = $(LDADD)
+ngtstat_DEPENDENCIES = libgtool3.a
 am_ngtsumm_OBJECTS = ngtsumm.$(OBJEXT) seq.$(OBJEXT) \
 	fileiter.$(OBJEXT)
 ngtsumm_OBJECTS = $(am_ngtsumm_OBJECTS)
@@ -93,9 +99,9 @@ COMPILE = $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) \
 CCLD = $(CC)
 LINK = $(CCLD) $(AM_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) $(LDFLAGS) -o $@
 SOURCES = $(libgtool3_a_SOURCES) $(ngtcat_SOURCES) $(ngtls_SOURCES) \
-	$(ngtsumm_SOURCES)
+	$(ngtstat_SOURCES) $(ngtsumm_SOURCES)
 DIST_SOURCES = $(libgtool3_a_SOURCES) $(ngtcat_SOURCES) \
-	$(ngtls_SOURCES) $(ngtsumm_SOURCES)
+	$(ngtls_SOURCES) $(ngtstat_SOURCES) $(ngtsumm_SOURCES)
 includeHEADERS_INSTALL = $(INSTALL_HEADER)
 HEADERS = $(include_HEADERS)
 ETAGS = etags
@@ -206,6 +212,7 @@ libgtool3_a_SOURCES = \
 ngtcat_SOURCES = ngtcat.c seq.c fileiter.c
 ngtls_SOURCES = ngtls.c seq.c fileiter.c
 ngtsumm_SOURCES = ngtsumm.c seq.c fileiter.c
+ngtstat_SOURCES = ngtstat.c seq.c fileiter.c
 LDADD = libgtool3.a -lm
 all: config.h
 	$(MAKE) $(AM_MAKEFLAGS) all-am
@@ -324,6 +331,9 @@ ngtcat$(EXEEXT): $(ngtcat_OBJECTS) $(ngtcat_DEPENDENCIES)
 ngtls$(EXEEXT): $(ngtls_OBJECTS) $(ngtls_DEPENDENCIES) 
 	@rm -f ngtls$(EXEEXT)
 	$(LINK) $(ngtls_LDFLAGS) $(ngtls_OBJECTS) $(ngtls_LDADD) $(LIBS)
+ngtstat$(EXEEXT): $(ngtstat_OBJECTS) $(ngtstat_DEPENDENCIES) 
+	@rm -f ngtstat$(EXEEXT)
+	$(LINK) $(ngtstat_LDFLAGS) $(ngtstat_OBJECTS) $(ngtstat_LDADD) $(LIBS)
 ngtsumm$(EXEEXT): $(ngtsumm_OBJECTS) $(ngtsumm_DEPENDENCIES) 
 	@rm -f ngtsumm$(EXEEXT)
 	$(LINK) $(ngtsumm_LDFLAGS) $(ngtsumm_OBJECTS) $(ngtsumm_LDADD) $(LIBS)
@@ -344,6 +354,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/header.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ngtcat.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ngtls.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ngtstat.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ngtsumm.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/reverse.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/seq.Po@am__quote@

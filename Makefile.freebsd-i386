@@ -43,7 +43,7 @@ LDADD		= -lgtool3 -lm
 
 LIBS		= libgtool3.a
 HEADERS		= gtool3.h
-BINS		= ngtcat ngtls ngtsumm
+BINS		= ngtcat ngtls ngtsumm ngtstat
 
 TARGETS		= $(LIBS) $(BINS)
 
@@ -62,6 +62,9 @@ ngtls: libgtool3.a ngtls.o seq.o fileiter.o
 
 ngtsumm: libgtool3.a ngtsumm.o seq.o fileiter.o
 	$(CC) $(LDFLAGS) -L. -o $@ ngtsumm.o seq.o fileiter.o $(LDADD)
+
+ngtstat: libgtool3.a ngtstat.o seq.o fileiter.o
+	$(CC) $(LDFLAGS) -L. -o $@ ngtstat.o seq.o fileiter.o $(LDADD)
 
 install: all
 	$(MKDIR) $(bindir)

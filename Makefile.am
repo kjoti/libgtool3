@@ -1,5 +1,5 @@
 lib_LIBRARIES = libgtool3.a
-bin_PROGRAMS = ngtcat ngtls ngtsumm
+bin_PROGRAMS = ngtcat ngtls ngtsumm ngtstat
 include_HEADERS = gtool3.h
 
 libgtool3_a_SOURCES = \
@@ -18,6 +18,7 @@ libgtool3_a_SOURCES = \
 ngtcat_SOURCES = ngtcat.c seq.c fileiter.c
 ngtls_SOURCES = ngtls.c seq.c fileiter.c
 ngtsumm_SOURCES = ngtsumm.c seq.c fileiter.c
+ngtstat_SOURCES = ngtstat.c seq.c fileiter.c
 
 LDADD = libgtool3.a -lm
 
