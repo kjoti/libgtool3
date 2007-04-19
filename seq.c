@@ -126,10 +126,8 @@ freeSeq(struct sequence *seq)
 
 
 /*
- *  nextSeq() makes a step forward in a sequence
- *  as a ++operator of C++ STL iterator.
- *
- *  'seq->curr' is set to the next value after nextSeq() invorked.
+ *  In most cases, nextSeq() is easy to use.
+ *  Needs of direct using nextToken() is rare.
  *
  *  RETURN VALUE
  *   -1: error
@@ -137,22 +135,11 @@ freeSeq(struct sequence *seq)
  *    1: to be continued
  */
 int
-nextSeq(struct sequence *seq)
+nextToken(struct sequence *seq)
 {
-	int curr;
 	char token[40];
 	char *next;
 	int status, triplet[3];
-
-	if (seq->step != 0) {
-		curr = seq->curr + seq->step;
-
-		if ((seq->step > 0 && curr <= seq->tail)
-			|| (seq->step < 0 && curr >= seq->tail)) {
-			seq->curr = curr;
-			return 1;
-		}
-	}
 
 	/*
 	 *  get a sequence specifier.
@@ -194,6 +181,35 @@ nextSeq(struct sequence *seq)
 }
 
 
+/*
+ *  nextSeq() makes a step forward in a sequence
+ *  as a ++operator of C++ STL iterator.
+ *
+ *  'seq->curr' is set to the next value after nextSeq() invorked.
+ *
+ *  RETURN VALUE
+ *   -1: error
+ *    0: reach the end of the sequence
+ *    1: to be continued
+ */
+int
+nextSeq(struct sequence *seq)
+{
+	int curr;
+
+	if (seq->step != 0) {
+		curr = seq->curr + seq->step;
+
+		if ((seq->step > 0 && curr <= seq->tail)
+			|| (seq->step < 0 && curr >= seq->tail)) {
+			seq->curr = curr;
+			return 1;
+		}
+	}
+	return nextToken(seq);
+}
+
+
 #ifdef TEST_MAIN
 void
 test1(const char *str, int val[], int num)
@@ -218,36 +234,73 @@ test1(const char *str, int val[], int num)
 	free(seq);
 }
 
+void
+test2(const char *str, int val[], int num)
+{
+	struct sequence *seq;
+	int i, cnt, n;
+
+	seq = initSeq(str, 1, 100);
+
+	cnt = 0;
+	while (nextToken(seq)) {
+		if (seq->step == 0) {
+			assert(seq->curr == val[cnt]);
+			cnt++;
+		} else {
+			n = (seq->tail + seq->step - seq->head) / seq->step;
+			for (i = seq->head; n > 0; i += seq->step) {
+				assert(i == val[cnt]);
+				cnt++;
+				n--;
+			}
+		}
+	}
+	/* printf("%d %d\n", cnt, num); */
+	assert(cnt == num);
+	freeSeq(seq);
+	free(seq);
+}
 
 int
 main(int argc, char **argv)
 {
 	int val[20];
 
-	val[0] = 1;
-	val[1] = 10;
-	val[2] = 15;
-	test1("  1   10   15   ", val, 3);
+#define TEST test1
 
 	val[0] = 1;
 	val[1] = 10;
 	val[2] = 15;
-	test1("  1 ,   10,   15,  ", val, 3);
+	TEST("  1   10   15   ", val, 3);
+	TEST("  ,  1 ,  10,   15,  ", val, 3);
 
 	val[0] = 10;
 	val[1] = 11;
 	val[2] = 12;
-	test1("  10:12   ", val, 3);
+	TEST("  10:12   ", val, 3);
 
 	val[0] = 10;
 	val[1] = 12;
 	val[2] = 14;
-	test1("  10:14:2   ", val, 3);
+	TEST("  10:14:2   ", val, 3);
 
 	val[0] = 10;
-	val[1] = 8;
-	val[2] = 6;
-	test1("  10:5:-2   ", val, 3);
+	val[1] = 13;
+	val[2] = 16;
+	TEST("  10:15:3   ", val, 2);
+	TEST("  10:16:3   ", val, 3);
+	TEST("  10:17:3   ", val, 3);
+	TEST("  10:18:3   ", val, 3);
+
+	val[0] = 10;
+	val[1] = 7;
+	val[2] = 4;
+	val[3] = 1;
+	TEST("  10:4:-3   ", val, 3);
+	TEST("  10:3:-3   ", val, 3);
+	TEST("  10:2:-3   ", val, 3);
+	TEST("  10:1:-3   ", val, 4);
 
 	val[0] = 1;
 	val[1] = 2;
@@ -255,7 +308,7 @@ main(int argc, char **argv)
 	val[3] = -1;
 	val[4] = 0;
 	val[5] = 1;
-	test1("  :3   -1:1   ", val, 6);
+	TEST("  :3   -1:1   ", val, 6);
 
 	return 0;
 }
