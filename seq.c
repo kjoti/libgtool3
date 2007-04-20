@@ -210,6 +210,34 @@ nextSeq(struct sequence *seq)
 }
 
 
+/*
+ *  count the number of remaining items in the sequence.
+ */
+int
+countSeq(const struct sequence *seqin)
+{
+	struct sequence temp, *seq;
+	int cnt = 0;
+
+	if (!seqin)
+		return -1;
+
+	temp = *seqin;
+	seq = &temp;
+
+	if (seq->step != 0)
+		cnt += (seq->tail - seq->curr) / seq->step;
+
+	while (nextToken(seq)) {
+		if (seq->step == 0)
+			cnt++;
+		else
+			cnt += (seq->tail - seq->head + seq->step) / seq->step;
+	}
+	return cnt;
+}
+
+
 #ifdef TEST_MAIN
 void
 test1(const char *str, int val[], int num)
@@ -220,12 +248,14 @@ test1(const char *str, int val[], int num)
 	seq = initSeq(str, 1, 100);
 
 	for (i = 0; i < num; i++) {
+		assert(num - i == countSeq(seq));
 		stat = nextSeq(seq);
 
 		assert(seq->curr == val[i]);
 	}
 	stat = nextSeq(seq);
 	assert(stat == 0);
+	assert(countSeq(seq) == 0);
 
 	stat = nextSeq(seq);
 	assert(stat == 0);

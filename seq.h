@@ -17,5 +17,6 @@ struct sequence *initSeq(const char *spec, int first, int last);
 void freeSeq(struct sequence *seq);
 int nextToken(struct sequence *seq);
 int nextSeq(struct sequence *seq);
+int countSeq(const struct sequence *seqin);
 
 #endif
