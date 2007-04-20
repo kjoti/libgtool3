@@ -145,6 +145,37 @@ read_header(GT3_HEADER *header, FILE *fp)
 }
 
 
+/*
+ *  offset of each z-slice indexed 'zpos'.
+ */
+static off_t
+zslice_offset(GT3_File *fp, int zpos)
+{
+	off_t off;
+	int nelem;
+
+
+	off = GT3_HEADER_SIZE + 2 * sizeof(FTN_HEAD);
+	nelem = fp->dimlen[0] * fp->dimlen[1];
+
+	switch (fp->fmt) {
+	case GT3_FMT_UR4:
+		off += sizeof(FTN_HEAD) + 4 * nelem * zpos;
+		break;
+	case GT3_FMT_URC:
+	case GT3_FMT_URC1:
+		off += (8 + 4 + 4 + 2 * nelem + 8 * sizeof(FTN_HEAD)) * zpos;
+		break;
+	case GT3_FMT_UR8:
+		off += sizeof(FTN_HEAD) + 8 * nelem * zpos;
+		break;
+	default:
+		assert(!"Unknown format");
+	}
+	return off;
+}
+
+
 int
 GT3_readHeader(GT3_HEADER *header, GT3_File *fp)
 {
@@ -435,6 +466,26 @@ GT3_seek(GT3_File *fp, int dest, int whence)
 	}
 	return 0;
 }
+
+
+int
+GT3_skipZ(GT3_File *fp, int z)
+{
+	off_t off;
+
+	if (z < 0 || z >= fp->dimlen[2]) {
+		gt3_error(GT3_ERR_INDEX, "GT3_skipZ() %d", z);
+		return -1;
+	}
+
+	off = fp->off + zslice_offset(fp, z);
+	if (fseeko(fp->fp, off, SEEK_SET) < 0) {
+		gt3_error(SYSERR, NULL);
+		return -1;
+	}
+	return 0;
+}
+
 
 
 #ifdef TEST

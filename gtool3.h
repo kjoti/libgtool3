@@ -124,6 +124,7 @@ int GT3_next(GT3_File *fp);
 void GT3_close(GT3_File *fp);
 int GT3_rewind(GT3_File *fp);
 int GT3_seek(GT3_File *fp, int dest, int whence);
+int GT3_skipZ(GT3_File *fp, int z);
 
 /* varbuf.c */
 void GT3_freeVarbuf(GT3_Varbuf *var);

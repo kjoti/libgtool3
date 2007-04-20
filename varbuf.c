@@ -401,37 +401,6 @@ new_varbuf(void)
 }
 
 
-/*
- *  offset of each z-slice indexed 'zpos'.
- */
-static off_t
-zslice_offset(const GT3_Varbuf *vbuf, int zpos)
-{
-	off_t off;
-	int nelem;
-
-
-	off = GT3_HEADER_SIZE + 2 * sizeof(FTN_HEAD);
-	nelem = vbuf->dimlen[0] * vbuf->dimlen[1];
-
-	switch (vbuf->fp->fmt) {
-	case GT3_FMT_UR4:
-		off += sizeof(FTN_HEAD) + 4 * nelem * zpos;
-		break;
-	case GT3_FMT_URC:
-	case GT3_FMT_URC1:
-		off += (8 + 4 + 4 + 2 * nelem + 8 * sizeof(FTN_HEAD)) * zpos;
-		break;
-	case GT3_FMT_UR8:
-		off += sizeof(FTN_HEAD) + 8 * nelem * zpos;
-		break;
-	default:
-		assert(!"Unknown format");
-	}
-	return off;
-}
-
-
 void
 GT3_freeVarbuf(GT3_Varbuf *var)
 {
@@ -467,7 +436,6 @@ int
 GT3_readVarZ(GT3_Varbuf *var, int zpos)
 {
 	size_t nelem;
-	off_t off;
 	varbuf_status *stat = (varbuf_status *)var->stat_;
 
 	update2_varbuf(var);
@@ -490,11 +458,8 @@ GT3_readVarZ(GT3_Varbuf *var, int zpos)
 	/*
 	 *  move to z-slice position.
 	 */
-	off = var->fp->off + zslice_offset(var, zpos);
-	if (fseeko(var->fp->fp, off, SEEK_SET) < 0) {
-		gt3_error(SYSERR, NULL);
+	if (GT3_skipZ(var->fp, zpos) < 0)
 		return -1;
-	}
 
 	nelem = var->dimlen[0] * var->dimlen[1];
 	if (read_fptr[var->fp->fmt](var, 0, nelem, var->fp->fp) < 0) {
@@ -517,7 +482,6 @@ int
 GT3_readVarZY(GT3_Varbuf *var, int zpos, int ypos)
 {
 	size_t skip, nelem;
-	off_t off;
 	varbuf_status *stat = (varbuf_status *)var->stat_;
 
 	update2_varbuf(var);
@@ -544,11 +508,8 @@ GT3_readVarZY(GT3_Varbuf *var, int zpos, int ypos)
 		return 0;
 	}
 
-	off = var->fp->off + zslice_offset(var, zpos);
-	if (fseeko(var->fp->fp, off, SEEK_SET) < 0) {
-		gt3_error(SYSERR, NULL);
+	if (GT3_skipZ(var->fp, zpos) < 0)
 		return -1;
-	}
 
 	skip  = ypos * var->dimlen[0];
 	nelem = var->dimlen[0];
