@@ -226,8 +226,11 @@ countSeq(const struct sequence *seqin)
 	temp = *seqin;
 	seq = &temp;
 
-	if (seq->step != 0)
-		cnt += (seq->tail - seq->curr) / seq->step;
+	if (seq->step != 0) {
+		n = (seq->tail - seq->curr) / seq->step;
+		if (n > 0)
+			cnt += n;
+	}
 
 	while (nextToken(seq)) {
 		if (seq->step == 0)
@@ -256,7 +259,7 @@ test1(const char *str, int val[], int num)
 	seq = initSeq(str, FIRST, LAST);
 
 	for (i = 0; i < num; i++) {
-		/* printf("%d %d\n", num - i,  countSeq(seq)); */
+		/* printf("%s %d %d\n", str, num - i,  countSeq(seq)); */
 		assert(num - i == countSeq(seq));
 		stat = nextSeq(seq);
 
@@ -306,7 +309,7 @@ main(int argc, char **argv)
 {
 	int val[20];
 
-#define TEST test2
+#define TEST test1
 
 	val[0] = 1;
 	val[1] = 10;
@@ -359,7 +362,8 @@ main(int argc, char **argv)
 	val[7] = 1;
 	TEST("  90::3  4:1:-1   ", val, 8);
 
-	TEST("  2:1  1:2:-1    ", val, 0);
+	TEST("  2:1   1:2:-1   ", val, 0);
+	TEST("  10:1  1:10:-1  ", val, 0);
 
 	val[0] = 10;
 	val[1] = 20;
