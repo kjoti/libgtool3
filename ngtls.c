@@ -73,6 +73,8 @@ print_item1(int cnt, GT3_File *fp)
 int
 print_item2(int cnt, GT3_File *fp)
 {
+	const char *astr[] = { "ASTR1", "ASTR2", "ASTR3" };
+	const char *aend[] = { "AEND1", "AEND2", "AEND3" };
 	GT3_HEADER head;
 	char item[17];
 	char time[17];
@@ -80,6 +82,8 @@ print_item2(int cnt, GT3_File *fp)
 	char tdur[17];
 	char date[17];
 	char dfmt[17];
+	char dim[3][12];
+	int i, str, end;
 
 	if (GT3_readHeader(&head, fp) < 0)
 		return -1;
@@ -91,12 +95,18 @@ print_item2(int cnt, GT3_File *fp)
 	(void)GT3_copyHeaderItem(date, sizeof date, &head, "DATE");
 	(void)GT3_copyHeaderItem(dfmt, sizeof dfmt, &head, "DFMT");
 
+	for (i = 0; i < 3; i++) {
+		(void)GT3_decodeHeaderInt(&str, &head, astr[i]);
+		(void)GT3_decodeHeaderInt(&end, &head, aend[i]);
+		snprintf(dim[i], sizeof dim[i], "%d:%d", str, end);
+	}
+
 	if (utim[0] == '\0')
 		utim[0] = '?';
 
-	printf("%4d %-8s %8s%c %5s %4s %15s %4d %4d %4d\n",
+	printf("%4d %-8s %8s%c %5s %4s %15s  %-8s %-8s %-8s\n",
 		   cnt, item, time, utim[0], tdur, dfmt, date,
-		   fp->dimlen[0], fp->dimlen[1], fp->dimlen[2]);
+		   dim[0], dim[1], dim[2]);
 	return 0;
 }
 
@@ -156,7 +166,7 @@ print_list(const char *path, struct sequence *seq)
 int
 main(int argc, char **argv)
 {
-	int ch;
+	int ch, rval;
 	struct sequence *seq = NULL;
 
 	print_item = print_item1;
@@ -182,13 +192,15 @@ main(int argc, char **argv)
 	argv += optind;
 	GT3_setProgname("ngtls");
 
+	rval = 0;
 	while (argc > 0 && *argv) {
 		if (seq)
 			reinitSeq(seq, 1, 0x7fffffff);
-		print_list(*argv, seq);
+		if (print_list(*argv, seq) < 0)
+			rval = 1;
 
 		--argc;
 		++argv;
 	}
-	return 0;
+	return rval;
 }
