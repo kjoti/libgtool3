@@ -31,13 +31,16 @@
 
 
 static const char *usage_messages =
-	"Usage: ngtcat [options] [files...]\n"
+	"Usage: " PROGNAME " [options] [files...]\n"
 	"\n"
 	"concatenate gtool files (output into stdout).\n"
 	"\n"
 	"Options:\n"
 	"    -h        print help message\n"
 	"    -c        cyclic mode\n"
+	"    -x RANGE  specify domain\n"
+	"    -y RANGE  specify domain\n"
+	"    -z LIST   specify a list of z-plane\n"
 	"    -t LIST   specify a list of data numbers\n"
 	"\n"
 	"    LIST   := RANGE[,RANGE]*\n"
@@ -74,9 +77,9 @@ write_header(const GT3_HEADER *head, FILE *fp)
 	unsigned char siz[] = { 0, 0, 4, 0 };
 	unsigned char buf[GT3_HEADER_SIZE + 8];
 
-	memcpy(buf, siz, 4);
+	memcpy(buf, siz, FH_SIZE);
 	memcpy(buf + 4, head->h, GT3_HEADER_SIZE);
-	memcpy(buf + 4 + GT3_HEADER_SIZE, siz, 4);
+	memcpy(buf + 4 + GT3_HEADER_SIZE, siz, FH_SIZE);
 	return (fwrite(buf, 1, sizeof buf, fp) != sizeof buf) ? -1 : 0;
 }
 
@@ -133,7 +136,7 @@ slicecopy2(FILE *dest, GT3_File *fp, size_t esize,
 		siz = esize * (xrange[1] - xrange[0]) * (yrange[1] - yrange[0]);
 		if (IS_LITTLE_ENDIAN)
 			reverse_words(&siz, 1);
-		off0 = URC_PARAMS_SIZE + 4;
+		off0 = URC_PARAMS_SIZE + FH_SIZE;
 	}
 
 	ssize = esize * (xrange[1] - xrange[0]);
@@ -153,7 +156,7 @@ slicecopy2(FILE *dest, GT3_File *fp, size_t esize,
 			/* write urc parameters */
 			/* & fortran header */
 			if (fcopy(dest, fp->fp, URC_PARAMS_SIZE) < 0
-				|| fwrite(&siz, 1, 4, dest) != 4)
+				|| fwrite(&siz, 1, FH_SIZE, dest) != FH_SIZE)
 				return -1;
 		}
 
@@ -167,7 +170,7 @@ slicecopy2(FILE *dest, GT3_File *fp, size_t esize,
 
 		if (fp->fmt == GT3_FMT_URC || fp->fmt == GT3_FMT_URC1) {
 			/* fortran trailer */
-			if (fwrite(&siz, 1, 4, dest) != 4)
+			if (fwrite(&siz, 1, FH_SIZE, dest) != FH_SIZE)
 				return -1;
 		}
 	}
@@ -261,7 +264,7 @@ slicecopy(FILE *dest, GT3_File *fp)
 		if (IS_LITTLE_ENDIAN)
 			reverse_words(&siz, 1);
 
-		if (fwrite(&siz, 1, 4, dest) != 4)
+		if (fwrite(&siz, 1, FH_SIZE, dest) != FH_SIZE)
 			return -1;
 	}
 
@@ -284,7 +287,7 @@ slicecopy(FILE *dest, GT3_File *fp)
 			/*
 			 *  z-index check.
 			 */
-			zpos = clip(zseq->head, zstr0, zend0) - zstr0;			
+			zpos = clip(zseq->head, zstr0, zend0) - zstr0;
 			nz   = clip(zseq->tail, zstr0, zend0) - (zpos + zstr0) + 1;
 			if (nz <= 0)
 				continue;
@@ -323,7 +326,7 @@ slicecopy(FILE *dest, GT3_File *fp)
 	 *  for UR4 or UR8, Fotrran trailer
 	 */
 	if (fp->fmt == GT3_FMT_UR4 || fp->fmt == GT3_FMT_UR8)
-		if (fwrite(&siz, 1, 4, dest) != 4)
+		if (fwrite(&siz, 1, FH_SIZE, dest) != FH_SIZE)
 			return -1;
 
 	freeSeq(zseq);
@@ -335,15 +338,7 @@ slicecopy(FILE *dest, GT3_File *fp)
 static int
 mcopy(FILE *dest, GT3_File *fp)
 {
-	int rval;
-
-	if (slicing) {
-		if ((rval = slicecopy(dest, fp)) < 0)
-			GT3_printErrorMessages(stderr);
-	} else
-		rval = fcopy(dest, fp->fp, fp->chsize);
-
-	return rval;
+	return slicing ? slicecopy(dest, fp) : fcopy(dest, fp->fp, fp->chsize);
 }
 
 
@@ -420,7 +415,8 @@ gtcat_cyclic(int num, char *path[], struct sequence *seq)
 
 			if (stat == 0) {
 				if (mcopy(stdout, fp) < 0) {
-					myperror(path[i]);
+					GT3_printErrorMessages(stderr);
+					myperror(NULL);
 					errflag = 1;
 				}
 			} else if (stat != GT3_ERR_INDEX)
@@ -462,7 +458,8 @@ gtcat(const char *path, struct sequence *seq)
 		}
 
 		if (mcopy(stdout, fp) < 0) {
-			myperror(path);
+			GT3_printErrorMessages(stderr);
+			myperror(NULL);
 			rval = -1;
 			break;
 		}
@@ -492,7 +489,8 @@ main(int argc, char **argv)
 
 		case 'x':
 			if (set_range(global_xrange, optarg) < 0) {
-				fprintf(stderr, "%s: invalid argument for -x option: %s\n",
+				fprintf(stderr,
+						"%s: invalid argument of the -x option: %s\n",
 						PROGNAME, optarg);
 				exit(1);
 			}
@@ -501,7 +499,8 @@ main(int argc, char **argv)
 
 		case 'y':
 			if (set_range(global_yrange, optarg) < 0) {
-				fprintf(stderr, "%s: invalid argument for -y option: %s\n",
+				fprintf(stderr,
+						"%s: invalid argument of the -y option: %s\n",
 						PROGNAME, optarg);
 				exit(1);
 			}
