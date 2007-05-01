@@ -94,7 +94,7 @@ write_ur4_via_float(const void *ptr, size_t len, FILE *fp)
 		return -1;
 	}
 	if (!IS_LITTLE_ENDIAN) {
-		if (fwrite(ptr, 4, len, fp) != -1) {
+		if (fwrite(ptr, 4, len, fp) != len) {
 			gt3_error(SYSERR, NULL);
 			return -1;
 		}
@@ -119,7 +119,7 @@ write_ur4_via_float(const void *ptr, size_t len, FILE *fp)
 		}
 		assert(len == 0);
 	}
-	if (fwrite(&siz, 4, 1, fp) != 1) {  /* HEADER */
+	if (fwrite(&siz, 4, 1, fp) != 1) {  /* TRAILER */
 		gt3_error(SYSERR, NULL);
 		return -1;
 	}
@@ -166,7 +166,7 @@ write_ur8(const void *ptr, size_t len, FILE *fp)
 		}
 		assert(len == 0);
 	}
-	if (fwrite(&siz, 4, 1, fp) != 1) {  /* HEADER */
+	if (fwrite(&siz, 4, 1, fp) != 1) {  /* TRAILER */
 		gt3_error(SYSERR, NULL);
 		return -1;
 	}
