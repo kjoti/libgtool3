@@ -41,6 +41,7 @@ typedef unsigned uint32_t;
 
 #ifndef HAVE_FSEEKO
 #  define fseeko fseek
+#  define ftello ftell
 #endif
 
 /*

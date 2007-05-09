@@ -4,6 +4,19 @@
 #include <math.h>
 
 
+#define FUNCTMPL_COMPARE(TYPE, NAME)            \
+int                                             \
+NAME(const void *ptr1, const void *ptr2)        \
+{                                               \
+    TYPE v1 = *((TYPE *)ptr1);                  \
+    TYPE v2 = *((TYPE *)ptr2);                  \
+    if (v1 < v2)                                \
+        return -1;                              \
+    if (v1 > v2)                                \
+        return 1;                               \
+    return 0;                                   \
+}
+
 #define FUNCTMPL_MINVAL(RTYPE,TYPE, NAME)       \
 RTYPE                                           \
 NAME(const void *ptr, int len)                  \
