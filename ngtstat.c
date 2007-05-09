@@ -407,7 +407,7 @@ main(int argc, char **argv)
 		case 'x':
 			slicing = 1;
 			if (set_range(xrange, optarg) < 0) {
-				fprintf(stderr, "%s: invalid argument of -x : %s",
+				fprintf(stderr, "%s: invalid argument of -x : %s\n",
 						PROGNAME, optarg);
 				exit(1);
 			}
@@ -416,7 +416,7 @@ main(int argc, char **argv)
 		case 'y':
 			slicing = 1;
 			if (set_range(yrange, optarg) < 0) {
-				fprintf(stderr, "%s: invalid argument of -y : %s",
+				fprintf(stderr, "%s: invalid argument of -y : %s\n",
 						PROGNAME, optarg);
 				exit(1);
 			}
@@ -424,7 +424,7 @@ main(int argc, char **argv)
 
 		case 'z':
 			if (set_range(zrange, optarg) < 0) {
-				fprintf(stderr, "%s: invalid argument of -z : %s",
+				fprintf(stderr, "%s: invalid argument of -z : %s\n",
 						PROGNAME, optarg);
 				exit(1);
 			}
