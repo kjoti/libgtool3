@@ -34,7 +34,7 @@ static const char *usage_messages =
 	"\n"
 	"Options:\n"
 	"    -h        print help message\n"
-	"    -a        z-planes are merged\n"
+	"    -a        display info for all z-planes\n"
 	"    -t LIST   specify a list of data numbers\n"
 	"    -x RANGE  specify x-range\n"
 	"    -y RANGE  specify y-range\n"
@@ -131,7 +131,7 @@ print_caption(const char *name)
 	const char *z = each_plane ? "Z" : "";
 
 	printf("# Filename: %s\n", name);
-	printf("# %3s %-8s%3s %10s %10s %10s %10s %10s\n",
+	printf("# %3s %-8s%3s %11s %11s %11s %11s %10s\n",
 		   "No.", "ITEM", z, "AVE", "SD", "MIN", "MAX", "NUM");
 }
 
@@ -213,7 +213,6 @@ ngtstat_var(GT3_Varbuf *varbuf)
 	static size_t worksize = 0;
 	static struct statics *stat = NULL;
 	static int max_num_plane = 0;
-
 	char prefix[32], item[32];
 	int i, znum;
 
@@ -265,7 +264,7 @@ ngtstat_var(GT3_Varbuf *varbuf)
 		ngtstat_plane(stat + i, varbuf, work);
 
 		if (each_plane) {
-			printf("%14s%3d %10.5g %10.5g %10.5g %10.5g %10d\n",
+			printf("%14s%3d %11.5g %11.5g %11.5g %11.5g %10d\n",
 				   prefix,
 				   1 + zrange[0] + i,
 				   stat[i].avr,
@@ -273,16 +272,16 @@ ngtstat_var(GT3_Varbuf *varbuf)
 				   stat[i].min,
 				   stat[i].max,
 				   stat[i].count);
-			prefix[0] = '\0';
+			/* prefix[0] = '\0'; */
 		}
 	}
 
 	if (!each_plane) {
 		struct statics stat_all;
 
-		memset(&stat_all, 0, sizeof(stat_all));
+		memset(&stat_all, 0, sizeof(struct statics));
 		sumup_stat(&stat_all, stat, znum);
-		printf("%14s    %10.4g %10.4g %10.4g %10.4g %10d\n",
+		printf("%14s    %11.5g %11.5g %11.5g %11.5g %10d\n",
 			   prefix,
 			   stat_all.avr,
 			   stat_all.sd,
