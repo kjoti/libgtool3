@@ -345,7 +345,7 @@ default_format(int type)
  *  GT3_write() writes data into a stream.
  *
  *  ptr:    a pointer to data.
- *  size:   size of each element (4 for float, 8 for double)
+ *  type:   element type (GT3_TYPE_FLOAT or GT3_TYPE_DOUBLE)
  *  nx:     data length for X-dimension.
  *  ny:     data length fo  Y-dimension.
  *  nz:     data length for Z-dimension.
