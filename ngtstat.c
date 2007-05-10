@@ -214,17 +214,21 @@ ngtstat_var(GT3_Varbuf *varbuf)
 	static struct statics *stat = NULL;
 	static int max_num_plane = 0;
 	char prefix[32], item[32];
-	int i, znum;
+	int i, znum, zstr;
 
 
 	/*
 	 *  Trial read to fill varbuf.
-	 *  Required before GT3_getVarAttrStr().
+	 *  Required before GT3_getVarAttr*().
 	 */
 	if (GT3_readVarZ(varbuf, zrange[0]) < 0) {
 		GT3_printErrorMessages(stderr);
 		return -1;
 	}
+	GT3_getVarAttrStr(item, sizeof item, varbuf, "ITEM");
+	GT3_getVarAttrInt(&zstr, varbuf, "ASTR3");
+	snprintf(prefix, sizeof prefix, "%5d %-8s",
+			 varbuf->fp->curr + 1, item);
 
 	/*
 	 *  (re)allocate work buffer.
@@ -250,12 +254,6 @@ ngtstat_var(GT3_Varbuf *varbuf)
 		max_num_plane = znum;
 	}
 
-	GT3_getVarAttrStr(item, sizeof item, varbuf, "ITEM");
-
-
-	snprintf(prefix, sizeof prefix, "%5d %-8s",
-			 varbuf->fp->curr + 1, item);
-
 	for (i = 0; i < znum; i++) {
 		if (GT3_readVarZ(varbuf, zrange[0] + i) < 0) {
 			GT3_printErrorMessages(stderr);
@@ -266,7 +264,7 @@ ngtstat_var(GT3_Varbuf *varbuf)
 		if (each_plane) {
 			printf("%14s%3d %11.5g %11.5g %11.5g %11.5g %10d\n",
 				   prefix,
-				   1 + zrange[0] + i,
+				   zstr + zrange[0] + i,
 				   stat[i].avr,
 				   stat[i].sd,
 				   stat[i].min,
