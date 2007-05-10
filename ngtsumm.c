@@ -26,7 +26,7 @@
 static const char *usage_messages =
 	"Usage: ngtsumm [options] [files...]\n"
 	"\n"
-	"Print MIN,MAX,#Miss,#NaN,#Inf in gtool files.\n"
+	"Print #Miss,#NaN,#Inf in gtool files.\n"
 	"\n"
 	"Options:\n"
 	"    -h        print help message\n"
@@ -47,8 +47,7 @@ static int slicing = 0;
 
 
 struct data_profile {
-	double vmin, vmax;
-	int miss_cnt, nan_cnt, inf_cnt;
+	int miss_cnt, nan_cnt, pinf_cnt, minf_cnt;
 
 	double miss; /* used as input data */
 };
@@ -57,11 +56,10 @@ struct data_profile {
 void
 init_profile(struct data_profile *prof)
 {
-	prof->vmin = HUGE_VAL;
-	prof->vmax = -HUGE_VAL;
 	prof->miss_cnt = 0;
 	prof->nan_cnt  = 0;
-	prof->inf_cnt  = 0;
+	prof->pinf_cnt = 0;
+	prof->minf_cnt = 0;
 }
 
 
@@ -71,13 +69,9 @@ get_dataprof_float(const void *ptr, int len, struct data_profile *prof)
 	const float *data = (const float *)ptr;
 	int mcnt = 0, nan_cnt = 0, minf = 0, pinf = 0;
 	float miss;
-	float minc, maxc;
 	int i;
 
 	miss = (float)prof->miss;
-	minc = (float)prof->vmin;
-	maxc = (float)prof->vmax;
-
 	for (i = 0; i < len; i++) {
 		if (data[i] == miss) {
 			mcnt++;
@@ -95,19 +89,11 @@ get_dataprof_float(const void *ptr, int len, struct data_profile *prof)
 			pinf++;
 			continue;
 		}
-
-		if (data[i] < minc)
-			minc = data[i];
-		if (data[i] > maxc)
-			maxc = data[i];
 	}
-
-	prof->vmin = minc;
-	prof->vmax = maxc;
-
 	prof->miss_cnt += mcnt;
 	prof->nan_cnt  += nan_cnt;
-	prof->inf_cnt  += pinf + minf;
+	prof->pinf_cnt += pinf;
+	prof->minf_cnt += minf;
 }
 
 
@@ -117,13 +103,9 @@ get_dataprof_double(const void *ptr, int len, struct data_profile *prof)
 	const double *data = (const double *)ptr;
 	int mcnt = 0, nan_cnt = 0, minf = 0, pinf = 0;
 	double miss;
-	double minc, maxc;
 	int i;
 
 	miss = prof->miss;
-	minc = prof->vmin;
-	maxc = prof->vmax;
-
 	for (i = 0; i < len; i++) {
 		if (data[i] == miss) {
 			mcnt++;
@@ -141,19 +123,11 @@ get_dataprof_double(const void *ptr, int len, struct data_profile *prof)
 			pinf++;
 			continue;
 		}
-
-		if (data[i] < minc)
-			minc = data[i];
-		if (data[i] > maxc)
-			maxc = data[i];
 	}
-
-	prof->vmin = minc;
-	prof->vmax = maxc;
-
 	prof->miss_cnt += mcnt;
 	prof->nan_cnt  += nan_cnt;
-	prof->inf_cnt  += pinf + minf;
+	prof->pinf_cnt += pinf;
+	prof->minf_cnt += minf;
 }
 
 
@@ -196,12 +170,24 @@ pack_slice_double(void *ptr, const GT3_Varbuf *var)
 
 
 void
-print_profile(FILE *output, struct data_profile *prof)
+print_caption(FILE *fp, const char *path)
+{
+	const char *fmt = "%-8s %-12s %5s %10s %10s %10s %10s\n";
+	const char *z = each_plane ? "Z" : "";
+
+	fprintf(fp, "# Filename: %s\n", path);
+	fprintf(fp, fmt, "#    No.", "ITEM", z,
+			"MISS", "NaN", "+Inf", "-Inf");
+}
+
+
+void
+print_profile(FILE *output, struct data_profile *prof, const char *prefix)
 {
 	fprintf(output,
-			" %14.5g %14.5g %10d %5d %5d",
-			prof->vmin, prof->vmax,
-			prof->miss_cnt, prof->nan_cnt, prof->inf_cnt);
+			"%-27s %10d %10d %10d %10d\n",
+			prefix,	prof->miss_cnt, prof->nan_cnt,
+			prof->pinf_cnt, prof->minf_cnt);
 }
 
 
@@ -210,17 +196,17 @@ print_summary(FILE *output, GT3_Varbuf *var)
 {
 	int z, zmax;
 	struct data_profile prof;
-	char item[17];
+	char item[32], prefix[32];
 	void (*get_dataprof)(const void *, int, struct data_profile *);
 	int (*pack_slice)(void *, const GT3_Varbuf *);
-	int rval, len = 0, elem_size;
+	int zstr, rval, len = 0, elem_size;
 	void *data;
 
 	if (GT3_readVarZ(var, 0) < 0)
 		return -1;
 
 	GT3_getVarAttrStr(item, sizeof item, var, "ITEM");
-	fprintf(output, " %-12s", item);
+	GT3_getVarAttrInt(&zstr, var, "ASTR3");
 
 	if (var->type == GT3_TYPE_FLOAT) {
 		get_dataprof = get_dataprof_float;
@@ -259,9 +245,9 @@ print_summary(FILE *output, GT3_Varbuf *var)
 
 		get_dataprof(data, len, &prof);
 		if (each_plane) {
-			fprintf(output, z == zrange[0] ? " %4d" : " %22d", z + 1);
-			print_profile(output, &prof);
-			printf("\n");
+			snprintf(prefix, sizeof prefix, "%8d %-12s %5d",
+					 var->fp->curr + 1, item, zstr + z);
+			print_profile(output, &prof, prefix);
 			init_profile(&prof);
 		}
 	}
@@ -270,8 +256,9 @@ print_summary(FILE *output, GT3_Varbuf *var)
 		free(data);
 
 	if (rval == 0 && !each_plane) {
-		print_profile(output, &prof);
-		printf("\n");
+		snprintf(prefix, sizeof prefix, "%8d %-12s %5s",
+				 var->fp->curr + 1, item, "");
+		print_profile(output, &prof, prefix);
 	}
 	return rval;
 }
@@ -280,25 +267,20 @@ print_summary(FILE *output, GT3_Varbuf *var)
 int
 summ_file(const char *path, struct sequence *seq)
 {
-	GT3_File *fp;
+	GT3_File *fp = NULL;
 	GT3_Varbuf *var;
 	int stat;
 
-	if ((fp = GT3_open(path)) == NULL) {
-		GT3_printErrorMessages(stderr);
-		return -1;
-	}
-
-	if ((var = GT3_getVarbuf(fp)) == NULL) {
+	if ((fp = GT3_open(path)) == NULL
+		|| (var = GT3_getVarbuf(fp)) == NULL) {
 		GT3_close(fp);
 		GT3_printErrorMessages(stderr);
 		return -1;
 	}
 
+	print_caption(stdout, path);
 	if (seq == NULL)
 		while (!GT3_eof(fp)) {
-			printf("%5d", fp->curr + 1);
-
 			if (print_summary(stdout, var) < 0 || GT3_next(fp) < 0) {
 				GT3_printErrorMessages(stderr);
 				break;
@@ -312,7 +294,6 @@ summ_file(const char *path, struct sequence *seq)
 			if (stat == ITER_OUTRANGE)
 				continue;
 
-			printf("%5d", fp->curr + 1);
 			print_summary(stdout, var);
 		}
 
@@ -368,7 +349,7 @@ set_range(int range[], const char *str)
 int
 main(int argc, char **argv)
 {
-	int ch;
+	int ch, rval;
 	struct sequence *seq = NULL;
 
 	while ((ch = getopt(argc, argv, "hlt:x:y:z:")) != EOF)
@@ -405,18 +386,13 @@ main(int argc, char **argv)
 	argc -= optind;
 	argv += optind;
 
+	rval = 0;
 	for (; argc > 0 && argv; --argc, ++argv) {
-		printf("# Filename: %s\n", *argv);
-		if (each_plane)
-			printf("%-5s %12s %4s %14s %14s %10s %5s %5s\n",
-				   "#", "ITEM", "Z", "MIN", "MAX", "MISS", "NaN", "Inf");
-		else
-			printf("%-5s %12s %14s %14s %10s %5s %5s\n",
-				   "#", "ITEM", "MIN", "MAX", "MISS", "NaN", "Inf");
-
 		if (seq)
 			reinitSeq(seq, 1, 0x7fffffff);
-		summ_file(*argv, seq);
+
+		if (summ_file(*argv, seq) < 0)
+			rval = 1;
 	}
-	return 0;
+	return rval;
 }
