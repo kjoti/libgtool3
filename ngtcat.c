@@ -142,7 +142,7 @@ slicecopy2(FILE *dest, GT3_File *fp, size_t esize,
 	ssize = esize * (xrange[1] - xrange[0]);
 	for (z = zstr; znum > 0; znum--, z += zstep) {
 		/*
-		 *  XXX Out-of-range is not treated as an error.
+		 *  XXX Out-of-range is ignored.
 		 */
 		if (z < 0 || z >= fp->dimlen[2])
 			continue;
@@ -186,8 +186,8 @@ slicecopy(FILE *dest, GT3_File *fp)
 	struct sequence *zseq;
 	int xrange[2];
 	int yrange[2];
-	int xstr0, ystr0, zstr0, zend0;
-	int zstr, zorder;
+	int xstr0, ystr0, zstr0;
+	int zfirst, zorder;
 	int xynum, znum, nz;
 	int all_flag;
 
@@ -195,17 +195,16 @@ slicecopy(FILE *dest, GT3_File *fp)
 	if (GT3_readHeader(&head, fp) < 0
 		|| GT3_decodeHeaderInt(&xstr0, &head, "ASTR1") < 0
 		|| GT3_decodeHeaderInt(&ystr0, &head, "ASTR2") < 0
-		|| GT3_decodeHeaderInt(&zstr0, &head, "ASTR3") < 0
-		|| GT3_decodeHeaderInt(&zend0, &head, "AEND3") < 0)
+		|| GT3_decodeHeaderInt(&zstr0, &head, "ASTR3") < 0)
 		return -1;
 
-	xrange[0] = max(0, global_xrange[0] - xstr0 + 1);
-	yrange[0] = max(0, global_yrange[0] - ystr0 + 1);
+	xrange[0] = global_xrange[0];
+	yrange[0] = global_yrange[0];
 	xrange[1] = min(global_xrange[1], fp->dimlen[0]);
 	yrange[1] = min(global_yrange[1], fp->dimlen[1]);
 
-	zseq = initSeq(zslice_str ? zslice_str : ":", zstr0, zend0);
-	znum = test_seq(&zstr, &zorder, zseq, zstr0, zend0);
+	zseq = initSeq(zslice_str ? zslice_str : ":", 1, fp->dimlen[2]);
+	znum = test_seq(&zfirst, &zorder, zseq, 1, fp->dimlen[2]);
 
 	if (znum <= 0
 		|| xrange[1] - xrange[0] <= 0
@@ -246,18 +245,19 @@ slicecopy(FILE *dest, GT3_File *fp)
 		/*
 		 *  In this case, the z-axis name cannot remain the same.
 		 */
-		zstr = 1;
+		zstr0 = 1;
 		GT3_setHeaderString(&head, "AITM3", "NUMBER1000");
-	}
-	GT3_setHeaderInt(&head, "ASTR3", zstr);
-	GT3_setHeaderInt(&head, "AEND3", zstr + znum - 1);
+	} else
+		zstr0 += zfirst - 1;
+	GT3_setHeaderInt(&head, "ASTR3", zstr0);
+	GT3_setHeaderInt(&head, "AEND3", zstr0 + znum - 1);
 
 	/* write header */
 	if (write_header(&head, dest) < 0)
 		return -1;
 
 	/*
-	 *  for UR4 or UR8, Fotrran header
+	 *  For UR4 or UR8, write Fotrran header.
 	 */
 	if (fp->fmt == GT3_FMT_UR4 || fp->fmt == GT3_FMT_UR8) {
 		siz = esize * xynum * znum;
@@ -287,8 +287,8 @@ slicecopy(FILE *dest, GT3_File *fp)
 			/*
 			 *  z-index check.
 			 */
-			zpos = clip(zseq->head, zstr0, zend0) - zstr0;
-			nz   = clip(zseq->tail, zstr0, zend0) - (zpos + zstr0) + 1;
+			zpos = clip(zseq->head, 1, fp->dimlen[2]) - 1;
+			nz   = clip(zseq->tail, 1, fp->dimlen[2]) - zpos;
 			if (nz <= 0)
 				continue;
 
@@ -306,7 +306,7 @@ slicecopy(FILE *dest, GT3_File *fp)
 			if (fp->fmt == GT3_FMT_URC || fp->fmt == GT3_FMT_URC1)
 				ssize += URC_PARAMS_SIZE + 2 * FH_SIZE;
 
-			for (z = zseq->head - zstr0; nz-- > 0; z += zseq->step) {
+			for (z = zseq->head - 1; nz-- > 0; z += zseq->step) {
 				if (z < 0 || z >= fp->dimlen[2])
 					continue;
 
@@ -317,13 +317,13 @@ slicecopy(FILE *dest, GT3_File *fp)
 			/* more detailed slicing */
 			if (slicecopy2(dest, fp, esize,
 						   xrange, yrange,
-						   zseq->head - zstr0, zseq->step, nz) < 0)
+						   zseq->head - 1, zseq->step, nz) < 0)
 				return -1;
 		}
 	}
 
 	/*
-	 *  for UR4 or UR8, Fotrran trailer
+	 *  For UR4 or UR8, write Fotrran trailer.
 	 */
 	if (fp->fmt == GT3_FMT_UR4 || fp->fmt == GT3_FMT_UR8)
 		if (fwrite(&siz, 1, FH_SIZE, dest) != FH_SIZE)
