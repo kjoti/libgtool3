@@ -237,15 +237,15 @@ GT3_countChunk(const char *path)
 }
 
 
-GT3_File *
-GT3_open(const char *path)
+static GT3_File *
+open_gt3file(const char *path, const char *mode)
 {
 	FILE *fp;
 	struct stat sb;
 	GT3_File *gp = NULL;
 	GT3_HEADER head;
 
-	if (stat(path, &sb) < 0 || (fp = fopen(path, "rb")) == NULL) {
+	if (stat(path, &sb) < 0 || (fp = fopen(path, mode)) == NULL) {
 		gt3_error(SYSERR, path);
 		return NULL;
 	}
@@ -277,6 +277,20 @@ error:
 	fclose(fp);
 	free(gp);
 	return NULL;
+}
+
+
+GT3_File *
+GT3_open(const char *path)
+{
+	return open_gt3file(path, "rb");
+}
+
+
+GT3_File *
+GT3_openRW(const char *path)
+{
+	return open_gt3file(path, "r+b");
 }
 
 

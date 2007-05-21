@@ -119,6 +119,7 @@ int GT3_format(const char *str);
 int GT3_countChunk(const char *path);
 GT3_File *GT3_open(const char *path);
 GT3_File *GT3_openHistFile(const char *path);
+GT3_File *GT3_openRW(const char *path);
 int GT3_eof(GT3_File *fp);
 int GT3_next(GT3_File *fp);
 void GT3_close(GT3_File *fp);
