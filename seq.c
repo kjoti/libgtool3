@@ -33,61 +33,22 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "myutils.h"
 #include "seq.h"
 
 
 static char *
-get_next_token(char *buf, int bufsiz,
-			   const char *head, const char *tail,
-			   const char *wspc, int *status)
+strtr(char *str, const char *s1, const char *s2)
 {
-	char *bufend;
+	char *head = str;
+	char *pos;
 
-	if (buf == NULL || bufsiz < 2) {
-		/* no room to store a C-string */
-		*status = -2;
-		return NULL;
+	while (*str) {
+		if ((pos = strchr(s1, *str)))
+			*str = *(s2 + (pos - s1));
+		str++;
 	}
-	*status = 0;				/* status ok */
-
-	/* skip preceding white spaces */
-	while (head < tail && strchr(wspc, *head))
-		++head;
-
-	bufend = buf + bufsiz - 1;
-	while (head < tail && !strchr(wspc, *head)) {
-		if (buf >= bufend) {
-			*status = -1;		/* buffer overrun */
-			break;
-		}
-		*buf++ = *head++;
-	}
-	*buf = '\0';
-
-	return (char *)head; /* return the next */
-}
-
-
-static int
-get_ints(int vals[], int numval, const char *str, char delim)
-{
-	const char *tail = str + strlen(str);
-	int cnt, num;
-	char *endptr;
-
-	cnt = 0;
-	while (str < tail && cnt < numval) {
-		num = (int)strtol(str, &endptr, 0);
-
-		if (*endptr != delim && *endptr != '\0')
-			return -1;			/* invalid char  */
-
-		if (*str != delim)
-			vals[cnt] = num;
-		str = endptr + 1;
-		cnt++;
-	}
-	return 0;
+	return head;
 }
 
 
@@ -112,6 +73,7 @@ initSeq(const char *spec, int first, int last)
 		|| (p->spec = strdup(spec)) == NULL)
 		return NULL;
 
+	strtr(p->spec, ",", " ");
 	p->spec_tail = p->spec + strlen(p->spec);
 	reinitSeq(p, first, last);
 	return p;
@@ -127,7 +89,7 @@ freeSeq(struct sequence *seq)
 
 /*
  *  In most cases, nextSeq() is easy to use.
- *  Needs of direct using nextToken() is rare.
+ *  It is rare that you need to use nextToken() directly.
  *
  *  RETURN VALUE
  *   -1: error
@@ -137,22 +99,16 @@ freeSeq(struct sequence *seq)
 int
 nextToken(struct sequence *seq)
 {
-	char token[40];
+	char token[64];
 	char *next;
-	int status, triplet[3];
+	int nf, triplet[3];
 
 	/*
 	 *  get a sequence specifier.
 	 */
-	next = get_next_token(token, sizeof token,
-						  seq->it, seq->spec_tail,
-						  " \t\n\v\f\r,", &status);
-
-	if (status < 0) /* an error in the token */
-		return -1;
-
-	if (token[0] == '\0')
-		return 0;
+	nf = split(token, sizeof token, 1, seq->it, seq->spec_tail, &next);
+	if (nf <= 0)
+		return nf;
 
 	seq->it = next;
 
@@ -163,10 +119,10 @@ nextToken(struct sequence *seq)
 	triplet[1] = seq->last;   /* set default */
 	triplet[2] = 1;           /* set default */
 
-	if (get_ints(triplet, 3, token, ':') < 0)
+	if ((nf = get_ints(triplet, 3, token, ':')) < 0)
 		return -1;
 
-	if (strchr(token, ':')) {
+	if (nf > 1) {
 		seq->head = triplet[0];
 		seq->tail = triplet[1];
 		seq->step = triplet[2];
