@@ -1,3 +1,8 @@
+/*	-*- tab-width: 4; -*-
+ *	vim: ts=4
+ *
+ *	ngtick.c -- overwrite header fields related to the time-dimension.
+ */
 #include "internal.h"
 
 #include <errno.h>
@@ -13,15 +18,11 @@
 #include "myutils.h"
 #include "fileiter.h"
 
-
 #define PROGNAME "ngtick"
-
-
 
 static caltime *global_origin = NULL;
 static struct sequence *global_timeseq = NULL;
 static int snapshot_flag = 0;
-
 
 enum {
 	UNIT_HOUR,
@@ -29,7 +30,6 @@ enum {
 	UNIT_MON,
 	UNIT_YEAR
 };
-
 
 
 static void
@@ -50,10 +50,20 @@ myperror(const char *fmt, ...)
 }
 
 
-
 void
 usage()
 {
+	static const char *messages =
+		"Usage: ngtick [options] time-def [files...]\n"
+		"\n"
+		"Overwrite header fields related to time-dimension.\n"
+		"\n"
+		"Options:\n"
+		"    -h        print help message\n"
+		"    -s        make snapshot data\n"
+		"    -c        specify a calendar\n"
+		"    -t LIST   specify a list of data numbers\n";
+	fprintf(stderr, messages);
 }
 
 
@@ -76,8 +86,6 @@ step(caltime *date, int n, int unit)
 	}
 	return date;
 }
-
-
 
 
 static char *
@@ -182,10 +190,8 @@ tick(GT3_File *fp, struct caltime *start, int dur, int durunit)
 			ct_add_days(&date, ndays);
 			ct_add_seconds(&date, nsecs);
 
-			tdur *= 2.;
-
 			/* modify the header */
-			modify_date(&head, lower, upper, &date, time, tdur);
+			modify_date(&head, lower, upper, &date, time, 2. * tdur);
 		}
 
 		/*
@@ -281,10 +287,10 @@ get_tdur(int tdur[], const char *str)
 		{ "dy", UNIT_DAY    },
 		{ "hr", UNIT_HOUR   },
 
-		{ "year", UNIT_YEAR   },
-		{ "mon",  UNIT_MON    },
-		{ "day",  UNIT_DAY    },
-		{ "hour", UNIT_HOUR   }
+		{ "year", UNIT_YEAR },
+		{ "mon",  UNIT_MON  },
+		{ "day",  UNIT_DAY  },
+		{ "hour", UNIT_HOUR }
 	};
 	char *endptr;
 	int i, num;
@@ -361,23 +367,29 @@ main(int argc, char **argv)
 
 	GT3_setProgname(PROGNAME);
 
-	while ((ch = getopt(argc, argv, "c:pst:")) != -1)
+	while ((ch = getopt(argc, argv, "c:hst:")) != -1)
 		switch (ch) {
 		case 'c':
 			if ((caltype = get_calendar(optarg)) < 0) {
-				fprintf(stderr, "%s: %s: Unknown calendar name",
+				fprintf(stderr, "%s: %s: Unknown calendar name.\n",
 						PROGNAME, optarg);
 				exit(1);
 			}
 			break;
 
-		case 'p':
-			break;
 		case 's':
 			snapshot_flag = 1;
 			break;
 		case 't':
-			global_timeseq = initSeq(optarg, 1, 0x7fffffff);
+			if ((global_timeseq = initSeq(optarg, 1, 0x7fffffff)) == NULL) {
+				myperror(NULL);
+				exit(1);
+			}
+			break;
+		case 'h':
+		default:
+			usage();
+			exit(1);
 			break;
 		}
 
