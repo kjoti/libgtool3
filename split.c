@@ -6,6 +6,8 @@
 #include <ctype.h>
 #include <string.h>
 
+#include "myutils.h"
+
 #ifndef min
 #define min(a,b) ((a)<(b) ? (a) : (b))
 #endif

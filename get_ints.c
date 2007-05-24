@@ -6,6 +6,7 @@
 #include <string.h>
 #include <stdlib.h>
 
+#include "myutils.h"
 
 /*
  *	get_ints() fetches integers in a string which are separated
