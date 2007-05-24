@@ -43,7 +43,9 @@ LDADD		= -lgtool3 -lm
 
 LIBS		= libgtool3.a
 HEADERS		= gtool3.h
-BINS		= ngtcat ngtls ngtsumm ngtstat
+BINS		= ngtcat ngtls ngtsumm ngtstat ngtick
+
+UTILS		= seq.o fileiter.o split.o get_ints.o
 
 TARGETS		= $(LIBS) $(BINS)
 
@@ -54,17 +56,20 @@ libgtool3.a: $(OBJS)
 	$(AR) $(ARFLAGS) $@ $(OBJS)
 	$(RANLIB) $@
 
-ngtcat: libgtool3.a ngtcat.o seq.o fileiter.o
-	$(CC) $(LDFLAGS) -L. -o $@ ngtcat.o seq.o fileiter.o $(LDADD)
+ngtcat: libgtool3.a ngtcat.o $(UTILS)
+	$(CC) $(LDFLAGS) -L. -o $@ ngtcat.o $(UTILS) $(LDADD)
 
-ngtls: libgtool3.a ngtls.o seq.o fileiter.o
-	$(CC) $(LDFLAGS) -L. -o $@ ngtls.o seq.o fileiter.o $(LDADD)
+ngtls: libgtool3.a ngtls.o  $(UTILS)
+	$(CC) $(LDFLAGS) -L. -o $@ ngtls.o $(UTILS)  $(LDADD)
 
-ngtsumm: libgtool3.a ngtsumm.o seq.o fileiter.o
-	$(CC) $(LDFLAGS) -L. -o $@ ngtsumm.o seq.o fileiter.o $(LDADD)
+ngtsumm: libgtool3.a ngtsumm.o $(UTILS)
+	$(CC) $(LDFLAGS) -L. -o $@ ngtsumm.o $(UTILS) $(LDADD)
 
-ngtstat: libgtool3.a ngtstat.o seq.o fileiter.o
-	$(CC) $(LDFLAGS) -L. -o $@ ngtstat.o seq.o fileiter.o $(LDADD)
+ngtstat: libgtool3.a ngtstat.o $(UTILS)
+	$(CC) $(LDFLAGS) -L. -o $@ ngtstat.o $(UTILS) $(LDADD)
+
+ngtick: libgtool3.a ngtick.o $(UTILS) caltime.o
+	$(CC) $(LDFLAGS) -L. -o $@ ngtick.o $(UTILS) caltime.o $(LDADD)
 
 install: all
 	$(MKDIR) $(bindir)
