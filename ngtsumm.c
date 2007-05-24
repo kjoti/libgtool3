@@ -17,6 +17,7 @@
 #include "gtool3.h"
 #include "seq.h"
 #include "fileiter.h"
+#include "myutils.h"
 
 #ifndef min
 #  define min(a,b) ((a) < (b) ? (a) : (b))
@@ -304,32 +305,12 @@ summ_file(const char *path, struct sequence *seq)
 
 
 static int
-get_ints(int vals[], int numval, const char *str, char delim)
-{
-	const char *tail = str + strlen(str);
-	int cnt, num;
-	char *endptr;
-
-	cnt = 0;
-	while (str < tail && cnt < numval) {
-		num = (int)strtol(str, &endptr, 0);
-
-		if (*endptr != delim && *endptr != '\0')
-			return -1;			/* invalid char  */
-
-		if (*str != delim)
-			vals[cnt] = num;
-		str = endptr + 1;
-		cnt++;
-	}
-	return cnt;
-}
-
-
-static void
 set_range(int range[], const char *str)
 {
-	get_ints(range, 2, str, ':');
+	int nf;
+
+	if ((nf = get_ints(range, 2, str, ':')) < 0)
+		return -1;
 
 	/*
 	 *  XXX
@@ -340,9 +321,9 @@ set_range(int range[], const char *str)
 	range[0]--;
 	if (range[0] < 0)
 		range[0] = 0;
-
-	if (!strchr(str, ':'))
+	if (nf == 1)
 		range[1] = range[0] + 1;
+	return 0;
 }
 
 
