@@ -263,6 +263,7 @@ get_calendar(const char *name)
 		{ "noleap",     CALTIME_NOLEAP    },
 		{ "365_day",    CALTIME_NOLEAP    },
 		{ "allleap",    CALTIME_ALLLEAP   },
+		{ "366_day",    CALTIME_ALLLEAP   },
 		{ "julian",     CALTIME_JULIAN    }
 	};
 	int i;
