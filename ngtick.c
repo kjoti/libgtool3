@@ -1,7 +1,7 @@
 /*	-*- tab-width: 4; -*-
  *	vim: ts=4
  *
- *	ngtick.c -- overwrite header fields related to the time-dimension.
+ *	ngtick.c -- set time-dimension.
  */
 #include "internal.h"
 
@@ -50,24 +50,25 @@ myperror(const char *fmt, ...)
 }
 
 
-void
+static void
 usage()
 {
 	static const char *messages =
-		"Usage: ngtick [options] time-def [files...]\n"
 		"\n"
-		"Overwrite header fields related to time-dimension.\n"
+		"set time-axis.\n"
 		"\n"
 		"Options:\n"
 		"    -h        print help message\n"
 		"    -s        make snapshot data\n"
 		"    -c        specify a calendar\n"
 		"    -t LIST   specify a list of data numbers\n";
+
+	fprintf(stderr, "Usage: %s [options] time-def [files...]\n", PROGNAME);
 	fprintf(stderr, messages);
 }
 
 
-caltime *
+static caltime *
 step(caltime *date, int n, int unit)
 {
 	switch (unit) {
@@ -91,14 +92,15 @@ step(caltime *date, int n, int unit)
 static char *
 date_str(char *buf, const caltime *date)
 {
-	int hh, mm, ss;
+	int yr, hh, mm, ss;
 
 	hh = date->sec / 3600.;
 	mm = (date->sec - 3600 * hh) / 60;
 	ss = (date->sec - 3600 * hh - 60 *mm);
 
+	yr = (date->year > 9999) ? 9999 : date->year;
 	snprintf(buf, 16, "%04d%02d%02d %02d%02d%02d",
-			 date->year, date->month + 1, date->day + 1,
+			 yr, date->month + 1, date->day + 1,
 			 hh, mm, ss);
 	return buf;
 }
@@ -122,27 +124,33 @@ modify_date(GT3_HEADER *head,
 }
 
 
+/*
+ *  Return value:
+ *             -1: some error has occurred.
+ *       ITER_END: no more timeseq (only when -t option specified)
+ *  ITER_CONTINUE: the others
+ */
 static int
 get_next(GT3_File *fp)
 {
 	int rval;
 
 	if (!global_timeseq) {
-		rval = GT3_next(fp);
-		if (rval < 0)
+		if (GT3_next(fp) < 0) {
 			GT3_printErrorMessages(stderr);
-
-		return rval < 0 ? -1 : ITER_CONTINUE;
+			return -1;
+		}
+		rval = ITER_CONTINUE;
 	} else {
-		rval = iterate_chunk(fp, global_timeseq);
-		return (rval == ITER_ERROR || rval == ITER_ERRORCHUNK)
-			? -1 : rval;
+		while ((rval = iterate_chunk(fp, global_timeseq)) == ITER_OUTRANGE)
+			if (rval == ITER_ERROR || rval == ITER_ERRORCHUNK)
+				return -1;
 	}
+	return rval;
 }
 
 
-
-int
+static int
 tick(GT3_File *fp, struct caltime *start, int dur, int durunit)
 {
 	struct caltime date_bnd[2], date;
@@ -195,7 +203,7 @@ tick(GT3_File *fp, struct caltime *start, int dur, int durunit)
 		}
 
 		/*
-		 *  write the header.
+		 *  rewrite the modified header.
 		 */
 		if (fseeko(fp->fp, fp->off + 4, SEEK_SET) < 0
 			|| fwrite(head.h, 1, GT3_HEADER_SIZE, fp->fp) != GT3_HEADER_SIZE) {
@@ -212,13 +220,9 @@ tick(GT3_File *fp, struct caltime *start, int dur, int durunit)
 		it = get_next(fp);
 		if (it < 0)
 			return -1;
-		if (global_timeseq && it != ITER_CONTINUE) {
-			while (it == ITER_OUTRANGE)
-				it = get_next(fp);
-			if (it == ITER_END) {
-				*start = *lower;
-				break;
-			}
+		if (it == ITER_END) {
+			*start = *lower;
+			break;
 		}
 	}
 	return 0;
@@ -226,11 +230,9 @@ tick(GT3_File *fp, struct caltime *start, int dur, int durunit)
 
 
 /*
- *  Set properties which relate time in the specified file.
- *  These properties include "TIME", "DATE", "TDUR", "DATE1",
- *  and "DATE2"
+ *  Set "TIME", "DATE", "TDUR", "DATE1", and "DATE2".
  */
-int
+static int
 tick_file(const char *path, caltime *start, int dur, int durunit)
 {
 	GT3_File *fp;
@@ -241,13 +243,8 @@ tick_file(const char *path, caltime *start, int dur, int durunit)
 		return -1;
 	}
 
-	if (global_timeseq) {
-		rval = iterate_chunk(fp, global_timeseq);
-		if (rval != ITER_CONTINUE) {
-			fprintf(stderr, "%s: %s", PROGNAME,
-					"Invalid argument for -t option\n");
-		}
-	}
+	if (global_timeseq)
+		rval = get_next(fp);
 
 	if (!global_timeseq || rval == ITER_CONTINUE)
 		rval = tick(fp, start, dur, durunit);
@@ -257,7 +254,7 @@ tick_file(const char *path, caltime *start, int dur, int durunit)
 }
 
 
-int
+static int
 get_calendar(const char *name)
 {
 	struct { const char *key; int value; } tab[] = {
@@ -278,7 +275,7 @@ get_calendar(const char *name)
 }
 
 
-int
+static int
 get_tdur(int tdur[], const char *str)
 {
 	struct { const char *key; int value; } tab[] = {
@@ -312,8 +309,8 @@ get_tdur(int tdur[], const char *str)
 }
 
 
-int
-parse_tick(const char *head, int *yr, int *mon, int *day, int *sec,
+static int
+parse_tdef(const char *head, int *yr, int *mon, int *day, int *sec,
 		   int *tdur, int *unit)
 {
 	char buf[3][32];
@@ -399,14 +396,14 @@ main(int argc, char **argv)
 	global_origin = ct_caltime(0, 1, 1, caltype);
 
 	/*
-	 *  1st argument: time-step specifier.
+	 *  1st argument: time-def specifier.
 	 */
 	if (argc <= 0) {
 		usage();
 		exit(1);
 	}
 
-	if (parse_tick(*argv, &yr, &mon, &day, &sec, &tdur, &unit) < 0) {
+	if (parse_tdef(*argv, &yr, &mon, &day, &sec, &tdur, &unit) < 0) {
 		fprintf(stderr, "%s: %s: invalid argument\n", PROGNAME, *argv);
 		exit(1);
 	}
