@@ -19,6 +19,7 @@
 #define ELEM_SZ  16				/* size of each element (in byte) */
 #define NUM_ELEM 64
 
+#define ISCNTRL(c) ((c) < 040 || (c) == 0177)
 
 /*
  *  Gtool3 header items.
@@ -109,28 +110,6 @@ static struct ElemDict elemdict[] = {
 };
 
 
-static char *
-trimmed_tail(const char *str)
-{
-	const char *p = str + strlen(str);
-
-	while (p > str && isspace(*(p - 1)))
-		--p;
-
-	return (char *)p;
-}
-
-
-static char *
-strtrim(char *str)
-{
-	char *tail = trimmed_tail(str);
-	*tail = '\0';
-
-	return str;
-}
-
-
 static int
 elemnamecmp(const void *key, const void *p)
 {
@@ -161,41 +140,39 @@ char *
 GT3_copyHeaderItem(char *buf, int buflen, const GT3_HEADER *header,
 				   const char *key)
 {
-	const char *strp = header->h;
-	char *q = buf;
+	const char *strp, *last;
+	char *q;
 	struct ElemDict *p;
-	int len;
 
 	p = lookup_name(key);
 	if (p == NULL) {
 		gt3_error(GT3_ERR_CALL, "%s: Unknown header item", key);
 		return NULL;
 	}
-	len = (p->type == IT_STR2) ? 2 * ELEM_SZ : ELEM_SZ;
 
-	strp += ELEM_SZ * p->id;
-	if (p->default_value && is_blank(strp)) {
+	strp = header->h + ELEM_SZ * p->id;
+	if (p->default_value && is_blank(strp))
 		strp = p->default_value;
-		len = ELEM_SZ;
-	}
+
+	last = strp + (p->type == IT_STR2 ? 2 : 1) * ELEM_SZ;
 
 	/* skip preceding white spaces */
-	while (isspace(*strp) && len > 0) {
-		len--;
+	while (isspace(*strp) && strp < last)
 		strp++;
-	}
 
-	--buflen;					/* for null terminator */
-	while (buflen > 0 && len-- > 0) {
-		if (iscntrl(*strp))
-			continue;
+	/* trim trailing white spaces */
+	while (strp < last && isspace(*(last - 1)))
+		last--;
 
-		buflen--;
-		*q++ = *strp++;
-	}
+	--buflen;					/* for a null terminator */
+	if (buflen < last - strp)
+		last = strp + buflen;
+
+	for (q = buf; strp < last; strp++)
+		*q++ = ISCNTRL(*strp) ? '#' : *strp;
 	*q = '\0';
 
-	return strtrim(buf);
+	return buf;
 }
 
 
