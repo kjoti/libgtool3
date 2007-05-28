@@ -382,7 +382,7 @@ gtcat_cyclic(int num, char *path[], struct sequence *seq)
 	reinitSeq(seq, 1, last);
 
 	errflag = 0;
-	while (nextSeq(seq) != ITER_END && errflag == 0) {
+	while (nextSeq(seq) == 1 && errflag == 0) {
 		for (i = 0; i < num && errflag == 0; i++) {
 			if ((fp = GT3_open(path[i])) == NULL) {
 				GT3_printErrorMessages(stderr);
