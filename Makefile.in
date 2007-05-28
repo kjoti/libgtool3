@@ -37,7 +37,7 @@ NORMAL_UNINSTALL = :
 PRE_UNINSTALL = :
 POST_UNINSTALL = :
 bin_PROGRAMS = ngtcat$(EXEEXT) ngtls$(EXEEXT) ngtsumm$(EXEEXT) \
-	ngtstat$(EXEEXT)
+	ngtstat$(EXEEXT) ngtick$(EXEEXT)
 subdir = .
 DIST_COMMON = README $(am__configure_deps) $(include_HEADERS) \
 	$(srcdir)/Makefile.am $(srcdir)/Makefile.in \
@@ -73,21 +73,26 @@ am_libgtool3_a_OBJECTS = bits_set.$(OBJEXT) error.$(OBJEXT) \
 libgtool3_a_OBJECTS = $(am_libgtool3_a_OBJECTS)
 binPROGRAMS_INSTALL = $(INSTALL_PROGRAM)
 PROGRAMS = $(bin_PROGRAMS)
-am_ngtcat_OBJECTS = ngtcat.$(OBJEXT) seq.$(OBJEXT) fileiter.$(OBJEXT)
+am__objects_1 = seq.$(OBJEXT) fileiter.$(OBJEXT) split.$(OBJEXT) \
+	get_ints.$(OBJEXT)
+am_ngtcat_OBJECTS = ngtcat.$(OBJEXT) $(am__objects_1)
 ngtcat_OBJECTS = $(am_ngtcat_OBJECTS)
 ngtcat_LDADD = $(LDADD)
 ngtcat_DEPENDENCIES = libgtool3.a
-am_ngtls_OBJECTS = ngtls.$(OBJEXT) seq.$(OBJEXT) fileiter.$(OBJEXT)
+am_ngtick_OBJECTS = ngtick.$(OBJEXT) caltime.$(OBJEXT) \
+	$(am__objects_1)
+ngtick_OBJECTS = $(am_ngtick_OBJECTS)
+ngtick_LDADD = $(LDADD)
+ngtick_DEPENDENCIES = libgtool3.a
+am_ngtls_OBJECTS = ngtls.$(OBJEXT) $(am__objects_1)
 ngtls_OBJECTS = $(am_ngtls_OBJECTS)
 ngtls_LDADD = $(LDADD)
 ngtls_DEPENDENCIES = libgtool3.a
-am_ngtstat_OBJECTS = ngtstat.$(OBJEXT) seq.$(OBJEXT) \
-	fileiter.$(OBJEXT)
+am_ngtstat_OBJECTS = ngtstat.$(OBJEXT) $(am__objects_1)
 ngtstat_OBJECTS = $(am_ngtstat_OBJECTS)
 ngtstat_LDADD = $(LDADD)
 ngtstat_DEPENDENCIES = libgtool3.a
-am_ngtsumm_OBJECTS = ngtsumm.$(OBJEXT) seq.$(OBJEXT) \
-	fileiter.$(OBJEXT)
+am_ngtsumm_OBJECTS = ngtsumm.$(OBJEXT) $(am__objects_1)
 ngtsumm_OBJECTS = $(am_ngtsumm_OBJECTS)
 ngtsumm_LDADD = $(LDADD)
 ngtsumm_DEPENDENCIES = libgtool3.a
@@ -98,10 +103,11 @@ COMPILE = $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) \
 	$(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
 CCLD = $(CC)
 LINK = $(CCLD) $(AM_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) $(LDFLAGS) -o $@
-SOURCES = $(libgtool3_a_SOURCES) $(ngtcat_SOURCES) $(ngtls_SOURCES) \
-	$(ngtstat_SOURCES) $(ngtsumm_SOURCES)
-DIST_SOURCES = $(libgtool3_a_SOURCES) $(ngtcat_SOURCES) \
+SOURCES = $(libgtool3_a_SOURCES) $(ngtcat_SOURCES) $(ngtick_SOURCES) \
 	$(ngtls_SOURCES) $(ngtstat_SOURCES) $(ngtsumm_SOURCES)
+DIST_SOURCES = $(libgtool3_a_SOURCES) $(ngtcat_SOURCES) \
+	$(ngtick_SOURCES) $(ngtls_SOURCES) $(ngtstat_SOURCES) \
+	$(ngtsumm_SOURCES)
 includeHEADERS_INSTALL = $(INSTALL_HEADER)
 HEADERS = $(include_HEADERS)
 ETAGS = etags
@@ -209,10 +215,12 @@ libgtool3_a_SOURCES = \
 		varbuf.c \
 		write.c
 
-ngtcat_SOURCES = ngtcat.c seq.c fileiter.c
-ngtls_SOURCES = ngtls.c seq.c fileiter.c
-ngtsumm_SOURCES = ngtsumm.c seq.c fileiter.c
-ngtstat_SOURCES = ngtstat.c seq.c fileiter.c
+utils = seq.c fileiter.c split.c get_ints.c
+ngtcat_SOURCES = ngtcat.c $(utils)
+ngtls_SOURCES = ngtls.c $(utils)
+ngtsumm_SOURCES = ngtsumm.c $(utils)
+ngtstat_SOURCES = ngtstat.c $(utils)
+ngtick_SOURCES = ngtick.c caltime.c $(utils)
 LDADD = libgtool3.a -lm
 all: config.h
 	$(MAKE) $(AM_MAKEFLAGS) all-am
@@ -328,6 +336,9 @@ clean-binPROGRAMS:
 ngtcat$(EXEEXT): $(ngtcat_OBJECTS) $(ngtcat_DEPENDENCIES) 
 	@rm -f ngtcat$(EXEEXT)
 	$(LINK) $(ngtcat_LDFLAGS) $(ngtcat_OBJECTS) $(ngtcat_LDADD) $(LIBS)
+ngtick$(EXEEXT): $(ngtick_OBJECTS) $(ngtick_DEPENDENCIES) 
+	@rm -f ngtick$(EXEEXT)
+	$(LINK) $(ngtick_LDFLAGS) $(ngtick_OBJECTS) $(ngtick_LDADD) $(LIBS)
 ngtls$(EXEEXT): $(ngtls_OBJECTS) $(ngtls_DEPENDENCIES) 
 	@rm -f ngtls$(EXEEXT)
 	$(LINK) $(ngtls_LDFLAGS) $(ngtls_OBJECTS) $(ngtls_LDADD) $(LIBS)
@@ -345,19 +356,23 @@ distclean-compile:
 	-rm -f *.tab.c
 
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/bits_set.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/caltime.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/error.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/file.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/fileiter.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/gauss-legendre.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/get_ints.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/grid.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/gtdim.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/header.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ngtcat.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ngtick.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ngtls.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ngtstat.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ngtsumm.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/reverse.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/seq.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/split.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/urc_pack.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/varbuf.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/write.Po@am__quote@
