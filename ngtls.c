@@ -22,6 +22,7 @@ static const char *usage_message =
 	"Options:\n"
 	"    -h          print help message\n"
 	"    -n          print axis-size instead of axis-name\n"
+	"    -u          print title and unit\n"
 	"    -t LIST     specify a list of data numbers\n";
 
 static int (*print_item)(int cnt, GT3_File *fp);
@@ -112,6 +113,25 @@ print_item2(int cnt, GT3_File *fp)
 
 
 int
+print_item3(int cnt, GT3_File *fp)
+{
+	GT3_HEADER head;
+	char item[17];
+	char title[33];
+	char unit[17];
+
+	if (GT3_readHeader(&head, fp) < 0)
+		return -1;
+
+	(void)GT3_copyHeaderItem(item, sizeof item, &head, "ITEM");
+	(void)GT3_copyHeaderItem(title, sizeof title, &head, "TITLE");
+	(void)GT3_copyHeaderItem(unit, sizeof unit, &head, "UNIT");
+	printf("%4d %-16s (%-32s) [%-13s]\n", cnt, item, title, unit);
+	return 0;
+}
+
+
+int
 print_list(const char *path, struct sequence *seq)
 {
 	GT3_File *fp;
@@ -171,7 +191,7 @@ main(int argc, char **argv)
 
 	print_item = print_item1;
 
-	while ((ch = getopt(argc, argv, "nht:")) != -1)
+	while ((ch = getopt(argc, argv, "nht:u")) != -1)
 		switch (ch) {
 		case 'n':
 			print_item = print_item2;
@@ -179,6 +199,10 @@ main(int argc, char **argv)
 
 		case 't':
 			seq = initSeq(optarg, 1, 0x7ffffff);
+			break;
+
+		case 'u':
+			print_item = print_item3;
 			break;
 
 		case 'h':
