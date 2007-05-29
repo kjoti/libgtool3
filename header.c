@@ -156,7 +156,7 @@ GT3_copyHeaderItem(char *buf, int buflen, const GT3_HEADER *header,
 
 	last = strp + (p->type == IT_STR2 ? 2 : 1) * ELEM_SZ;
 
-	/* skip preceding white spaces */
+	/* skip leading white spaces */
 	while (isspace(*strp) && strp < last)
 		strp++;
 
