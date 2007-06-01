@@ -1,7 +1,7 @@
-/*	-*- tab-width: 4; -*-
- *	vim: ts=4
+/*  -*- tab-width: 4; -*-
+ *  vim: ts=4
  *
- *	ngtick.c -- set time-dimension.
+ *  ngtick.c -- set time-dimension.
  */
 #include "internal.h"
 
@@ -221,7 +221,7 @@ tick(GT3_File *fp, struct caltime *start, int dur, int durunit)
 		if (it < 0)
 			return -1;
 		if (it == ITER_END) {
-			*start = *lower;
+			*start = *upper;
 			break;
 		}
 	}
