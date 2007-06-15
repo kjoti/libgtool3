@@ -31,17 +31,6 @@
  */
 static const char *default_dir = DEFAULT_GTAXDIR;
 
-/*
- *  axis type
- */
-enum {
-	TYPE_GLON,
-	TYPE_GLAT,
-	TYPE_GGLA,
-	TYPE_ETC
-};
-
-
 #define INVERT_FLAG		1
 #define MID_FLAG		2
 
@@ -396,10 +385,10 @@ make_num(int len, int idiv, unsigned flag)
 
 
 /*
- *  open GTAXLOC.* file in pathlist (:-separated).
+ *  open GTAXLOC.* or GTAXWGT.* file in pathlist (:-separated).
  */
 static GT3_File *
-open_locfile2(const char *name, const char *pathlist)
+open_axisfile2(const char *name, const char *pathlist, const char *kind)
 {
 	char path[PATH_MAX + 1];
 	const char *head, *next, *tail;
@@ -424,7 +413,7 @@ open_locfile2(const char *name, const char *pathlist)
 		}
 
 		memcpy(path, head, len);
-		snprintf(path + len, sizeof path - len, "/GTAXLOC.%s", name);
+		snprintf(path + len, sizeof path - len, "/%s.%s", kind, name);
 
 		if ((fp = GT3_open(path)) != NULL)
 			break;
@@ -436,10 +425,10 @@ open_locfile2(const char *name, const char *pathlist)
 
 
 /*
- *  open GTAXLOC.* file.
+ *  open GTAXLOC.* or GTAXWGT.* file.
  */
 static GT3_File *
-open_locfile(const char *name)
+open_axisfile(const char *name, const char *kind)
 {
 	char path[PATH_MAX + 1];
 	GT3_File *fp;
@@ -450,7 +439,7 @@ open_locfile(const char *name)
 	 */
 	gtax_path = getenv("GTAX_PATH");
 	if (gtax_path) {
-		fp = open_locfile2(name, gtax_path);
+		fp = open_axisfile2(name, gtax_path, kind);
 		if (fp)
 			return fp;
 	}
@@ -459,7 +448,7 @@ open_locfile(const char *name)
 	 *  2) current directory if GTAX_PATH is not set.
 	 */
 	if (!gtax_path) {
-		snprintf(path, sizeof path, "GTAXLOC.%s", name);
+		snprintf(path, sizeof path, "%s.%s", kind, name);
 
 		fp = GT3_open(path);
 		if (fp)
@@ -470,7 +459,7 @@ open_locfile(const char *name)
 	 *  3) GTAXDIR if GTAX_PATH is not set.
 	 */
 	if (!gtax_path && (gtax_dir = getenv("GTAXDIR")) != NULL) {
-		snprintf(path, sizeof path, "%s/GTAXLOC.%s", gtax_dir, name);
+		snprintf(path, sizeof path, "%s/%s.%s", gtax_dir, kind, name);
 
 		fp = GT3_open(path);
 		if (fp)
@@ -480,12 +469,11 @@ open_locfile(const char *name)
 	/*
 	 *  4) default directory.
 	 */
-	snprintf(path, sizeof path, "%s/GTAXLOC.%s", default_dir, name);
+	snprintf(path, sizeof path, "%s/%s.%s", default_dir, kind, name);
 	fp = GT3_open(path);
 
 	return fp;
 }
-
 
 
 /*
@@ -503,8 +491,7 @@ GT3_loadDim(const char *name)
 	double dmin, dmax;
 	double *grid;
 
-
-	if ((gh = open_locfile(name)) == NULL
+	if ((gh = open_axisfile(name, "GTAXLOC")) == NULL
 		|| GT3_readHeader(&head, gh) < 0
 		|| (var = GT3_getVarbuf(gh)) == NULL
 		|| GT3_readVarZ(var, 0) < 0) {
@@ -605,6 +592,185 @@ GT3_freeDim(GT3_Dim *dim)
 		free(dim->values);
 		free(dim);
 	}
+}
+
+
+static double *
+weight_glon(int len, int idiv, unsigned flag)
+{
+	double *temp, w;
+	int i;
+
+	len *= idiv;
+	if (len <= 0 ||
+		(temp = (double *)malloc(sizeof(double) * (len + 1))) == NULL)
+		return NULL;
+
+	w = 360. / len;
+	for (i = 0; i < len; i++)
+		temp[i] = w;
+	temp[len] = 0;
+	return temp;
+}
+
+
+/*
+ *  get GGLA*'s weight.
+ *
+ *  weight_ggla(wgth, 160, 2, 0) for "GGLA160x2"
+ */
+static double *
+weight_ggla(int len, int idiv, unsigned flag)
+{
+	double *grid = NULL, *wght = NULL;
+	double *weight = NULL;
+	int i;
+	double fact;
+
+	if ((grid = (double *)malloc(sizeof(double) * len)) == NULL
+		|| (wght = (double *)malloc(sizeof(double) * len)) == NULL
+		|| (weight = (double *)malloc(sizeof(double) * len * idiv)) == NULL) {
+		free(grid);
+		free(wght);
+		return NULL;
+	}
+
+	gauss_legendre(grid, wght, len);
+
+	fact = 0.5 / idiv;
+	for (i = 0; i < len * idiv; i++)
+		weight[i] = fact * wght[i / idiv];
+
+	free(grid);
+	free(wght);
+	return weight;
+}
+
+
+static int
+weight_latitude(double *wght, const double *lat, int len)
+{
+	double *bnd, fact, sum;
+	int i, len2;
+
+	/*
+	 *  we only need half.
+	 */
+	len2 = (len + 1) / 2;
+	if ((bnd = (double *)malloc(sizeof(double) * (len2 + 1))) == NULL) {
+		gt3_error(SYSERR, NULL);
+		return -1;
+	}
+
+	fact = (lat[0] < lat[1]) ? -0.5 : 0.5;
+	for (i = 1; i < len2 + 1; i++) {
+		bnd[i] = fact * (lat[i-1] + lat[i]);
+		bnd[i] = M_PI / 180.0 * (90.0 - bnd[i]);
+	}
+	bnd[0] = 0.;
+
+	for (i = 0; i < len2; i++)
+		wght[i] = 0.5 * (cos(bnd[i]) - cos(bnd[i+1]));
+
+	for (i = len2; i < len; i++)
+		wght[i] = wght[len - 1 - i];
+
+	for (sum = 0., i = 0; i < len; i++)
+		sum += wght[i];
+
+	free(bnd);
+	return 0;
+}
+
+
+static double *
+weight_glat(int len, int idiv, unsigned flag)
+{
+	GT3_Dim *dim;
+	double *wght;
+
+	if ((dim = make_glat(len, idiv, flag)) == NULL)
+		return NULL;
+
+	if ((wght = (double *)malloc(sizeof(double) * dim->len)) == NULL) {
+		gt3_error(SYSERR, NULL);
+		return NULL;
+	}
+	weight_latitude(wght, dim->values, dim->len);
+
+	GT3_freeDim(dim);
+	return wght;
+}
+
+
+/*
+ *  get weights of a specified axis by loading GTAXWGT.* file.
+ */
+double *
+GT3_loadDimWeight(const char *name)
+{
+	GT3_File *gh = NULL;
+	GT3_Varbuf *var = NULL;
+	double *wght = NULL;
+
+	if ((gh = open_axisfile(name, "GTAXWGT")) == NULL
+		|| (var = GT3_getVarbuf(gh)) == NULL
+		|| GT3_readVarZ(var, 0) < 0)
+		goto final;
+
+	if ((wght = (double *)malloc(sizeof(double) * var->dimlen[0])) == NULL) {
+		gt3_error(SYSERR, NULL);
+		goto final;
+	}
+	(void)GT3_copyVarDouble(wght, var->dimlen[0], var, 0, 1);
+
+final:
+	GT3_freeVarbuf(var);
+	GT3_close(gh);
+	return wght;
+}
+
+
+/*
+ *  get weights of a specifed axis (by name).
+ */
+double *
+GT3_getDimWeight(const char *name)
+{
+	char base[16 + 1];
+	int rval;
+	int len, idiv;
+	unsigned flag;
+	struct axistab {
+		char *name;
+		double *(*func)(int, int, unsigned);
+	};
+	struct axistab builtin[] = {
+		{ "GLON", weight_glon },
+		{ "GLAT", weight_glat },
+		{ "GGLA", weight_ggla }
+	};
+
+	if (name == NULL)
+		return NULL;
+
+	rval = parse_axisname(name, base, &len, &idiv, &flag);
+
+	if (rval == 0) { /* parsed successfully */
+		int i;
+		double *temp = NULL;
+
+		for (i = 0; i < sizeof builtin / sizeof(struct axistab); i++)
+			if (strcmp(base, builtin[i].name) == 0) {
+				temp = builtin[i].func(len, idiv, flag);
+				break;
+			}
+		if (temp) {
+			debug1("built-in axis: %s", name);
+			return temp;
+		}
+	}
+	return GT3_loadDimWeight(name);
 }
 
 
@@ -839,6 +1005,45 @@ main(int argc, char **argv)
 	test_etc();
 
 	/* test_axisfile(); */
+
+	/* weight test */
+	{
+		double *wght;
+		double sum;
+		int i;
+
+		wght = GT3_getDimWeight("GGLA2");
+		assert(wght);
+		assert(zero(wght[0] - 0.5));
+		assert(zero(wght[1] - 0.5));
+		free(wght);
+
+		wght = GT3_getDimWeight("GGLA64");
+		assert(wght);
+		for (sum = 0, i = 0; i < 64; i++)
+			sum += wght[i];
+		assert(zero(sum - 1.));
+		free(wght);
+
+		wght = GT3_getDimWeight("GLAT2");
+		assert(wght);
+		assert(zero(wght[0] - 0.5));
+		assert(zero(wght[1] - 0.5));
+		free(wght);
+
+		wght = GT3_getDimWeight("GLAT2I");
+		assert(wght);
+		assert(zero(wght[0] - 0.5));
+		assert(zero(wght[1] - 0.5));
+		free(wght);
+
+		wght = GT3_getDimWeight("GLAT3");
+		assert(wght);
+		for (sum = 0, i = 0; i < 3; i++)
+			sum += wght[i];
+		assert(zero(sum - 1.));
+		free(wght);
+	}
 	return 0;
 }
 #endif
