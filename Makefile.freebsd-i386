@@ -34,8 +34,10 @@ OBJS		= \
 		gtdim.o \
 		header.o \
 		reverse.o \
+		talloc.o \
 		urc_pack.o \
 		varbuf.o \
+		version.o \
 		write.o
 
 LDADD		= -lgtool3 -lm
@@ -43,7 +45,7 @@ LDADD		= -lgtool3 -lm
 
 LIBS		= libgtool3.a
 HEADERS		= gtool3.h
-BINS		= ngtcat ngtls ngtsumm ngtstat ngtick # ngted
+BINS		= ngtcat ngtls ngtsumm ngtstat ngtick ngthead # ngted
 
 UTILS		= seq.o fileiter.o split.o get_ints.o
 
@@ -73,6 +75,9 @@ ngtick: libgtool3.a ngtick.o $(UTILS) caltime.o
 
 ngted: libgtool3.a ngted.o $(UTILS)
 	$(CC) $(LDFLAGS) -L. -o $@ ngted.o $(UTILS) $(LDADD)
+
+ngthead: ngthead.o
+	$(CC) $(LDFLAGS) -o $@ ngthead.o
 
 install: all
 	$(MKDIR) $(bindir)

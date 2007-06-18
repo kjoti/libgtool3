@@ -1,5 +1,5 @@
 lib_LIBRARIES = libgtool3.a
-bin_PROGRAMS = ngtcat ngtls ngtsumm ngtstat ngtick
+bin_PROGRAMS = ngtcat ngtls ngtsumm ngtstat ngtick ngthead
 include_HEADERS = gtool3.h
 
 libgtool3_a_SOURCES = \
@@ -11,8 +11,10 @@ libgtool3_a_SOURCES = \
 		gtdim.c \
 		header.c \
 		reverse.c \
+		talloc.c \
 		urc_pack.c \
 		varbuf.c \
+		version.c \
 		write.c
 
 utils = seq.c fileiter.c split.c get_ints.c
@@ -22,6 +24,7 @@ ngtls_SOURCES = ngtls.c $(utils)
 ngtsumm_SOURCES = ngtsumm.c $(utils)
 ngtstat_SOURCES = ngtstat.c $(utils)
 ngtick_SOURCES = ngtick.c caltime.c $(utils)
+ngthead_SOURCES = ngthead.c
 
 LDADD = libgtool3.a -lm
 

@@ -62,6 +62,7 @@ struct GT3_Dim {
     int len;
     double range[2];            /* lower bound and upper bound */
     int cyclic;                 /* 0: not cyclic, 1: cyclic */
+    char *title, *unit;
 };
 typedef struct GT3_Dim GT3_Dim;
 
@@ -145,6 +146,10 @@ int GT3_getVarAttrDouble(double *attr, const GT3_Varbuf *var, const char *key);
 GT3_Dim *GT3_loadDim(const char *name);
 GT3_Dim *GT3_getDim(const char *name);
 void GT3_freeDim(GT3_Dim *dim);
+double *GT3_loadDimWeight(const char *name);
+double *GT3_getDimWeight(const char *name);
+int GT3_writeDimFile(FILE *fp, const GT3_Dim *dim, const char *fmt);
+int GT3_writeWeightFile(FILE *fp, const GT3_Dim *dim, const char *fmt);
 
 /* header.c */
 char *GT3_copyHeaderItem(char *buf, int len, const GT3_HEADER *h,
@@ -173,6 +178,9 @@ int GT3_copyLastErrorMessage(char *buf, size_t buflen);
 void GT3_setExitOnError(int onoff);
 void GT3_setPrintOnError(int onoff);
 void GT3_setProgname(const char *name);
+
+/* version */
+char *GT3_version(void);
 
 #ifdef __cplusplus
 }
