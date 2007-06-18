@@ -16,6 +16,7 @@
 #include <string.h>
 
 #include "gtool3.h"
+#include "talloc.h"
 #include "debug.h"
 
 /*
@@ -39,13 +40,11 @@ static const char *default_dir = DEFAULT_GTAXDIR;
 #endif
 
 
-
 static int
 parse_axisname(const char *name, char *base,
 			   int *len, int *idiv, unsigned *flag)
 {
 	const char *p = name;
-	char *q = base;
 	int rval = 0;
 	char *endptr;
 	int cnt;
@@ -53,16 +52,13 @@ parse_axisname(const char *name, char *base,
 	while (*p == ' ') /* skip spaces. */
 		p++;
 
-	if (isdigit(*p)) /* Starting with a digit, it's invalid */
-		rval = -1;
-
 	/*
 	 *  copy basename (at most 16 letters).
 	 */
 	cnt = 0;
 	while (*p != '\0' && !isdigit(*p) && cnt++ < 16)
-		*q++ = *p++;
-	*q = '\0';
+		*base++ = *p++;
+	*base = '\0';
 
 	/*
 	 *  get size.
@@ -122,11 +118,13 @@ invert(double *grid, int len)
 static int
 latitude_mosaic(double *grid, const double *wght, int len, int idiv)
 {
-	double *bnd = NULL;
+	double bnd_[1024];
+	double *bnd;
 	double rdiv, coef;
 	int i, m;
 
-	if ((bnd = (double *)malloc(sizeof(double) * (len+1))) == NULL) {
+	if ((bnd = (double *)tiny_alloc(
+			 bnd_, sizeof bnd_, sizeof(double) * (len + 1))) == NULL) {
 		gt3_error(SYSERR, NULL);
 		return -1;
 	}
@@ -163,9 +161,25 @@ latitude_mosaic(double *grid, const double *wght, int len, int idiv)
 		for (i = 0; i < len; i++)
 			grid[i*idiv + m] = (1. - coef) * bnd[i] + coef * bnd[i+1];
 	}
-
-	free(bnd);
+	tiny_free(bnd, bnd_);
 	return 0;
+}
+
+
+static GT3_Dim *
+alloc_newdim(void)
+{
+	GT3_Dim *dim;
+
+	if ((dim = (GT3_Dim *)malloc(sizeof(GT3_Dim))) == NULL)
+		return NULL;
+
+	dim->name = NULL;
+	dim->values = NULL;
+	dim->len = dim->cyclic = 0;
+	dim->range[0] = dim->range[1] = -999.0;
+	dim->title = dim->unit = NULL;
+	return dim;
 }
 
 
@@ -183,7 +197,7 @@ make_glon(int len, int idiv, unsigned flag)
 	 */
 	mlen = len * idiv + 1;
 
-	if ((dim = (GT3_Dim *)malloc(sizeof(GT3_Dim))) == NULL
+	if ((dim = alloc_newdim()) == NULL
 		|| (grid = (double *)malloc(sizeof(double) * mlen)) == NULL) {
 		gt3_error(SYSERR, NULL);
 		free(dim);
@@ -214,6 +228,8 @@ make_glon(int len, int idiv, unsigned flag)
 	dim->range[0] = 0.;
 	dim->range[1] = 360.;
 	dim->cyclic   = 1;
+	dim->title    = strdup("longitude");
+	dim->unit     = strdup("degree");
 
 	return dim;
 }
@@ -228,7 +244,7 @@ make_glat(int len, int idiv, unsigned flag)
 	if (idiv > 1)
 		return NULL;
 
-	if ((dim = (GT3_Dim *)malloc(sizeof(GT3_Dim))) == NULL
+	if ((dim = alloc_newdim()) == NULL
 		|| (grid = (double *)malloc(sizeof(double) * len)) == NULL) {
 		gt3_error(SYSERR, NULL);
 		free(dim);
@@ -248,7 +264,9 @@ make_glat(int len, int idiv, unsigned flag)
 	dim->len      = len;
 	dim->range[0] = -90;
 	dim->range[1] = 90.;
-	dim->cyclic   = 1;
+	dim->cyclic   = 0;
+	dim->title    = strdup("latitude");
+	dim->unit     = strdup("degree");
 
 	return dim;
 }
@@ -257,19 +275,21 @@ make_glat(int len, int idiv, unsigned flag)
 static GT3_Dim *
 make_ggla(int len, int idiv, unsigned flag)
 {
+	double wght_[1024];
 	double *grid = NULL, *wght = NULL;
 	GT3_Dim *dim = NULL;
-	int errflag = 0;
+	int errflag = 1;
 	int i, mlen;
 
-
+	/* MID_FLAG is unavailable for GGLA */
 	if (flag & MID_FLAG)
 		return NULL;
 
 	mlen = len * idiv;
-	if ((dim = (GT3_Dim *)malloc(sizeof(GT3_Dim))) == NULL
+	if ((dim = alloc_newdim()) == NULL
 		|| (grid = (double *)malloc(sizeof(double) * mlen)) == NULL
-		|| (wght = (double *)malloc(sizeof(double) *  len)) == NULL) {
+		|| (wght = (double *)tiny_alloc(
+				wght_, sizeof wght_, sizeof(double) * len)) == NULL) {
 		gt3_error(SYSERR, NULL);
 		goto final;
 	}
@@ -281,10 +301,9 @@ make_ggla(int len, int idiv, unsigned flag)
 
 	if (idiv > 1) {
 		if (latitude_mosaic(grid, wght, len, idiv) < 0) {
-			errflag = 1;
 			goto final;
 		}
-	} else {
+	} else
 		/*
 		 *  convert from "mu = cos(theta)" to latitude (in degree).
 		 *
@@ -292,7 +311,6 @@ make_ggla(int len, int idiv, unsigned flag)
 		 */
 		for (i = 0; i < len; i++)
 			grid[i] = 90. * (1. - acos(grid[i]) * M_2_PI);
-	}
 
 	assert(grid[0]     > -90. && grid[0]     < 90.);
 	assert(grid[len-1] > -90. && grid[len-1] < 90.);
@@ -304,6 +322,7 @@ make_ggla(int len, int idiv, unsigned flag)
 	if ((flag & INVERT_FLAG) == 0)
 		invert(grid, mlen);
 
+	errflag = 0;
 final:
 	if (!errflag) {
 		dim->values   = grid;
@@ -311,12 +330,15 @@ final:
 		dim->range[0] = -90.;
 		dim->range[1] = 90.;
 		dim->cyclic   = 0;
+		dim->title    = strdup("latitude");
+		dim->unit     = strdup("degree");
 	} else {
 		free(grid);
 		free(dim);
 		dim = NULL;
 	}
-	free(wght);
+
+	tiny_free(wght, wght_);
 	return dim;
 }
 
@@ -330,7 +352,7 @@ make_sfc1(int len, int idiv, unsigned flag)
 	if (len != 1 || idiv != 1 || flag != 0)
 		return NULL;
 
-	if ((dim = (GT3_Dim *)malloc(sizeof(GT3_Dim))) == NULL
+	if ((dim = alloc_newdim()) == NULL
 		|| (grid = (double *)malloc(sizeof(double))) == NULL) {
 		gt3_error(SYSERR, NULL);
 		free(dim);
@@ -340,9 +362,6 @@ make_sfc1(int len, int idiv, unsigned flag)
 
 	dim->values = grid;
 	dim->len    = 1;
-	dim->range[0] = 1.;
-	dim->range[1] = 1.;
-	dim->cyclic  = 0;
 	return dim;
 }
 
@@ -357,7 +376,7 @@ make_num(int len, int idiv, unsigned flag)
 	if (idiv != 1)
 		return NULL;
 
-	if ((dim = (GT3_Dim *)malloc(sizeof(GT3_Dim))) == NULL
+	if ((dim = alloc_newdim()) == NULL
 		|| (grid = (double *)malloc(sizeof(double) * len)) == NULL) {
 		gt3_error(SYSERR, NULL);
 		free(dim);
@@ -379,7 +398,6 @@ make_num(int len, int idiv, unsigned flag)
 
 	dim->values = grid;
 	dim->len = len;
-	dim->cyclic = 0;
 	return dim;
 }
 
@@ -434,6 +452,9 @@ open_axisfile(const char *name, const char *kind)
 	GT3_File *fp;
 	char *gtax_path, *gtax_dir;
 
+	if (!name)
+		return NULL;
+
 	/*
 	 *  1) 'GTAX_PATH'
 	 */
@@ -487,7 +508,7 @@ GT3_loadDim(const char *name)
 	GT3_Varbuf *var = NULL;
 	GT3_HEADER head;
 	int cyclic;
-	char kind[2];
+	char kind[2], buf[33];
 	double dmin, dmax;
 	double *grid;
 
@@ -510,7 +531,7 @@ GT3_loadDim(const char *name)
 	(void)GT3_decodeHeaderDouble(&dmax, &head, "DMAX");
 
 	if ((grid = (double *)malloc(sizeof(double) * var->dimlen[0])) == NULL
-		|| (dim = (GT3_Dim *)malloc(sizeof(GT3_Dim))) == NULL) {
+		|| (dim = alloc_newdim()) == NULL) {
 
 		gt3_error(SYSERR, NULL);
 		free(grid);
@@ -526,6 +547,14 @@ GT3_loadDim(const char *name)
 
 	dim->cyclic = cyclic;
 	dim->values = grid;
+
+	(void)GT3_copyHeaderItem(buf, sizeof buf, &head, "TITLE");
+	if (buf[0] != '\0')
+		dim->title = strdup(buf);
+
+	(void)GT3_copyHeaderItem(buf, sizeof buf, &head, "UNIT");
+	if (buf[0] != '\0')
+		dim->unit = strdup(buf);
 
 final:
 	GT3_freeVarbuf(var);
@@ -590,26 +619,31 @@ GT3_freeDim(GT3_Dim *dim)
 	if (dim) {
 		free(dim->name);
 		free(dim->values);
+		free(dim->title);
+		free(dim->unit);
 		free(dim);
 	}
 }
 
 
 static double *
-weight_glon(int len, int idiv, unsigned flag)
+weight_glon(double *temp, int len, int idiv, unsigned flag)
 {
-	double *temp, w;
+	double w;
 	int i;
 
 	len *= idiv;
-	if (len <= 0 ||
-		(temp = (double *)malloc(sizeof(double) * (len + 1))) == NULL)
+	if (len <= 0)
+		return NULL;
+
+	if (!temp
+		&& (temp = (double *)malloc(sizeof(double) * (len + 1))) == NULL)
 		return NULL;
 
 	w = 360. / len;
 	for (i = 0; i < len; i++)
 		temp[i] = w;
-	temp[len] = 0;
+	temp[len] = 0.;
 	return temp;
 }
 
@@ -620,29 +654,27 @@ weight_glon(int len, int idiv, unsigned flag)
  *  weight_ggla(wgth, 160, 2, 0) for "GGLA160x2"
  */
 static double *
-weight_ggla(int len, int idiv, unsigned flag)
+weight_ggla(double *weight, int len, int idiv, unsigned flag)
 {
-	double *grid = NULL, *wght = NULL;
-	double *weight = NULL;
-	int i;
+	double grid_[1024], wght_[1024];
+	double *grid, *wght;
 	double fact;
+	int i;
 
-	if ((grid = (double *)malloc(sizeof(double) * len)) == NULL
-		|| (wght = (double *)malloc(sizeof(double) * len)) == NULL
-		|| (weight = (double *)malloc(sizeof(double) * len * idiv)) == NULL) {
-		free(grid);
-		free(wght);
-		return NULL;
+	grid = (double *)tiny_alloc(grid_, sizeof grid_, sizeof(double) * len);
+	wght = (double *)tiny_alloc(wght_, sizeof wght_, sizeof(double) * len);
+	if (!weight)
+		weight = (double *)malloc(sizeof(double) * len * idiv);
+
+	if (grid && wght && weight) {
+		gauss_legendre(grid, wght, len);
+
+		fact = 0.5 / idiv;
+		for (i = 0; i < len * idiv; i++)
+			weight[i] = fact * wght[i / idiv];
 	}
-
-	gauss_legendre(grid, wght, len);
-
-	fact = 0.5 / idiv;
-	for (i = 0; i < len * idiv; i++)
-		weight[i] = fact * wght[i / idiv];
-
-	free(grid);
-	free(wght);
+	tiny_free(wght, wght_);
+	tiny_free(grid, grid_);
 	return weight;
 }
 
@@ -650,14 +682,17 @@ weight_ggla(int len, int idiv, unsigned flag)
 static int
 weight_latitude(double *wght, const double *lat, int len)
 {
-	double *bnd, fact, sum;
+	double bnd_[1024];
+	double *bnd, fact;
 	int i, len2;
 
 	/*
-	 *  we only need half.
+	 *  we need half only.
 	 */
 	len2 = (len + 1) / 2;
-	if ((bnd = (double *)malloc(sizeof(double) * (len2 + 1))) == NULL) {
+	bnd = (double *)tiny_alloc(bnd_, sizeof bnd_,
+							   sizeof(double) * (len2 + 1));
+	if (bnd == NULL) {
 		gt3_error(SYSERR, NULL);
 		return -1;
 	}
@@ -675,28 +710,25 @@ weight_latitude(double *wght, const double *lat, int len)
 	for (i = len2; i < len; i++)
 		wght[i] = wght[len - 1 - i];
 
-	for (sum = 0., i = 0; i < len; i++)
-		sum += wght[i];
-
-	free(bnd);
+	tiny_free(bnd, bnd_);
 	return 0;
 }
 
 
 static double *
-weight_glat(int len, int idiv, unsigned flag)
+weight_glat(double *wght, int len, int idiv, unsigned flag)
 {
 	GT3_Dim *dim;
-	double *wght;
 
 	if ((dim = make_glat(len, idiv, flag)) == NULL)
 		return NULL;
 
-	if ((wght = (double *)malloc(sizeof(double) * dim->len)) == NULL) {
+	if (!wght && (wght = (double *)malloc(
+					  sizeof(double) * dim->len)) == NULL)
 		gt3_error(SYSERR, NULL);
-		return NULL;
-	}
-	weight_latitude(wght, dim->values, dim->len);
+
+	if (wght)
+		weight_latitude(wght, dim->values, dim->len);
 
 	GT3_freeDim(dim);
 	return wght;
@@ -743,7 +775,7 @@ GT3_getDimWeight(const char *name)
 	unsigned flag;
 	struct axistab {
 		char *name;
-		double *(*func)(int, int, unsigned);
+		double *(*func)(double *, int, int, unsigned);
 	};
 	struct axistab builtin[] = {
 		{ "GLON", weight_glon },
@@ -762,7 +794,7 @@ GT3_getDimWeight(const char *name)
 
 		for (i = 0; i < sizeof builtin / sizeof(struct axistab); i++)
 			if (strcmp(base, builtin[i].name) == 0) {
-				temp = builtin[i].func(len, idiv, flag);
+				temp = builtin[i].func(NULL, len, idiv, flag);
 				break;
 			}
 		if (temp) {
@@ -774,6 +806,59 @@ GT3_getDimWeight(const char *name)
 }
 
 
+/*
+ *  write GTAXLOC.* file into a file-stream.
+ */
+int
+GT3_writeDimFile(FILE *fp, const GT3_Dim *dim, const char *fmt)
+{
+	GT3_HEADER head;
+	int rval;
+
+	GT3_initHeader(&head);
+	GT3_setHeaderString(&head, "DSET",
+						dim->cyclic ? "CAXLOC" : "AXLOC");
+	GT3_setHeaderString(&head, "ITEM", dim->name);
+	GT3_setHeaderString(&head, "AITM1", dim->name);
+	GT3_setHeaderDouble(&head, "DMIN", dim->range[0]);
+	GT3_setHeaderDouble(&head, "DMAX", dim->range[1]);
+	GT3_setHeaderString(&head, "TITLE", dim->title);
+	GT3_setHeaderString(&head, "UNIT", dim->unit);
+
+	rval = GT3_write(dim->values, GT3_TYPE_DOUBLE,
+					 dim->len, 1, 1,
+					 &head, fmt, fp);
+	return rval;
+}
+
+
+/*
+ *  write GTAXWGT.* file into a file-stream.
+ */
+int
+GT3_writeWeightFile(FILE *fp, const GT3_Dim *dim, const char *fmt)
+{
+	GT3_HEADER head;
+	double *wght;
+	int rval;
+
+	if ((wght = GT3_getDimWeight(dim->name)) == NULL)
+		return -1;
+
+	GT3_initHeader(&head);
+	GT3_setHeaderString(&head, "DSET",
+						dim->cyclic ? "CAXWGT" : "AXWGT");
+	GT3_setHeaderString(&head, "ITEM", dim->name);
+	GT3_setHeaderString(&head, "AITM1", dim->name);
+
+	rval =  GT3_write(wght, GT3_TYPE_DOUBLE,
+					  dim->len, 1, 1,
+					  &head, fmt, fp);
+	free(wght);
+	return rval;
+}
+
+
 #ifdef TEST_MAIN
 int
 zero(double x)
@@ -782,7 +867,6 @@ zero(double x)
 	return fabs(x) < 1e-10;
 }
 
-
 int
 zero2(double x, double eps)
 {
@@ -790,6 +874,16 @@ zero2(double x, double eps)
 	return fabs(x) < eps;
 }
 
+double
+sum(double *x, int len)
+{
+	double s;
+	int i;
+
+	for (s = 0., i = 0; i < len; i++)
+		s += x[i];
+	return s;
+}
 
 void
 print_dim(GT3_Dim *dim)
@@ -1008,41 +1102,50 @@ main(int argc, char **argv)
 
 	/* weight test */
 	{
-		double *wght;
-		double sum;
-		int i;
+		double wght[640];
 
-		wght = GT3_getDimWeight("GGLA2");
-		assert(wght);
+		/* GLON320 */
+		weight_glon(wght, 320, 1, 0);
+		assert(zero(wght[0] - 360./320));
+		assert(zero(wght[320]));
+
+		/* GGLA2 */
+		weight_ggla(wght, 2, 1, 0);
 		assert(zero(wght[0] - 0.5));
 		assert(zero(wght[1] - 0.5));
-		free(wght);
 
-		wght = GT3_getDimWeight("GGLA64");
-		assert(wght);
-		for (sum = 0, i = 0; i < 64; i++)
-			sum += wght[i];
-		assert(zero(sum - 1.));
-		free(wght);
+		/* GGLA3 */
+		weight_ggla(wght, 3, 1, 0);
+		assert(zero(sum(wght, 3) - 1.));
 
-		wght = GT3_getDimWeight("GLAT2");
-		assert(wght);
-		assert(zero(wght[0] - 0.5));
-		assert(zero(wght[1] - 0.5));
-		free(wght);
+		/* GGLA320 */
+		weight_ggla(wght, 320, 1, 0);
+		assert(zero(sum(wght, 320) - 1.));
 
-		wght = GT3_getDimWeight("GLAT2I");
-		assert(wght);
-		assert(zero(wght[0] - 0.5));
-		assert(zero(wght[1] - 0.5));
-		free(wght);
+		/* GGLA160x2 */
+		weight_ggla(wght, 160, 2, 0);
+		assert(zero(sum(wght, 320) - 1.));
 
-		wght = GT3_getDimWeight("GLAT3");
-		assert(wght);
-		for (sum = 0, i = 0; i < 3; i++)
-			sum += wght[i];
-		assert(zero(sum - 1.));
-		free(wght);
+		/* GGLA321 */
+		weight_ggla(wght, 321, 1, 0);
+		assert(zero(sum(wght, 321) - 1.));
+
+		/* GLAT2 */
+		weight_glat(wght, 2, 1, 0);
+		assert(zero(wght[0] - .5));
+		assert(zero(wght[1] - .5));
+
+		/* GLAT3 */
+		weight_glat(wght, 3, 1, 0);
+		assert(zero(sum(wght, 3) - 1.));
+
+		/* GLAT160M */
+		weight_glat(wght, 160, 1, MID_FLAG);
+		assert(zero(sum(wght, 160) - 1.));
+
+		/* GLAT161 */
+		weight_glat(wght, 161, 1, 0);
+		assert(zero(sum(wght, 161) - 1.));
 	}
 	return 0;
 }
