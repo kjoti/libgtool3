@@ -37,7 +37,7 @@ NORMAL_UNINSTALL = :
 PRE_UNINSTALL = :
 POST_UNINSTALL = :
 bin_PROGRAMS = ngtcat$(EXEEXT) ngtls$(EXEEXT) ngtsumm$(EXEEXT) \
-	ngtstat$(EXEEXT) ngtick$(EXEEXT)
+	ngtstat$(EXEEXT) ngtick$(EXEEXT) ngthead$(EXEEXT)
 subdir = .
 DIST_COMMON = README $(am__configure_deps) $(include_HEADERS) \
 	$(srcdir)/Makefile.am $(srcdir)/Makefile.in \
@@ -69,7 +69,8 @@ libgtool3_a_LIBADD =
 am_libgtool3_a_OBJECTS = bits_set.$(OBJEXT) error.$(OBJEXT) \
 	file.$(OBJEXT) gauss-legendre.$(OBJEXT) grid.$(OBJEXT) \
 	gtdim.$(OBJEXT) header.$(OBJEXT) reverse.$(OBJEXT) \
-	urc_pack.$(OBJEXT) varbuf.$(OBJEXT) write.$(OBJEXT)
+	talloc.$(OBJEXT) urc_pack.$(OBJEXT) varbuf.$(OBJEXT) \
+	version.$(OBJEXT) write.$(OBJEXT)
 libgtool3_a_OBJECTS = $(am_libgtool3_a_OBJECTS)
 binPROGRAMS_INSTALL = $(INSTALL_PROGRAM)
 PROGRAMS = $(bin_PROGRAMS)
@@ -79,6 +80,10 @@ am_ngtcat_OBJECTS = ngtcat.$(OBJEXT) $(am__objects_1)
 ngtcat_OBJECTS = $(am_ngtcat_OBJECTS)
 ngtcat_LDADD = $(LDADD)
 ngtcat_DEPENDENCIES = libgtool3.a
+am_ngthead_OBJECTS = ngthead.$(OBJEXT)
+ngthead_OBJECTS = $(am_ngthead_OBJECTS)
+ngthead_LDADD = $(LDADD)
+ngthead_DEPENDENCIES = libgtool3.a
 am_ngtick_OBJECTS = ngtick.$(OBJEXT) caltime.$(OBJEXT) \
 	$(am__objects_1)
 ngtick_OBJECTS = $(am_ngtick_OBJECTS)
@@ -103,11 +108,12 @@ COMPILE = $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) \
 	$(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
 CCLD = $(CC)
 LINK = $(CCLD) $(AM_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) $(LDFLAGS) -o $@
-SOURCES = $(libgtool3_a_SOURCES) $(ngtcat_SOURCES) $(ngtick_SOURCES) \
-	$(ngtls_SOURCES) $(ngtstat_SOURCES) $(ngtsumm_SOURCES)
-DIST_SOURCES = $(libgtool3_a_SOURCES) $(ngtcat_SOURCES) \
+SOURCES = $(libgtool3_a_SOURCES) $(ngtcat_SOURCES) $(ngthead_SOURCES) \
 	$(ngtick_SOURCES) $(ngtls_SOURCES) $(ngtstat_SOURCES) \
 	$(ngtsumm_SOURCES)
+DIST_SOURCES = $(libgtool3_a_SOURCES) $(ngtcat_SOURCES) \
+	$(ngthead_SOURCES) $(ngtick_SOURCES) $(ngtls_SOURCES) \
+	$(ngtstat_SOURCES) $(ngtsumm_SOURCES)
 includeHEADERS_INSTALL = $(INSTALL_HEADER)
 HEADERS = $(include_HEADERS)
 ETAGS = etags
@@ -211,8 +217,10 @@ libgtool3_a_SOURCES = \
 		gtdim.c \
 		header.c \
 		reverse.c \
+		talloc.c \
 		urc_pack.c \
 		varbuf.c \
+		version.c \
 		write.c
 
 utils = seq.c fileiter.c split.c get_ints.c
@@ -221,6 +229,7 @@ ngtls_SOURCES = ngtls.c $(utils)
 ngtsumm_SOURCES = ngtsumm.c $(utils)
 ngtstat_SOURCES = ngtstat.c $(utils)
 ngtick_SOURCES = ngtick.c caltime.c $(utils)
+ngthead_SOURCES = ngthead.c
 LDADD = libgtool3.a -lm
 all: config.h
 	$(MAKE) $(AM_MAKEFLAGS) all-am
@@ -336,6 +345,9 @@ clean-binPROGRAMS:
 ngtcat$(EXEEXT): $(ngtcat_OBJECTS) $(ngtcat_DEPENDENCIES) 
 	@rm -f ngtcat$(EXEEXT)
 	$(LINK) $(ngtcat_LDFLAGS) $(ngtcat_OBJECTS) $(ngtcat_LDADD) $(LIBS)
+ngthead$(EXEEXT): $(ngthead_OBJECTS) $(ngthead_DEPENDENCIES) 
+	@rm -f ngthead$(EXEEXT)
+	$(LINK) $(ngthead_LDFLAGS) $(ngthead_OBJECTS) $(ngthead_LDADD) $(LIBS)
 ngtick$(EXEEXT): $(ngtick_OBJECTS) $(ngtick_DEPENDENCIES) 
 	@rm -f ngtick$(EXEEXT)
 	$(LINK) $(ngtick_LDFLAGS) $(ngtick_OBJECTS) $(ngtick_LDADD) $(LIBS)
@@ -366,6 +378,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/gtdim.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/header.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ngtcat.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ngthead.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ngtick.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ngtls.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ngtstat.Po@am__quote@
@@ -373,8 +386,10 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/reverse.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/seq.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/split.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/talloc.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/urc_pack.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/varbuf.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/version.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/write.Po@am__quote@
 
 .c.o:
