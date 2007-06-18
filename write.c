@@ -467,6 +467,7 @@ GT3_write(const void *ptr, int type,
 	} else {
 		rval = (*write_raw)(ptr, len, fp);
 	}
+	fflush(fp);
 	return rval;
 }
 
