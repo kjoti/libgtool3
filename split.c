@@ -37,29 +37,26 @@ split(char *buf, int maxlen, int maxnum,
 	if (!tail)
 		tail = head + strlen(head);
 
-	while (p < tail && cnt < maxnum) {
+	while (cnt < maxnum) {
 		/* skip white spaces */
-		if (isspace(*p)) {
+		while (p < tail && isspace(*p))
 			p++;
-			while (p < tail && isspace(*p))
-				p++;
-			if (p == tail)
-				break;
-		}
+
+		if (p >= tail)
+			break;
 
 		tail2 = min(tail, p + maxlen - 1);
 		q = buf + maxlen * cnt;
 		while (!(spc = isspace(*p)) && p < tail2)
 			*q++ = *p++;
-
 		*q = '\0';
-		cnt++;
 
 		if (p < tail && !spc) {
 			/* error: exceeds the maximum length */
 			cnt = -1;
 			break;
 		}
+		cnt++;
 	}
 	if (endptr)
 		*endptr = (char *)p;
