@@ -162,6 +162,7 @@ int GT3_setHeaderInt(GT3_HEADER *header, const char *key, int val);
 int GT3_setHeaderDouble(GT3_HEADER *header, const char *key, double val);
 void GT3_mergeHeader(GT3_HEADER *dest, const GT3_HEADER *src);
 void GT3_copyHeader(GT3_HEADER *dest, const GT3_HEADER *src);
+int GT3_getHeaderItemID(const char *name);
 
 /* write.c */
 int GT3_write(const void *ptr, int type,

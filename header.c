@@ -55,7 +55,7 @@ enum {
  *  Dictionary of elements in the gtool-header.
  */
 struct ElemDict {
-	char *name;
+	const char *name;
 	int id;
 	int type;
 	char *default_value;
@@ -70,43 +70,71 @@ struct ElemDict {
 
 /*  XXX This MUST be sorted by its name. */
 static struct ElemDict elemdict[] = {
-	{ "AEND1", AEND1, IT_INT,   NULL               },
-	{ "AEND2", AEND2, IT_INT,   NULL               },
-	{ "AEND3", AEND3, IT_INT,   NULL               },
-	{ "AITM1", AITM1, IT_STR,   NULL               },
-	{ "AITM2", AITM2, IT_STR,   NULL               },
-	{ "AITM3", AITM3, IT_STR,   NULL               },
-	{ "ASTR1", ASTR1, IT_INT,   cpONE              },
-	{ "ASTR2", ASTR2, IT_INT,   cpONE              },
-	{ "ASTR3", ASTR3, IT_INT,   cpONE              },
-	{ "CDATE", CDATE, IT_STR,   NULL               },
-	{ "COPTN", COPTN, IT_STR,   NULL               },
-	{ "CSIGN", CSIGN, IT_STR,   NULL               },
-	{ "DATE",  DATE,  IT_STR,   NULL               },
-	{ "DATE1", DATE1, IT_STR,   NULL               },
-	{ "DATE2", DATE2, IT_STR,   NULL               },
-	{ "DFMT",  DFMT,  IT_STR,   "UR4             " },
-	{ "DIVL",  DIVL,  IT_FLOAT, cpMISS             },
-	{ "DIVS",  DIVS,  IT_FLOAT, cpMISS             },
-	{ "DMAX",  DMAX,  IT_FLOAT, cpMISS             },
-	{ "DMIN",  DMIN,  IT_FLOAT, cpMISS             },
-	{ "DNUM",  DNUM,  IT_INT,   cpZERO             },
-	{ "DSET",  DSET,  IT_STR,   NULL               },
-	{ "FNUM",  FNUM,  IT_INT,   cpZERO             },
-	{ "IDFM",  IDFM,  IT_INT,   NULL               },
-	{ "IOPTN", IOPTN, IT_INT,   cpZERO             },
-	{ "ITEM",  ITEM,  IT_STR,   NULL               },
-	{ "MDATE", MDATE, IT_STR,   NULL               },
-	{ "MISS",  MISS,  IT_FLOAT, cpMISS             },
-	{ "MSIGN", MSIGN, IT_STR,   NULL               },
-	{ "ROPTN", ROPTN, IT_FLOAT, "   0.0000000E+00" },
-	{ "SIZE",  SIZE,  IT_INT,   cpZERO             },
-	{ "STYP",  STYP,  IT_INT,   cpONE              },
-	{ "TDUR",  TDUR,  IT_INT,   cpZERO             },
-	{ "TIME",  TIME,  IT_INT,   cpZERO             },
-	{ "TITLE", TITL1, IT_STR2,  NULL               },
-	{ "UNIT",  UNIT,  IT_STR,   NULL               },
-	{ "UTIM",  UTIM,  IT_STR,   NULL               }
+	{ "AEND1",  30, IT_INT,   NULL               },
+	{ "AEND2",  33, IT_INT,   NULL               },
+	{ "AEND3",  36, IT_INT,   NULL               },
+	{ "AITM1",  28, IT_STR,   NULL               },
+	{ "AITM2",  31, IT_STR,   NULL               },
+	{ "AITM3",  34, IT_STR,   NULL               },
+	{ "ASTR1",  29, IT_INT,   cpONE              },
+	{ "ASTR2",  32, IT_INT,   cpONE              },
+	{ "ASTR3",  35, IT_INT,   cpONE              },
+	{ "CDATE",  59, IT_STR,   NULL               },
+	{ "COPTN",  44, IT_STR,   NULL               },
+	{ "CSIGN",  60, IT_STR,   NULL               },
+	{ "DATE",   26, IT_STR,   NULL               },
+	{ "DATE1",  47, IT_STR,   NULL               },
+	{ "DATE2",  48, IT_STR,   NULL               },
+	{ "DFMT",   37, IT_STR,   "UR4             " },
+	{ "DIVL",   42, IT_FLOAT, cpMISS             },
+	{ "DIVS",   41, IT_FLOAT, cpMISS             },
+	{ "DMAX",   40, IT_FLOAT, cpMISS             },
+	{ "DMIN",   39, IT_FLOAT, cpMISS             },
+	{ "DNUM",   12, IT_INT,   cpZERO             },
+	{ "DSET",   1,  IT_STR,   NULL               },
+	{ "EDIT1",  3,  IT_STR,   NULL               },
+	{ "EDIT2",  4,  IT_STR,   NULL               },
+	{ "EDIT3",  5,  IT_STR,   NULL               },
+	{ "EDIT4",  6,  IT_STR,   NULL               },
+	{ "EDIT5",  7,  IT_STR,   NULL               },
+	{ "EDIT6",  8,  IT_STR,   NULL               },
+	{ "EDIT7",  9,  IT_STR,   NULL               },
+	{ "EDIT8",  10, IT_STR,   NULL               },
+	{ "ETTL1",  16, IT_STR,   NULL               },
+	{ "ETTL2",  17, IT_STR,   NULL               },
+	{ "ETTL3",  18, IT_STR,   NULL               },
+	{ "ETTL4",  19, IT_STR,   NULL               },
+	{ "ETTL5",  20, IT_STR,   NULL               },
+	{ "ETTL6",  21, IT_STR,   NULL               },
+	{ "ETTL7",  22, IT_STR,   NULL               },
+	{ "ETTL8",  23, IT_STR,   NULL               },
+	{ "FNUM",   11, IT_INT,   cpZERO             },
+	{ "IDFM",   0,  IT_INT,   NULL               },
+	{ "IOPTN",  45, IT_INT,   cpZERO             },
+	{ "ITEM",   2,  IT_STR,   NULL               },
+	{ "MDATE",  61, IT_STR,   NULL               },
+	{ "MEMO1",  49, IT_STR,   NULL               },
+	{ "MEMO10", 58, IT_STR,   NULL               },
+	{ "MEMO2",  50, IT_STR,   NULL               },
+	{ "MEMO3",  51, IT_STR,   NULL               },
+	{ "MEMO4",  52, IT_STR,   NULL               },
+	{ "MEMO5",  53, IT_STR,   NULL               },
+	{ "MEMO6",  54, IT_STR,   NULL               },
+	{ "MEMO7",  55, IT_STR,   NULL               },
+	{ "MEMO8",  56, IT_STR,   NULL               },
+	{ "MEMO9",  57, IT_STR,   NULL               },
+	{ "MISS",   38, IT_FLOAT, cpMISS             },
+	{ "MSIGN",  62, IT_STR,   NULL               },
+	{ "ROPTN",  46, IT_FLOAT, "   0.0000000E+00" },
+	{ "SIZE",   63, IT_INT,   cpZERO             },
+	{ "STYP",   43, IT_INT,   cpONE              },
+	{ "TDUR",   27, IT_INT,   cpZERO             },
+	{ "TIME",   24, IT_INT,   cpZERO             },
+	{ "TITL1",  13, IT_STR,   NULL               },
+	{ "TITL2",  14, IT_STR,   NULL               },
+	{ "TITLE",  13, IT_STR2,  NULL               }, /* alias */
+	{ "UNIT",   15, IT_STR,   NULL               },
+	{ "UTIM",   25, IT_STR,   NULL               }
 };
 
 
@@ -361,6 +389,16 @@ GT3_copyHeader(GT3_HEADER *dest, const GT3_HEADER *src)
 }
 
 
+int
+GT3_getHeaderItemID(const char *name)
+{
+	struct ElemDict *p;
+
+	p = lookup_name(name);
+	return p ? p->id : -1;
+}
+
+
 #ifdef TEST_MAIN
 void
 print_header(const char *header)
@@ -389,6 +427,13 @@ main(int argc, char **argv)
 
 			assert(p  && strcmp(p->name, elemdict[i].name) == 0);
 		}
+
+		assert(GT3_getHeaderItemID("IDFM") == 0);
+		assert(GT3_getHeaderItemID("TITLE") == 13);
+		assert(GT3_getHeaderItemID("SIZE") == 63);
+		assert(GT3_getHeaderItemID("IDFMX") == -1);
+		for (i = 0; i < dictlen; i++)
+			assert(GT3_getHeaderItemID(elemdict[i].name) == elemdict[i].id);
 	}
 
 	{
