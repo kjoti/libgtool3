@@ -211,7 +211,7 @@ set_elem(GT3_HEADER *head, int addr, const char *str)
 }
 
 
-void
+static void
 set_miss(GT3_HEADER *head, struct edit_command *ec)
 {
 	double miss_old, temp;
@@ -242,7 +242,7 @@ set_miss(GT3_HEADER *head, struct edit_command *ec)
 /*
  *  change ASTR[1-3] and AEND[1-3], while the axis-length is conserved.
  */
-void
+static void
 change_axis_range(GT3_HEADER *head, struct edit_command *ec)
 {
 	const char *astr[] = { "ASTR1", "ASTR2", "ASTR3" };
@@ -270,7 +270,7 @@ change_axis_range(GT3_HEADER *head, struct edit_command *ec)
 }
 
 
-void
+static void
 append_str(GT3_HEADER *head, struct edit_command *ec)
 {
 	char *curr, *tail, *p, *src;
@@ -289,7 +289,7 @@ append_str(GT3_HEADER *head, struct edit_command *ec)
 }
 
 
-void
+static void
 insert_str(GT3_HEADER *head, struct edit_command *ec)
 {
 	char *curr;
@@ -302,7 +302,7 @@ insert_str(GT3_HEADER *head, struct edit_command *ec)
 }
 
 
-void
+static void
 subst_str(GT3_HEADER *head, struct edit_command *ec)
 {
 	char src[33], dest[33], dest2[33];
@@ -336,7 +336,7 @@ strtoupper(char *str)
 }
 
 
-int
+static int
 get_addr(const char *str, char **endptr)
 {
 	char name[8];
@@ -494,7 +494,7 @@ setup_edit_func_str(struct edit_command *ec, const char *args)
 /*
  *  setup new edit-command.
  */
-struct edit_command *
+static struct edit_command *
 new_command(const char *str)
 {
 	struct edit_command *temp;
@@ -566,7 +566,7 @@ new_command(const char *str)
 }
 
 
-int
+static int
 edit(GT3_File *fp, struct edit_command *clist)
 {
 	GT3_HEADER head, head_copy;
@@ -598,12 +598,13 @@ edit(GT3_File *fp, struct edit_command *clist)
 }
 
 
-int
+static int
 edit_file(const char *path, struct edit_command *list,
 		  struct sequence *tseq)
 {
 	GT3_File *fp;
 	int rval = 0;
+	int stat;
 
 	if ((fp = GT3_openRW(path)) == NULL) {
 		GT3_printErrorMessages(stderr);
@@ -622,13 +623,32 @@ edit_file(const char *path, struct edit_command *list,
 				break;
 			}
 		}
+	} else {
+		while ((stat = iterate_chunk(fp, tseq)) != ITER_END) {
+			if (stat == ITER_ERROR) {
+				rval = -1;
+				break;
+			}
+			if (stat == ITER_OUTRANGE)
+				continue;
+
+			if (stat == ITER_ERRORCHUNK) {
+				rval = -1;
+				break;
+			}
+
+			if (edit(fp, list) < 0) {
+				rval = -1;
+				break;
+			}
+		}
 	}
 	GT3_close(fp);
 	return rval;
 }
 
 
-void
+static void
 usage(void)
 {
 	fprintf(stderr, "Usage: %s", PROGNAME);
@@ -643,7 +663,7 @@ main(int argc, char **argv)
 	struct edit_command *temp;
 	int ch;
 
-	while ((ch = getopt(argc, argv, "e:h")) != -1)
+	while ((ch = getopt(argc, argv, "e:ht:")) != -1)
 		switch (ch) {
 		case 'e':
 			if ((temp = new_command(optarg)) == NULL)
@@ -651,6 +671,11 @@ main(int argc, char **argv)
 			temp->next = clist;
 			clist = temp;
 			break;
+
+		case 't':
+			tseq = initSeq(optarg, 1, 0x7ffffff);
+			break;
+
 		case 'h':
 		default:
 			usage();
