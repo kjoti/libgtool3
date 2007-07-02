@@ -476,25 +476,14 @@ setup_edit_func_str(struct edit_command *ec, const char *args)
 		return 0;
 	}
 
-	if (ec->cmd_type == APPEND) {
-		char buf[33];
-		char fmt[8];
-
-		snprintf(fmt, sizeof fmt, "%%-%ds", ec->len * ELEMLEN);
-		snprintf(buf, sizeof buf, fmt, args);
-		ec->arg1 = strdup(buf);
-		ec->func = append_str;
-		return 0;
-	}
-
-	if (ec->cmd_type == INSERT) {
+	if (ec->cmd_type == APPEND || ec->cmd_type == INSERT) {
 		ec->ival = strlen(args);
 		if (ec->ival > ec->len * ELEMLEN) {
-			fprintf(stderr, "%s: %s: too long argument.", PROGNAME, args);
+			fprintf(stderr, "%s: too long argument.\n", PROGNAME);
 			return -1;
 		}
 		ec->arg1 = strdup(args);
-		ec->func = insert_str;
+		ec->func = (ec->cmd_type == APPEND) ? append_str : insert_str;
 		return 0;
 	}
 	assert("NOT REACHED");
@@ -667,7 +656,6 @@ main(int argc, char **argv)
 			usage();
 			exit(1);
 			break;
-
 		}
 
 	if (!clist) {
