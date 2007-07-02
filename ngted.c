@@ -131,7 +131,8 @@ int itemtype[] = {
 static int forbidden_addr[] = {
 	29, 30, /* ASTR1, AEND1 */
 	32, 33, /* ASTR2, AEND2 */
-	35, 36  /* ASTR3, AEND3 */
+	35, 36, /* ASTR3, AEND3 */
+	37      /* DFMT */
 };
 
 
@@ -139,7 +140,7 @@ struct edit_command;
 typedef	void (*edit_function)(GT3_HEADER *, struct edit_command *);
 
 struct edit_command {
-	int addr;  /* 0-63 (starting with 0) */
+	int addr;					/* 0-63 (starting with 0) */
 	int cmd_type;
 	edit_function func;
 	char *arg1;					/* 1st argument, if any */
@@ -239,8 +240,7 @@ set_miss(GT3_HEADER *head, struct edit_command *ec)
 
 
 /*
- *  ASTR[1-3] and AEND[1-3] is changed,
- *  while "AEND[1-3] - ASTR[1-3]" is not.
+ *  change ASTR[1-3] and AEND[1-3], while the axis-length is conserved.
  */
 void
 change_axis_range(GT3_HEADER *head, struct edit_command *ec)
@@ -270,6 +270,50 @@ change_axis_range(GT3_HEADER *head, struct edit_command *ec)
 }
 
 
+void
+append_str(GT3_HEADER *head, struct edit_command *ec)
+{
+	char *curr, *tail, *p, *src;
+
+	/* tracking backward */
+	curr = head->h + ec->addr * ELEMLEN;
+	tail = curr + ec->len * ELEMLEN;
+	p = tail;
+	while (p > curr && *(p - 1) == ' ' )
+		p--;
+
+	/* appending */
+	src = ec->arg1;
+	while (p < tail && *src != '\0')
+		*p++ = *src++;
+}
+
+
+void
+insert_str(GT3_HEADER *head, struct edit_command *ec)
+{
+	char *curr;
+	char buf[33];
+
+	curr = head->h + ec->addr * ELEMLEN;
+	memcpy(buf, curr, ec->len * ELEMLEN);
+	memcpy(curr, ec->arg1, ec->ival);
+	memcpy(curr + ec->ival, buf, ec->len * ELEMLEN - ec->ival);
+}
+
+
+void
+subst_str(GT3_HEADER *head, struct edit_command *ec)
+{
+	char src[33], dest[33], dest2[33];
+
+	memcpy(src, head->h + ec->addr * ELEMLEN, ec->len * ELEMLEN);
+	src[ec->len * ELEMLEN] = '\0';
+	copysubst(dest, sizeof dest, src, ec->arg1, ec->arg2);
+	snprintf(dest2, sizeof dest2, "%-32s", dest);
+	memcpy(head->h + ec->addr * ELEMLEN, dest2, ec->len * ELEMLEN);
+}
+
 
 static char *
 strcpy_to_char(char *dest, size_t len, const char *src, char stop)
@@ -295,8 +339,7 @@ strtoupper(char *str)
 int
 get_addr(const char *str, char **endptr)
 {
-#define MAX_NAMELEN 7
-	char name[MAX_NAMELEN + 1];
+	char name[8];
 	char *p;
 	int addr;
 
@@ -334,7 +377,7 @@ setup_edit_func_int(struct edit_command *ec, const char *args)
 
 	ival = (int)strtol(args, &endptr, 10);
 	if (args == endptr) {
-		fprintf(stderr, "%s: argument should be a integer\n", PROGNAME);
+		fprintf(stderr, "%s: argument should be a integer.\n", PROGNAME);
 		return -1;
 	}
 	if (ec->addr > AITM1 && ec->addr <= AEND3) {
@@ -358,7 +401,7 @@ setup_edit_func_float(struct edit_command *ec, const char *args)
 
 	fval = strtof(args, &endptr);
 	if (args == endptr) {
-		fprintf(stderr, "%s: argument should be a floating-number\n",
+		fprintf(stderr, "%s: argument should be a floating-number.\n",
 				PROGNAME);
 		return -1;
 	}
@@ -373,8 +416,6 @@ setup_edit_func_float(struct edit_command *ec, const char *args)
 static int
 setup_edit_func_str(struct edit_command *ec, const char *args)
 {
-	char buf[33];
-	char *fmt;
 	int i;
 
 	/*
@@ -382,7 +423,7 @@ setup_edit_func_str(struct edit_command *ec, const char *args)
 	 */
 	for (i = 0; i < sizeof forbidden_addr / sizeof(int); i++)
 		if (ec->addr == forbidden_addr[i]) {
-			fprintf(stderr, "%s: Forbbiden operation\n", PROGNAME);
+			fprintf(stderr, "%s: Forbbiden operation.\n", PROGNAME);
 			return -1;
 		}
 
@@ -397,17 +438,66 @@ setup_edit_func_str(struct edit_command *ec, const char *args)
 	}
 
 	if (ec->cmd_type == CHANGE || ec->cmd_type == CHANGE_STR) {
-		ec->func = change;
-		if (ec->addr == TITLE) {
-			ec->len = 2;
-			fmt = "%-32s";
-		} else {
-			fmt = "%-16s";
-		}
+		char buf[33];
+		char fmt[8];
+
+		snprintf(fmt, sizeof fmt, "%%-%ds", ec->len * ELEMLEN);
 		snprintf(buf, sizeof buf, fmt, args);
 		ec->arg1 = strdup(buf);
+		ec->func = change;
 		return 0;
 	}
+
+	if (ec->cmd_type == SUBST) {
+		char old[33], new[33];
+		char delim, *p;
+
+		delim = *args++;
+		p = strcpy_to_char(old, sizeof old, args, delim);
+		if (*p != delim) {
+			fprintf(stderr,
+					"%s: end-delimiter not found (subst 1st argument)\n",
+					PROGNAME);
+			return -1;
+		}
+
+		args = p + 1;
+		p = strcpy_to_char(new, sizeof new, args, delim);
+		if (*p != delim) {
+			fprintf(stderr,
+					"%s: end-delimiter not found (subst 2nd argument)\n",
+					PROGNAME);
+			return -1;
+		}
+
+		ec->arg1 = strdup(old);
+		ec->arg2 = strdup(new);
+		ec->func = subst_str;
+		return 0;
+	}
+
+	if (ec->cmd_type == APPEND) {
+		char buf[33];
+		char fmt[8];
+
+		snprintf(fmt, sizeof fmt, "%%-%ds", ec->len * ELEMLEN);
+		snprintf(buf, sizeof buf, fmt, args);
+		ec->arg1 = strdup(buf);
+		ec->func = append_str;
+		return 0;
+	}
+
+	if (ec->cmd_type == INSERT) {
+		ec->ival = strlen(args);
+		if (ec->ival > ec->len * ELEMLEN) {
+			fprintf(stderr, "%s: %s: too long argument.", PROGNAME, args);
+			return -1;
+		}
+		ec->arg1 = strdup(args);
+		ec->func = insert_str;
+		return 0;
+	}
+	assert("NOT REACHED");
 	return -1;
 }
 
@@ -460,7 +550,7 @@ new_command(const char *str)
 	temp->func = NULL;
 	temp->arg1 = NULL;
 	temp->arg2 = NULL;
-	temp->len  = 1;
+	temp->len  = (addr == TITLE) ? 2 : 1;
 	temp->ival = 0;
 	temp->next = NULL;
 
@@ -475,12 +565,11 @@ new_command(const char *str)
 		stat = setup_edit_func_int(temp, curr);
 	else if (type == TYPE_FLOAT)
 		stat = setup_edit_func_float(temp, curr);
-	else
+	else {
+		assert("NOT REACHED");
 		stat = -1;
-
+	}
 	if (stat < 0) {
-		fprintf(stderr, "%s: %s: Unavailable edit command.\n",
-				PROGNAME, curr);
 		free(temp);
 		temp = NULL;
 	}
@@ -491,12 +580,14 @@ new_command(const char *str)
 int
 edit(GT3_File *fp, struct edit_command *clist)
 {
-	GT3_HEADER head;
+	GT3_HEADER head, head_copy;
 
 	if (GT3_readHeader(&head, fp) < 0) {
-		myperror(NULL);
+		GT3_printErrorMessages(stderr);
 		return -1;
 	}
+
+	memcpy(&head_copy, &head, sizeof(GT3_HEADER));
 
 	/*
 	 *  do edit.
@@ -506,15 +597,16 @@ edit(GT3_File *fp, struct edit_command *clist)
 		clist = clist->next;
 	}
 
-	/* overwrite */
-	if (fseeko(fp->fp, fp->off + 4, SEEK_SET) < 0
-		|| fwrite(head.h, 1, GT3_HEADER_SIZE, fp->fp) != GT3_HEADER_SIZE) {
-		myperror(NULL);
-		return -1;
-	}
+	if (memcmp(&head, &head_copy, sizeof(GT3_HEADER)))
+		/* overwrite */
+		if (fseeko(fp->fp, fp->off + 4, SEEK_SET) < 0
+			|| fwrite(head.h, 1, GT3_HEADER_SIZE, fp->fp) != GT3_HEADER_SIZE) {
+			myperror(NULL);
+			return -1;
+		}
+
 	return 0;
 }
-
 
 
 int
@@ -554,54 +646,6 @@ usage(void)
 }
 
 
-#ifdef TEST_MAIN
-int
-display(const char *head)
-{
-	char temp[ELEMLEN + 1], temp2[ELEMLEN + 1];
-	int i;
-
-	temp[ELEMLEN] = '\0';
-	temp2[ELEMLEN] = '\0';
-	for (i = 0; i < 64 / 2; i++) {
-		memcpy(temp,  head + ELEMLEN * i, ELEMLEN);
-		memcpy(temp2, head + ELEMLEN * (i + 32), ELEMLEN);
-
-		printf("%5d (%s)  %5d (%s)\n", i + 1, temp, i + 33, temp2);
-	}
-	return 0;
-}
-
-int
-main(int argc, char **argv)
-{
-	GT3_HEADER head;
-	struct edit_command *ec;
-
-
-	GT3_initHeader(&head);
-	GT3_setHeaderString(&head, "TITLE", "2m temperature");
-	GT3_setHeaderString(&head, "AITM1", "GLON320");
-	GT3_setHeaderString(&head, "AITM2", "GGLA160");
-	GT3_setHeaderString(&head, "AITM3", "PLEV17");
-	GT3_setHeaderInt(&head, "AEND1", 320);
-	GT3_setHeaderInt(&head, "AEND2", 160);
-	GT3_setHeaderInt(&head, "AEND3", 17);
-
-	ec = new_command("astr1:=2");
-
-	(ec->func)(&head, ec);
-	display(head.h);
-
-
-
-	return 0;
-}
-#endif /* TEST MAIN */
-
-
-
-#ifndef TEST_MAIN
 int
 main(int argc, char **argv)
 {
@@ -613,11 +657,8 @@ main(int argc, char **argv)
 	while ((ch = getopt(argc, argv, "e:h")) != -1)
 		switch (ch) {
 		case 'e':
-			if ((temp = new_command(optarg)) == NULL) {
-				fprintf(stderr, "%s: %s: unrecognized edit command.\n",
-						PROGNAME, optarg);
+			if ((temp = new_command(optarg)) == NULL)
 				exit(1);
-			}
 			temp->next = clist;
 			clist = temp;
 			break;
@@ -638,7 +679,8 @@ main(int argc, char **argv)
 	argv += optind;
 	for (; argc > 0 && *argv; argc--, argv++) {
 		if (edit_file(*argv, clist, tseq) < 0) {
-			GT3_printErrorMessages(stderr);
+			fprintf(stderr, "%s: %s: error has occurred.\n",
+					PROGNAME, *argv);
 			exit(1);
 		}
 		if (tseq)
@@ -646,4 +688,3 @@ main(int argc, char **argv)
 	}
 	return 0;
 }
-#endif /* !TEST_MAIN */
