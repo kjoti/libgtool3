@@ -576,19 +576,15 @@ final:
 }
 
 
-/*
- *  GT3_getDim() constructs GT3_Dim by its name.
- *  If the name is well-known, built-in generator is called.
- */
 GT3_Dim *
-GT3_getDim(const char *name)
+GT3_getBuiltinDim(const char *name)
 {
 	char base[16 + 1];
 	int rval;
 	int len, idiv;
 	unsigned flag;
 	struct axistab {
-		char *name;
+		const char *name;
 		GT3_Dim *(*func)(int, int, unsigned);
 	};
 	struct axistab builtin[] = {
@@ -621,7 +617,21 @@ GT3_getDim(const char *name)
 			return dim;
 		}
 	}
-	return GT3_loadDim(name);
+	return NULL;
+}
+
+
+/*
+ *  GT3_getDim() constructs GT3_Dim by its name.
+ *  If the name is well-known, built-in generator is called.
+ */
+GT3_Dim *
+GT3_getDim(const char *name)
+{
+	GT3_Dim *dim;
+
+	dim = GT3_getBuiltinDim(name);
+	return dim ? dim : GT3_loadDim(name);
 }
 
 
@@ -779,7 +789,7 @@ final:
  *  get weights of a specifed axis (by name).
  */
 double *
-GT3_getDimWeight(const char *name)
+GT3_getBuiltinDimWeight(const char *name)
 {
 	char base[16 + 1];
 	int rval;
@@ -814,7 +824,20 @@ GT3_getDimWeight(const char *name)
 			return temp;
 		}
 	}
-	return GT3_loadDimWeight(name);
+	return NULL;
+}
+
+
+/*
+ *  get weights of a specifed axis (by name).
+ */
+double *
+GT3_getDimWeight(const char *name)
+{
+	double *temp;
+
+	temp = GT3_getBuiltinDimWeight(name);
+	return temp ? temp : GT3_loadDimWeight(name);
 }
 
 
@@ -863,9 +886,9 @@ GT3_writeWeightFile(FILE *fp, const GT3_Dim *dim, const char *fmt)
 	GT3_setHeaderString(&head, "ITEM", dim->name);
 	GT3_setHeaderString(&head, "AITM1", dim->name);
 
-	rval =  GT3_write(wght, GT3_TYPE_DOUBLE,
-					  dim->len, 1, 1,
-					  &head, fmt, fp);
+	rval = GT3_write(wght, GT3_TYPE_DOUBLE,
+					 dim->len, 1, 1,
+					 &head, fmt, fp);
 	free(wght);
 	return rval;
 }
