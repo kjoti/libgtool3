@@ -32,8 +32,9 @@
  */
 static const char *default_dir = DEFAULT_GTAXDIR;
 
-#define INVERT_FLAG		1
-#define MID_FLAG		2
+#define INVERT_FLAG		1U
+#define MID_FLAG		2U
+#define C_FLAG			4U
 
 #ifndef M_2_PI
 #  define M_2_PI	0.63661977236758134308	/* 2/pi */
@@ -90,6 +91,9 @@ parse_axisname(const char *name, char *base,
 			p++;
 		} else if (*p == 'M') {
 			*flag |= MID_FLAG;
+			p++;
+		} else if (*p == 'C') {
+			*flag |= C_FLAG;
 			p++;
 		} else {
 			rval = -1;
@@ -187,7 +191,7 @@ static GT3_Dim *
 make_glon(int len, int idiv, unsigned flag)
 {
 	GT3_Dim *dim = NULL;
-	double *grid;
+	double *grid, bnd0, bnd1;
 	int mlen;
 
 	/*
@@ -204,7 +208,15 @@ make_glon(int len, int idiv, unsigned flag)
 		return NULL;
 	}
 
-	uniform_bnd(grid, 0., 360., mlen);
+	if (flag & C_FLAG) {
+		bnd0 = -180.;
+		bnd1 =  180.;
+	} else {
+		bnd0 = 0.;
+		bnd1 = 360.;
+	}
+
+	uniform_bnd(grid, bnd0, bnd1, mlen);
 	if (idiv > 1) {
 		int i;
 		double offset;
@@ -225,8 +237,8 @@ make_glon(int len, int idiv, unsigned flag)
 
 	dim->values   = grid;
 	dim->len      = mlen;
-	dim->range[0] = 0.;
-	dim->range[1] = 360.;
+	dim->range[0] = bnd0;
+	dim->range[1] = bnd1;
 	dim->cyclic   = 1;
 	dim->title    = strdup("longitude");
 	dim->unit     = strdup("degree");
