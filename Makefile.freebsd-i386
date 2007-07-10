@@ -48,7 +48,7 @@ HEADERS		= gtool3.h
 BINS		= ngtcat ngtls ngtsumm ngtstat ngtick \
 		ngthead ngted ngtmkax
 
-UTILS		= seq.o fileiter.o split.o get_ints.o copysubst.o
+UTILS		= seq.o fileiter.o split.o get_ints.o
 
 TARGETS		= $(LIBS) $(BINS)
 
@@ -74,8 +74,8 @@ ngtstat: libgtool3.a ngtstat.o $(UTILS)
 ngtick: libgtool3.a ngtick.o $(UTILS) caltime.o
 	$(CC) $(LDFLAGS) -L. -o $@ ngtick.o $(UTILS) caltime.o $(LDADD)
 
-ngted: libgtool3.a ngted.o $(UTILS)
-	$(CC) $(LDFLAGS) -L. -o $@ ngted.o $(UTILS) $(LDADD)
+ngted: libgtool3.a ngted.o $(UTILS)  copysubst.o
+	$(CC) $(LDFLAGS) -L. -o $@ ngted.o $(UTILS) copysubst.o $(LDADD)
 
 ngtmkax:  libgtool3.a ngtmkax.o $(UTILS)
 	$(CC) $(LDFLAGS) -L. -o $@ ngtmkax.o $(UTILS) $(LDADD)

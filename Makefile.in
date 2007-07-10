@@ -37,7 +37,8 @@ NORMAL_UNINSTALL = :
 PRE_UNINSTALL = :
 POST_UNINSTALL = :
 bin_PROGRAMS = ngtcat$(EXEEXT) ngtls$(EXEEXT) ngtsumm$(EXEEXT) \
-	ngtstat$(EXEEXT) ngtick$(EXEEXT) ngthead$(EXEEXT)
+	ngtstat$(EXEEXT) ngtick$(EXEEXT) ngthead$(EXEEXT) \
+	ngted$(EXEEXT) ngtmkax$(EXEEXT)
 subdir = .
 DIST_COMMON = README $(am__configure_deps) $(include_HEADERS) \
 	$(srcdir)/Makefile.am $(srcdir)/Makefile.in \
@@ -80,6 +81,10 @@ am_ngtcat_OBJECTS = ngtcat.$(OBJEXT) $(am__objects_1)
 ngtcat_OBJECTS = $(am_ngtcat_OBJECTS)
 ngtcat_LDADD = $(LDADD)
 ngtcat_DEPENDENCIES = libgtool3.a
+am_ngted_OBJECTS = ngted.$(OBJEXT) $(am__objects_1)
+ngted_OBJECTS = $(am_ngted_OBJECTS)
+ngted_LDADD = $(LDADD)
+ngted_DEPENDENCIES = libgtool3.a
 am_ngthead_OBJECTS = ngthead.$(OBJEXT)
 ngthead_OBJECTS = $(am_ngthead_OBJECTS)
 ngthead_LDADD = $(LDADD)
@@ -93,6 +98,10 @@ am_ngtls_OBJECTS = ngtls.$(OBJEXT) $(am__objects_1)
 ngtls_OBJECTS = $(am_ngtls_OBJECTS)
 ngtls_LDADD = $(LDADD)
 ngtls_DEPENDENCIES = libgtool3.a
+am_ngtmkax_OBJECTS = ngtmkax.$(OBJEXT) $(am__objects_1)
+ngtmkax_OBJECTS = $(am_ngtmkax_OBJECTS)
+ngtmkax_LDADD = $(LDADD)
+ngtmkax_DEPENDENCIES = libgtool3.a
 am_ngtstat_OBJECTS = ngtstat.$(OBJEXT) $(am__objects_1)
 ngtstat_OBJECTS = $(am_ngtstat_OBJECTS)
 ngtstat_LDADD = $(LDADD)
@@ -108,12 +117,13 @@ COMPILE = $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) \
 	$(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
 CCLD = $(CC)
 LINK = $(CCLD) $(AM_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) $(LDFLAGS) -o $@
-SOURCES = $(libgtool3_a_SOURCES) $(ngtcat_SOURCES) $(ngthead_SOURCES) \
-	$(ngtick_SOURCES) $(ngtls_SOURCES) $(ngtstat_SOURCES) \
-	$(ngtsumm_SOURCES)
-DIST_SOURCES = $(libgtool3_a_SOURCES) $(ngtcat_SOURCES) \
+SOURCES = $(libgtool3_a_SOURCES) $(ngtcat_SOURCES) $(ngted_SOURCES) \
 	$(ngthead_SOURCES) $(ngtick_SOURCES) $(ngtls_SOURCES) \
-	$(ngtstat_SOURCES) $(ngtsumm_SOURCES)
+	$(ngtmkax_SOURCES) $(ngtstat_SOURCES) $(ngtsumm_SOURCES)
+DIST_SOURCES = $(libgtool3_a_SOURCES) $(ngtcat_SOURCES) \
+	$(ngted_SOURCES) $(ngthead_SOURCES) $(ngtick_SOURCES) \
+	$(ngtls_SOURCES) $(ngtmkax_SOURCES) $(ngtstat_SOURCES) \
+	$(ngtsumm_SOURCES)
 includeHEADERS_INSTALL = $(INSTALL_HEADER)
 HEADERS = $(include_HEADERS)
 ETAGS = etags
@@ -230,6 +240,8 @@ ngtsumm_SOURCES = ngtsumm.c $(utils)
 ngtstat_SOURCES = ngtstat.c $(utils)
 ngtick_SOURCES = ngtick.c caltime.c $(utils)
 ngthead_SOURCES = ngthead.c
+ngted_SOURCES = ngted.c copysubst.o $(utils)
+ngtmkax_SOURCES = ngtmkax.c  $(utils)
 LDADD = libgtool3.a -lm
 all: config.h
 	$(MAKE) $(AM_MAKEFLAGS) all-am
@@ -345,6 +357,9 @@ clean-binPROGRAMS:
 ngtcat$(EXEEXT): $(ngtcat_OBJECTS) $(ngtcat_DEPENDENCIES) 
 	@rm -f ngtcat$(EXEEXT)
 	$(LINK) $(ngtcat_LDFLAGS) $(ngtcat_OBJECTS) $(ngtcat_LDADD) $(LIBS)
+ngted$(EXEEXT): $(ngted_OBJECTS) $(ngted_DEPENDENCIES) 
+	@rm -f ngted$(EXEEXT)
+	$(LINK) $(ngted_LDFLAGS) $(ngted_OBJECTS) $(ngted_LDADD) $(LIBS)
 ngthead$(EXEEXT): $(ngthead_OBJECTS) $(ngthead_DEPENDENCIES) 
 	@rm -f ngthead$(EXEEXT)
 	$(LINK) $(ngthead_LDFLAGS) $(ngthead_OBJECTS) $(ngthead_LDADD) $(LIBS)
@@ -354,6 +369,9 @@ ngtick$(EXEEXT): $(ngtick_OBJECTS) $(ngtick_DEPENDENCIES)
 ngtls$(EXEEXT): $(ngtls_OBJECTS) $(ngtls_DEPENDENCIES) 
 	@rm -f ngtls$(EXEEXT)
 	$(LINK) $(ngtls_LDFLAGS) $(ngtls_OBJECTS) $(ngtls_LDADD) $(LIBS)
+ngtmkax$(EXEEXT): $(ngtmkax_OBJECTS) $(ngtmkax_DEPENDENCIES) 
+	@rm -f ngtmkax$(EXEEXT)
+	$(LINK) $(ngtmkax_LDFLAGS) $(ngtmkax_OBJECTS) $(ngtmkax_LDADD) $(LIBS)
 ngtstat$(EXEEXT): $(ngtstat_OBJECTS) $(ngtstat_DEPENDENCIES) 
 	@rm -f ngtstat$(EXEEXT)
 	$(LINK) $(ngtstat_LDFLAGS) $(ngtstat_OBJECTS) $(ngtstat_LDADD) $(LIBS)
@@ -378,9 +396,11 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/gtdim.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/header.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ngtcat.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ngted.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ngthead.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ngtick.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ngtls.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ngtmkax.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ngtstat.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ngtsumm.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/reverse.Po@am__quote@
