@@ -45,9 +45,10 @@ LDADD		= -lgtool3 -lm
 
 LIBS		= libgtool3.a
 HEADERS		= gtool3.h
-BINS		= ngtcat ngtls ngtsumm ngtstat ngtick ngthead # ngted
+BINS		= ngtcat ngtls ngtsumm ngtstat ngtick \
+		ngthead ngted ngtmkax
 
-UTILS		= seq.o fileiter.o split.o get_ints.o
+UTILS		= seq.o fileiter.o split.o get_ints.o copysubst.o
 
 TARGETS		= $(LIBS) $(BINS)
 
@@ -75,6 +76,9 @@ ngtick: libgtool3.a ngtick.o $(UTILS) caltime.o
 
 ngted: libgtool3.a ngted.o $(UTILS)
 	$(CC) $(LDFLAGS) -L. -o $@ ngted.o $(UTILS) $(LDADD)
+
+ngtmkax:  libgtool3.a ngtmkax.o $(UTILS)
+	$(CC) $(LDFLAGS) -L. -o $@ ngtmkax.o $(UTILS) $(LDADD)
 
 ngthead: ngthead.o
 	$(CC) $(LDFLAGS) -o $@ ngthead.o

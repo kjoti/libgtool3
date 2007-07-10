@@ -66,6 +66,13 @@ struct GT3_Dim {
 };
 typedef struct GT3_Dim GT3_Dim;
 
+struct GT3_DimBound {
+	char *name;
+	int len;
+	double *bnd;
+	int len_orig;
+};
+typedef struct GT3_DimBound GT3_DimBound;
 
 /*
  *  Gtool-formatted file.
@@ -144,12 +151,16 @@ int GT3_getVarAttrDouble(double *attr, const GT3_Varbuf *var, const char *key);
 
 /* gtdim.c */
 GT3_Dim *GT3_loadDim(const char *name);
+GT3_Dim *GT3_getBuiltinDim(const char *name);
 GT3_Dim *GT3_getDim(const char *name);
 void GT3_freeDim(GT3_Dim *dim);
 double *GT3_loadDimWeight(const char *name);
+double *GT3_getBuiltinDimWeight(const char *name);
 double *GT3_getDimWeight(const char *name);
 int GT3_writeDimFile(FILE *fp, const GT3_Dim *dim, const char *fmt);
 int GT3_writeWeightFile(FILE *fp, const GT3_Dim *dim, const char *fmt);
+GT3_DimBound *GT3_getDimBound(const char *name);
+void GT3_freeDimBound(GT3_DimBound *dimbnd);
 
 /* header.c */
 char *GT3_copyHeaderItem(char *buf, int len, const GT3_HEADER *h,

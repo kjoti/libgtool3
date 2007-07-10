@@ -89,11 +89,21 @@ make_axisfile(const char *name, const char *outdir, const char *fmt)
 void
 usage(void)
 {
-	fprintf(stderr, "Usage: %s\n", PROGNAME);
+	const char *messages =
+		"Usage: " PROGNAME " [options] AXISNAME...\n"
+		"\n"
+		"output grid information files of the well-known axes\n"
+		"\n"
+		"Options:\n"
+		"    -h        print help message\n"
+		"    -f        specify gtool3 format (UR4)\n"
+		"    -o        specify output directory (.)\n"
+		"\n"
+		"Options:\n"
+		"  " PROGNAME " -o ~/myaixs GGLA64 GGLA128 GGLA64x2\n";
+
+	fprintf(stderr, messages);
 }
-
-
-
 
 
 int
@@ -104,16 +114,17 @@ main(int argc, char **argv)
 	const char *fmt = "UR4";
 
 
-	while ((ch = getopt(argc, argv, "f:O:")) != -1)
+	while ((ch = getopt(argc, argv, "f:ho:")) != -1)
 		switch (ch) {
 		case 'f':
 			fmt = strdup(optarg);
 			break;
 
-		case 'O':
+		case 'o':
 			outdir = strdup(optarg);
 			break;
 
+		case 'h':
 		default:
 			usage();
 			exit(1);
