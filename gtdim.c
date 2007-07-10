@@ -1072,8 +1072,7 @@ GT3_getDimBound(const char *name)
 	if (id == -1)
 		return NULL;
 
-	len *= idiv;
-	if ((dimbnd = new_dimbound(name, len, len + 1)) != NULL) {
+	if ((dimbnd = new_dimbound(name, len * idiv, len * idiv + 1)) != NULL) {
 		if ((*tab[id].bndfunc)(dimbnd->bnd, len, idiv, flag) <  0) {
 			GT3_freeDimBound(dimbnd);
 			return NULL;
@@ -1081,8 +1080,6 @@ GT3_getDimBound(const char *name)
 	}
 	return dimbnd;
 }
-
-
 
 
 #ifdef TEST_MAIN
@@ -1426,11 +1423,13 @@ main(int argc, char **argv)
 	bound_test("GLON320");
 	bound_test("GLON320M");
 	bound_test("GLON320MC");
+	bound_test("GLON320x2");
 	bound_test("GGLA2");
 	bound_test("GGLA3");
 	bound_test("GGLA64");
 	bound_test("GGLA320");
 	bound_test("GGLA320I");
+	bound_test("GGLA320x2");
 	bound_test("GLAT2");
 	bound_test("GLAT2M");
 	bound_test("GLAT3");
