@@ -50,8 +50,8 @@ enum {
 };
 
 struct { char key; int value; } cmd_type_map[] = {
-	{ 'c', CHANGE_STR  },
-	{ '=', CHANGE  },
+	{ 'C', CHANGE_STR  },
+	{ 'c', CHANGE  },
 	{ 'a', APPEND  },
 	{ 'i', INSERT  },
 	{ 's', SUBST   },
@@ -344,7 +344,7 @@ get_addr(const char *str, char **endptr)
 	int addr;
 
 	if (isdigit(*str)) {
-		addr = strtol(str, &p, 10);
+		addr = strtol(str, &p, 10) - 1;
 		if (addr < 0 || addr >= 64) {
 			fprintf(stderr, "%s: %d: Out of range.\n", PROGNAME, addr);
 			return -1;
