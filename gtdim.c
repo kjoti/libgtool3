@@ -860,8 +860,9 @@ GT3_writeDimFile(FILE *fp, const GT3_Dim *dim, const char *fmt)
 	GT3_setHeaderString(&head, "TITLE", dim->title);
 	GT3_setHeaderString(&head, "UNIT", dim->unit);
 
-	if (strcmp(dim->title, "longitude") == 0
-		|| strcmp(dim->title, "latitude") == 0) {
+	if (dim->title
+		&& (strcmp(dim->title, "longitude") == 0
+			|| strcmp(dim->title, "latitude") == 0)) {
 		GT3_setHeaderDouble(&head, "DIVS", 10.);
 		GT3_setHeaderDouble(&head, "DIVL", 30.);
 	}
