@@ -241,7 +241,7 @@ make_glon(int len, int idiv, unsigned flag)
 	dim->range[1] = bnd1;
 	dim->cyclic   = 1;
 	dim->title    = strdup("longitude");
-	dim->unit     = strdup("degree");
+	dim->unit     = strdup("degrees_east"); /* UDUNITS supports */
 
 	return dim;
 }
@@ -278,7 +278,7 @@ make_glat(int len, int idiv, unsigned flag)
 	dim->range[1] = 90.;
 	dim->cyclic   = 0;
 	dim->title    = strdup("latitude");
-	dim->unit     = strdup("degree");
+	dim->unit     = strdup("degrees_north"); /* UDUNITS supports */
 
 	return dim;
 }
@@ -343,7 +343,7 @@ final:
 		dim->range[1] = 90.;
 		dim->cyclic   = 0;
 		dim->title    = strdup("latitude");
-		dim->unit     = strdup("degree");
+		dim->unit     = strdup("degrees_north"); /* UDUNITS supports */
 	} else {
 		free(grid);
 		free(dim);
@@ -860,6 +860,12 @@ GT3_writeDimFile(FILE *fp, const GT3_Dim *dim, const char *fmt)
 	GT3_setHeaderString(&head, "TITLE", dim->title);
 	GT3_setHeaderString(&head, "UNIT", dim->unit);
 
+	if (strcmp(dim->title, "longitude") == 0
+		|| strcmp(dim->title, "latitude") == 0) {
+		GT3_setHeaderDouble(&head, "DIVS", 10.);
+		GT3_setHeaderDouble(&head, "DIVL", 30.);
+	}
+
 	rval = GT3_write(dim->values, GT3_TYPE_DOUBLE,
 					 dim->len, 1, 1,
 					 &head, fmt, fp);
@@ -892,6 +898,191 @@ GT3_writeWeightFile(FILE *fp, const GT3_Dim *dim, const char *fmt)
 	free(wght);
 	return rval;
 }
+
+
+/*
+ *  for GT3_DimBound ...
+ */
+static int
+cellbnd_glon(double *bnd, int len, int idiv, unsigned flag)
+{
+	double bnd0, bnd1;
+	double delta;
+
+	if (flag & C_FLAG) {
+		bnd0 = -180.;
+		bnd1 =  180.;
+	} else {
+		bnd0 = 0.;
+		bnd1 = 360.;
+	}
+
+	if (idiv > 1) {
+		delta = (1. - 1. / idiv) * 180. / len;
+		bnd0 -= delta;
+		bnd1 -= delta;
+	}
+
+	delta = 180. / (len * idiv);
+	if ((flag & MID_FLAG) == 0) {
+		bnd0 -= delta;
+		bnd1 -= delta;
+	}
+	uniform_bnd(bnd, bnd0, bnd1, len * idiv + 1);
+	return 0;
+}
+
+
+/*
+ *  bnd must have the space of (len * idiv + 1).
+ */
+static int
+cellbnd_ggla(double *bnd, int len, int idiv, unsigned flag)
+{
+	double grid_[1024], wght_[1024];
+	double *grid, *wght;
+	double fact;
+	int i, mlen;
+
+	grid = (double *)tiny_alloc(grid_, sizeof grid_, sizeof(double) * len);
+	wght = (double *)tiny_alloc(wght_, sizeof wght_, sizeof(double) * len);
+	if (grid == NULL || wght == NULL)
+		return -1;
+
+	/*
+	 *  \mu = cos \theta: [-1, +1]  from South to North.
+	 */
+	gauss_legendre(grid, wght, len);
+
+	mlen = len * idiv + 1;
+	fact = 1. / idiv;
+	bnd[0] = -1.;
+	for (i = 1; i < mlen / 2; i++)
+		bnd[i] = bnd[i-1] + fact * wght[(i-1) / idiv];
+
+	/*
+	 *  \mu -> latitude (in degree)
+	 */
+	bnd[0] = -90.0;				/* south pole */
+	for (i = 1; i < mlen / 2; i++)
+		bnd[i] = 90. * (1. - acos(bnd[i]) * M_2_PI);
+
+	/* north hemispehre */
+	for (i = 0; i < mlen / 2; i++)
+		bnd[mlen - 1 - i] = -bnd[i];
+
+	if (mlen % 2)
+		bnd[mlen / 2] = 0.;		/* EQ */
+
+	if ((flag & INVERT_FLAG) == 0)
+		invert(bnd, mlen);
+
+	tiny_free(grid, grid_);
+	tiny_free(wght, wght_);
+	return 0;
+}
+
+
+static int
+cellbnd_glat(double *bnd, int len, int idiv, unsigned flag)
+{
+	len *= idiv;
+
+	if ((flag & MID_FLAG) || len % 2 == 0)
+		uniform_bnd(bnd, 90.0, -90., len + 1);
+	else {
+		if (len > 1) {
+			double delta;
+			delta = 90. / (len - 1);
+			uniform_bnd(bnd, 90. + delta, -90. - delta, len + 1);
+		}
+		bnd[0] = 90.;
+		bnd[len] = -90.;
+	}
+	if (flag & INVERT_FLAG)
+		invert(bnd, len + 1);
+	return 0;
+}
+
+
+static GT3_DimBound *
+new_dimbound(const char *name, int len_orig, int len)
+{
+	GT3_DimBound *dimbnd = NULL;
+	double *bnd = NULL;
+
+	if ((dimbnd = (GT3_DimBound *)malloc(sizeof(GT3_DimBound))) == NULL
+		|| (bnd = (double *)malloc(sizeof(double) * (len))) == NULL) {
+
+		gt3_error(SYSERR, NULL);
+		free(bnd);
+		free(dimbnd);
+		return NULL;
+	}
+
+	dimbnd->name = strdup(name);
+	dimbnd->len  = len + 1;
+	dimbnd->bnd  = bnd;
+	dimbnd->len_orig = len_orig;
+
+	return dimbnd;
+}
+
+
+void
+GT3_freeDimBound(GT3_DimBound *dimbnd)
+{
+	if (dimbnd) {
+		free(dimbnd->name);
+		free(dimbnd->bnd);
+		free(dimbnd);
+	}
+}
+
+
+GT3_DimBound *
+GT3_getDimBound(const char *name)
+{
+	struct dimbndtab {
+		const char *key;
+		int (*bndfunc)(double *, int, int, unsigned);
+	};
+	struct dimbndtab tab[] = {
+		{ "GLON", cellbnd_glon },
+		{ "GGLA", cellbnd_ggla },
+		{ "GLAT", cellbnd_glat }
+	};
+	char base[16 + 1];
+	int i, id, rval;
+	int len, idiv;
+	unsigned flag;
+	GT3_DimBound *dimbnd = NULL;
+
+	rval = parse_axisname(name, base, &len, &idiv, &flag);
+	if (rval < 0)
+		return NULL;
+
+	id = -1;
+	for (i = 0; i < sizeof tab / sizeof tab[0]; i++)
+		if (strcmp(base, tab[i].key) == 0) {
+			id = i;
+			break;
+		}
+
+	if (id == -1)
+		return NULL;
+
+	len *= idiv;
+	if ((dimbnd = new_dimbound(name, len, len + 1)) != NULL) {
+		if ((*tab[id].bndfunc)(dimbnd->bnd, len, idiv, flag) <  0) {
+			GT3_freeDimBound(dimbnd);
+			return NULL;
+		}
+	}
+	return dimbnd;
+}
+
+
 
 
 #ifdef TEST_MAIN
@@ -1083,6 +1274,35 @@ test_axisfile(void)
 }
 
 
+void
+bound_test(const char *name)
+{
+	GT3_Dim *dim;
+	GT3_DimBound *dimbnd;
+	int i;
+
+	dim = GT3_getDim(name);
+	dimbnd = GT3_getDimBound(name);
+	assert(dim && dimbnd);
+
+	if (dimbnd->bnd[0] < dimbnd->bnd[1])
+		for (i = 0; i < dimbnd->len_orig; i++) {
+			assert(dimbnd->bnd[i] < dimbnd->bnd[i+1]);
+			assert(dimbnd->bnd[i] <= dim->values[i]);
+			assert(dim->values[i] <= dimbnd->bnd[i+1]);
+		}
+	else
+		for (i = 0; i < dimbnd->len_orig; i++) {
+			assert(dimbnd->bnd[i] > dimbnd->bnd[i+1]);
+			assert(dimbnd->bnd[i] >= dim->values[i]);
+			assert(dim->values[i] >= dimbnd->bnd[i+1]);
+		}
+
+	GT3_freeDim(dim);
+	GT3_freeDimBound(dimbnd);
+}
+
+
 int
 main(int argc, char **argv)
 {
@@ -1182,6 +1402,43 @@ main(int argc, char **argv)
 		weight_glat(wght, 161, 1, 0);
 		assert(zero(sum(wght, 161) - 1.));
 	}
+
+	/* cell boundary */
+	{
+		double bnd[641];
+
+		cellbnd_glon(bnd, 360, 1, MID_FLAG);
+		assert(bnd[0] == 0. && bnd[360] == 360.);
+
+		cellbnd_glon(bnd, 360, 1, 0);
+		assert(bnd[0] == -.5 && bnd[360] == 359.5);
+
+		cellbnd_glon(bnd, 360, 1, MID_FLAG | C_FLAG);
+		assert(bnd[0] == -180. && bnd[360] == 180.);
+
+		cellbnd_ggla(bnd, 2, 1, 0);
+		assert(bnd[0] == 90. && bnd[1] == 0. && bnd[2] == -90.);
+
+		cellbnd_ggla(bnd, 2, 1, INVERT_FLAG);
+		assert(bnd[0] == -90. && bnd[1] == 0. && bnd[2] == 90.);
+	}
+
+	bound_test("GLON320");
+	bound_test("GLON320M");
+	bound_test("GLON320MC");
+	bound_test("GGLA2");
+	bound_test("GGLA3");
+	bound_test("GGLA64");
+	bound_test("GGLA320");
+	bound_test("GGLA320I");
+	bound_test("GLAT2");
+	bound_test("GLAT2M");
+	bound_test("GLAT3");
+	bound_test("GLAT3M");
+	bound_test("GLAT160");
+	bound_test("GLAT161");
+	bound_test("GLAT161M");
+
 	return 0;
 }
 #endif
