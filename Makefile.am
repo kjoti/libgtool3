@@ -26,7 +26,7 @@ ngtsumm_SOURCES = ngtsumm.c $(utils)
 ngtstat_SOURCES = ngtstat.c $(utils)
 ngtick_SOURCES = ngtick.c caltime.c $(utils)
 ngthead_SOURCES = ngthead.c
-ngted_SOURCES = ngted.c copysubst.o $(utils)
+ngted_SOURCES = ngted.c copysubst.c $(utils)
 ngtmkax_SOURCES = ngtmkax.c  $(utils)
 
 LDADD = libgtool3.a -lm
