@@ -6,6 +6,9 @@
 #ifndef CALTIME__H
 #define CALTIME__H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 struct caltime {
 	int caltype;
@@ -71,4 +74,7 @@ int ct_num_days_in_month(const caltime *date);
 
 char *ct_caltime_str(const caltime *date);
 
+#ifdef __cplusplus
+}
+#endif
 #endif /* !CALTIME__H */
