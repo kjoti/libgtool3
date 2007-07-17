@@ -47,7 +47,7 @@ make_axisfile(const char *name, const char *outdir, const char *fmt)
 		if (GT3_ErrorCount() > 0)
 			GT3_printErrorMessages(stderr);
 		else
-			fprintf(stderr, "%s: %s: Not Built-in axisname\n",
+			fprintf(stderr, "%s: %s: Not a Built-in axisname\n",
 					PROGNAME, name);
 		return -1;
 	}
@@ -99,9 +99,10 @@ usage(void)
 		"    -f        specify gtool3 format (UR4)\n"
 		"    -o        specify output directory (.)\n"
 		"\n"
-		"Options:\n"
-		"  " PROGNAME " -o ~/myaixs GGLA64 GGLA128 GGLA64x2\n";
+		"Example:\n"
+		"  " PROGNAME " -o ~/myaixs GGLA64 GGLA64I GGLA128 GGLA64x2\n\n";
 
+	fprintf(stderr, "%s\n", GT3_version());
 	fprintf(stderr, messages);
 }
 
@@ -122,6 +123,12 @@ main(int argc, char **argv)
 
 		case 'o':
 			outdir = strdup(optarg);
+			if (strlen(outdir) > PATH_MAX - 32) {
+				fprintf(stderr, "%s: %s\n",
+						PROGNAME,
+						"The path specified with o-option is too long");
+				exit(1);
+			}
 			break;
 
 		case 'h':
