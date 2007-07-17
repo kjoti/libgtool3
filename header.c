@@ -20,6 +20,9 @@
 #define NUM_ELEM 64
 
 #define ISCNTRL(c) ((c) < 040 || (c) == 0177)
+#ifndef min
+#  define min(a,b) ((a) < (b) ? (a) : (b))
+#endif
 
 /*
  *  Gtool3 header items.
@@ -299,10 +302,9 @@ GT3_initHeader(GT3_HEADER *header)
 void
 GT3_setHeaderString(GT3_HEADER *header, const char *key, const char *str)
 {
-	char buf[2 * ELEM_SZ + 1];
-	char *pfmt;
 	int siz;
 	struct ElemDict *p;
+	char *h;
 
 	if (!str)
 		return;
@@ -313,16 +315,12 @@ GT3_setHeaderString(GT3_HEADER *header, const char *key, const char *str)
 		return;
 	}
 
-	if (p->type == IT_STR2) {
-		siz = 2 * ELEM_SZ;
-		pfmt = "%-32s";
-	} else {
-		siz = ELEM_SZ;
-		pfmt = "%-16s";
-	}
+	siz = (p->type == IT_STR2) ? 2 : 1;
+	siz *= ELEM_SZ;
+	h = header->h + ELEM_SZ * p->id;
 
-	snprintf(buf, siz + 1, pfmt, str);
-	memcpy(header->h + ELEM_SZ * p->id, buf, siz);
+	memset(h, ' ', siz);
+	memcpy(h, str, min(strlen(str), siz));
 }
 
 
