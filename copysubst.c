@@ -15,6 +15,7 @@ copysubst(char *dest, size_t len,
 	size_t oldlen, newlen, remain;
 	size_t slen;
 	int overflow = 0;
+	int cnt = 0;
 
 	if (len < 1)
 		return -1;
@@ -36,6 +37,7 @@ copysubst(char *dest, size_t len,
 			len  -= slen;
 			orig += oldlen;
 			remain -= oldlen;
+			cnt++;
 		} else {
 			*dest++ = *orig++;
 			remain--;
@@ -44,7 +46,7 @@ copysubst(char *dest, size_t len,
 	}
 	*dest = '\0';
 
-	return (remain > 0 || overflow) ? -1 : 0;
+	return (remain > 0 || overflow) ? -1 : cnt;
 }
 
 
@@ -60,7 +62,7 @@ main(int argc, char **argv)
 
 	rval = copysubst(dest, sizeof dest, "foo bar bar",
 					 "bar", "SPAM");
-	assert(rval == 0 && strcmp(dest, "foo SPAM SPAM") == 0);
+	assert(rval == 2 && strcmp(dest, "foo SPAM SPAM") == 0);
 
 	rval = copysubst(dest, sizeof dest, "foo bar bar foo",
 					 "bar", "SPAM");
@@ -68,7 +70,7 @@ main(int argc, char **argv)
 
 	rval = copysubst(dest, sizeof dest, "foo bar bar",
 					 "ar", "");
-	assert(rval == 0 && strcmp(dest, "foo b b") == 0);
+	assert(rval == 2 && strcmp(dest, "foo b b") == 0);
 
 	rval = copysubst(dest, sizeof dest, "foo bar bar",
 					 "", "SPAM");
