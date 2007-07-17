@@ -140,8 +140,8 @@ latitude_mosaic(double *grid, const double *wght, int len, int idiv)
 	 *
 	 *  cf. ${AGCM}/src/physics/pmisc.F (MKLATM1)
 	 */
-	bnd[0]   = -1.;
-	bnd[len] =  1.;
+	bnd[0]   = -1.; /* south pole */
+	bnd[len] =  1.; /* north pole */
 	for (i = 1; i < len / 2; i++) {
 		bnd[i] = bnd[i-1] + wght[i-1];
 		bnd[len-i] = -bnd[i];
@@ -421,15 +421,16 @@ static GT3_File *
 open_axisfile2(const char *name, const char *pathlist, const char *kind)
 {
 	char path[PATH_MAX + 1];
+	char base[32];
 	const char *head, *next, *tail;
 	int len, baselen;
 	GT3_File *fp = NULL;
 
-
 	head = pathlist;
-	tail = strchr(pathlist, '\0');
+	tail = pathlist + strlen(pathlist);
 
-	baselen = strlen("/GTAXLOC.") + strlen(name);
+	snprintf(base, sizeof base, "/%s.%s", kind, name);
+	baselen = strlen(base);
 
 	while (head < tail) {
 		next = strchr(head, PATH_SEP);
@@ -443,11 +444,11 @@ open_axisfile2(const char *name, const char *pathlist, const char *kind)
 		}
 
 		memcpy(path, head, len);
-		snprintf(path + len, sizeof path - len, "/%s.%s", kind, name);
+		memcpy(path + len, base, baselen + 1); /* including a null */
 
 		if ((fp = GT3_open(path)) != NULL)
 			break;
-
+		GT3_clearLastError();
 		head = next + 1;
 	}
 	return fp;
@@ -486,6 +487,7 @@ open_axisfile(const char *name, const char *kind)
 		fp = GT3_open(path);
 		if (fp)
 			return fp;
+		GT3_clearLastError();
 	}
 
 	/*
@@ -497,6 +499,7 @@ open_axisfile(const char *name, const char *kind)
 		fp = GT3_open(path);
 		if (fp)
 			return fp;
+		GT3_clearLastError();
 	}
 
 	/*
@@ -724,7 +727,7 @@ weight_latitude(double *wght, const double *lat, int len)
 		bnd[i] = fact * (lat[i-1] + lat[i]);
 		bnd[i] = M_PI / 180.0 * (90.0 - bnd[i]);
 	}
-	bnd[0] = 0.;
+	bnd[0] = 0.; /* north pole (theta == 0) */
 
 	for (i = 0; i < len2; i++)
 		wght[i] = 0.5 * (cos(bnd[i]) - cos(bnd[i+1]));
@@ -1022,7 +1025,7 @@ new_dimbound(const char *name, int len_orig, int len)
 	}
 
 	dimbnd->name = strdup(name);
-	dimbnd->len  = len + 1;
+	dimbnd->len  = len;
 	dimbnd->bnd  = bnd;
 	dimbnd->len_orig = len_orig;
 
@@ -1419,6 +1422,9 @@ main(int argc, char **argv)
 
 		cellbnd_ggla(bnd, 2, 1, INVERT_FLAG);
 		assert(bnd[0] == -90. && bnd[1] == 0. && bnd[2] == 90.);
+
+		cellbnd_glat(bnd, 2, 1, 0);
+		assert(bnd[0] == 90. && bnd[1] == 0. && bnd[2] == -90.);
 	}
 
 	bound_test("GLON320");
