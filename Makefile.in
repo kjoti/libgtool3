@@ -81,7 +81,8 @@ am_ngtcat_OBJECTS = ngtcat.$(OBJEXT) $(am__objects_1)
 ngtcat_OBJECTS = $(am_ngtcat_OBJECTS)
 ngtcat_LDADD = $(LDADD)
 ngtcat_DEPENDENCIES = libgtool3.a
-am_ngted_OBJECTS = ngted.$(OBJEXT) $(am__objects_1)
+am_ngted_OBJECTS = ngted.$(OBJEXT) copysubst.$(OBJEXT) \
+	$(am__objects_1)
 ngted_OBJECTS = $(am_ngted_OBJECTS)
 ngted_LDADD = $(LDADD)
 ngted_DEPENDENCIES = libgtool3.a
@@ -240,7 +241,7 @@ ngtsumm_SOURCES = ngtsumm.c $(utils)
 ngtstat_SOURCES = ngtstat.c $(utils)
 ngtick_SOURCES = ngtick.c caltime.c $(utils)
 ngthead_SOURCES = ngthead.c
-ngted_SOURCES = ngted.c copysubst.o $(utils)
+ngted_SOURCES = ngted.c copysubst.c $(utils)
 ngtmkax_SOURCES = ngtmkax.c  $(utils)
 LDADD = libgtool3.a -lm
 all: config.h
@@ -387,6 +388,7 @@ distclean-compile:
 
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/bits_set.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/caltime.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/copysubst.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/error.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/file.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/fileiter.Po@am__quote@

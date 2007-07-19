@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ(2.59)
-AC_INIT(libgtool3, 0.7)
+AC_INIT(libgtool3, 0.7.1)
 AC_CONFIG_SRCDIR([gtool3.h])
 AM_INIT_AUTOMAKE
 AM_MAINTAINER_MODE
