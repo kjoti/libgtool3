@@ -318,9 +318,11 @@ subst_str(GT3_HEADER *head, struct edit_command *ec)
 static char *
 strcpy_to_char(char *dest, size_t len, const char *src, char stop)
 {
-	while (*src != '\0' && *src != stop && --len > 0)
-		*dest++ = *src++;
-	*dest = '\0';
+	if (len > 0) {
+		while (*src != '\0' && *src != stop && --len > 0)
+			*dest++ = *src++;
+		*dest = '\0';
+	}
 	return (char *)src;
 }
 
@@ -344,7 +346,7 @@ get_addr(const char *str, char **endptr)
 	int addr;
 
 	if (isdigit(*str)) {
-		addr = strtol(str, &p, 10) - 1;
+		addr = (int)strtol(str, &p, 10) - 1;
 		if (addr < 0 || addr >= 64) {
 			fprintf(stderr, "%s: %d: Out of range.\n", PROGNAME, addr);
 			return -1;
@@ -399,7 +401,7 @@ setup_edit_func_float(struct edit_command *ec, const char *args)
 	float fval;
 	char *endptr;
 
-	fval = strtof(args, &endptr);
+	fval = (float)strtod(args, &endptr);
 	if (args == endptr) {
 		fprintf(stderr, "%s: argument should be a floating-number.\n",
 				PROGNAME);
@@ -423,7 +425,7 @@ setup_edit_func_str(struct edit_command *ec, const char *args)
 	 */
 	for (i = 0; i < sizeof forbidden_addr / sizeof(int); i++)
 		if (ec->addr == forbidden_addr[i]) {
-			fprintf(stderr, "%s: Forbbiden operation.\n", PROGNAME);
+			fprintf(stderr, "%s: Forbidden operation.\n", PROGNAME);
 			return -1;
 		}
 
@@ -529,7 +531,8 @@ new_command(const char *str)
 		}
 
 	if (cmd == -1) {
-		fprintf(stderr, "%s: %c: No such edit command.\n", PROGNAME, *curr);
+		fprintf(stderr, "%s: %s: Syntax error in the edit command.\n",
+				PROGNAME, curr);
 		free(temp);
 		return NULL;
 	}
@@ -555,7 +558,7 @@ new_command(const char *str)
 	else if (type == TYPE_FLOAT)
 		stat = setup_edit_func_float(temp, curr);
 	else {
-		assert("NOT REACHED");
+		assert(!"NOT REACHED");
 		stat = -1;
 	}
 	if (stat < 0) {
@@ -612,7 +615,7 @@ edit_file(const char *path, struct edit_command *list,
 	}
 
 	if (!tseq) {
-		while(!GT3_eof(fp)) {
+		while (!GT3_eof(fp)) {
 			if (edit(fp, list) < 0) {
 				rval = -1;
 				break;
@@ -651,7 +654,22 @@ edit_file(const char *path, struct edit_command *list,
 static void
 usage(void)
 {
-	fprintf(stderr, "Usage: %s", PROGNAME);
+	const char *messages =
+		"Usage: " PROGNAME " [options] file...\n"
+		"\n"
+		"edit header fields.\n"
+		"\n"
+		"Options:\n"
+		"    -h           print help message\n"
+		"    -t LIST      specify data number\n"
+		"    -e COMMAND   specify edit commmand\n"
+		"\n"
+		"Examples:\n"
+		"  " PROGNAME " -e aitm2:s/GGLA320I/GGLA160Ix2 file\n"
+		"  " PROGNAME " -e \'title:c2m surface temperature\' file\n";
+
+	fprintf(stderr, "%s\n", GT3_version());
+	fprintf(stderr, messages);
 }
 
 
@@ -688,6 +706,7 @@ main(int argc, char **argv)
 		exit(1);
 	}
 
+	GT3_setProgname(PROGNAME);
 	argc -= optind;
 	argv += optind;
 	for (; argc > 0 && *argv; argc--, argv++) {
