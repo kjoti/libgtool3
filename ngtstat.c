@@ -28,22 +28,6 @@
 
 #define PROGNAME "ngtstat"
 
-static const char *usage_messages =
-	"Usage: ngtstat [options] [files...]\n"
-	"\n"
-	"Print AVE, SD, MIN, MAX in gtool files.\n"
-	"\n"
-	"Options:\n"
-	"    -h        print help message\n"
-	"    -a        display info for all z-planes\n"
-	"    -t LIST   specify a list of data numbers\n"
-	"    -x RANGE  specify x-range\n"
-	"    -y RANGE  specify y-range\n"
-	"    -z RANGE  specify z-range\n"
-	"\n"
-	"    RANGE  := start[:[end]] | :[end]\n"
-	"    LIST   := RANGE[,RANGE]*\n";
-
 static int xrange[] = { 0, 0x7ffffff };
 static int yrange[] = { 0, 0x7ffffff };
 static int zrange[] = { 0, 0x7ffffff };
@@ -363,6 +347,30 @@ set_range(int range[], const char *str)
 }
 
 
+void
+usage(void)
+{
+	const char *usage_message =
+		"Usage: " PROGNAME " [options] [files...]\n"
+		"\n"
+		"Print AVE, SD, MIN, MAX.\n"
+		"\n"
+		"Options:\n"
+		"    -h        print help message\n"
+		"    -a        display info for all z-planes\n"
+		"    -t LIST   specify a list of data numbers\n"
+		"    -x RANGE  specify x-range\n"
+		"    -y RANGE  specify y-range\n"
+		"    -z RANGE  specify z-range\n"
+		"\n"
+		"    RANGE  := start[:[end]] | :[end]\n"
+		"    LIST   := RANGE[,RANGE]*\n";
+
+	fprintf(stderr, "%s\n", GT3_version());
+	fprintf(stderr, "%s\n", usage_message);
+}
+
+
 int
 main(int argc, char **argv)
 {
@@ -410,7 +418,7 @@ main(int argc, char **argv)
 
 		case 'h':
 		default:
-			fprintf(stderr, usage_messages);
+			usage();
 			exit(1);
 			break;
 		}

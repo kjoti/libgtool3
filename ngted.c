@@ -665,7 +665,7 @@ usage(void)
 		"    -e COMMAND   specify edit commmand\n"
 		"\n"
 		"Examples:\n"
-		"  " PROGNAME " -e aitm2:s/GGLA320I/GGLA160Ix2 file\n"
+		"  " PROGNAME " -e aitm2:s/GGLA320I/GGLA160Ix2/ file\n"
 		"  " PROGNAME " -e \'title:c2m surface temperature\' file\n";
 
 	fprintf(stderr, "%s\n", GT3_version());

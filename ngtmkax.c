@@ -89,21 +89,21 @@ make_axisfile(const char *name, const char *outdir, const char *fmt)
 void
 usage(void)
 {
-	const char *messages =
+	const char *usage_message =
 		"Usage: " PROGNAME " [options] AXISNAME...\n"
 		"\n"
-		"output grid information files of the well-known axes\n"
+		"Output grid information files for GLON*, GGLA*, and GLAT*.\n"
 		"\n"
 		"Options:\n"
 		"    -h        print help message\n"
-		"    -f        specify gtool3 format (UR4)\n"
-		"    -o        specify output directory (.)\n"
+		"    -f        specify gtool3 format (default is UR4)\n"
+		"    -o        specify output directory (default is .)\n"
 		"\n"
 		"Example:\n"
-		"  " PROGNAME " -o ~/myaixs GGLA64 GGLA64I GGLA128 GGLA64x2\n\n";
+		"  " PROGNAME " -o ~/myaixs GGLA64 GGLA64I GGLA128 GGLA64x2\n";
 
 	fprintf(stderr, "%s\n", GT3_version());
-	fprintf(stderr, messages);
+	fprintf(stderr, "%s\n", usage_message);
 }
 
 

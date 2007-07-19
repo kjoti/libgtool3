@@ -16,14 +16,6 @@
 #include "seq.h"
 #include "fileiter.h"
 
-static const char *usage_message =
-	"Usage: ngtls [options] [files...]\n"
-	"\n"
-	"Options:\n"
-	"    -h          print help message\n"
-	"    -n          print axis-size instead of axis-name\n"
-	"    -u          print title and unit\n"
-	"    -t LIST     specify a list of data numbers\n";
 
 static int (*print_item)(int cnt, GT3_File *fp);
 
@@ -183,6 +175,23 @@ print_list(const char *path, struct sequence *seq)
 }
 
 
+void
+usage(void)
+{
+	const char *usage_message =
+		"Usage: ngtls [options] [files...]\n"
+		"\n"
+		"Options:\n"
+		"    -h          print help message\n"
+		"    -n          print axis-length instead of axis-name\n"
+		"    -u          print title and unit\n"
+		"    -t LIST     specify data numbers\n";
+
+	fprintf(stderr, "%s\n", GT3_version());
+	fprintf(stderr, "%s\n", usage_message);
+}
+
+
 int
 main(int argc, char **argv)
 {
@@ -207,7 +216,7 @@ main(int argc, char **argv)
 
 		case 'h':
 		default:
-			fprintf(stderr, usage_message);
+			usage();
 			exit(1);
 			break;
 		}

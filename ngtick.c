@@ -51,18 +51,19 @@ myperror(const char *fmt, ...)
 
 
 static void
-usage()
+usage(void)
 {
 	static const char *messages =
 		"\n"
-		"set time-axis.\n"
+		"Overwrite header fields about time-axis.\n"
 		"\n"
 		"Options:\n"
 		"    -h        print help message\n"
-		"    -s        make snapshot data\n"
+		"    -s        specify a snapshot\n"
 		"    -c        specify a calendar\n"
 		"    -t LIST   specify a list of data numbers\n";
 
+	fprintf(stderr, "%s\n", GT3_version());
 	fprintf(stderr, "Usage: %s [options] time-def [files...]\n", PROGNAME);
 	fprintf(stderr, messages);
 }

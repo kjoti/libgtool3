@@ -19,26 +19,11 @@
 #include "fileiter.h"
 #include "myutils.h"
 
+#define PROGNAME "ngtsumm"
+
 #ifndef min
 #  define min(a,b) ((a) < (b) ? (a) : (b))
 #endif
-
-
-static const char *usage_messages =
-	"Usage: ngtsumm [options] [files...]\n"
-	"\n"
-	"Print #Miss,#NaN,#Inf in gtool files.\n"
-	"\n"
-	"Options:\n"
-	"    -h        print help message\n"
-	"    -l        print for each z-plane\n"
-	"    -t LIST   specify a list of data numbers\n"
-	"    -x RANGE  specify x-range\n"
-	"    -y RANGE  specify y-range\n"
-	"    -z RANGE  specify z-range\n"
-	"\n"
-	"    RANGE  := start[:[end]] | :[end]\n"
-	"    LIST   := RANGE[,RANGE]*\n";
 
 static int each_plane = 0;
 static int xrange[] = { 0, 0x7ffffff };
@@ -327,6 +312,30 @@ set_range(int range[], const char *str)
 }
 
 
+void
+usage(void)
+{
+	const char *usage_message =
+		"Usage: ngtsumm [options] [files...]\n"
+		"\n"
+		"Print #Miss,#NaN,#Inf in gtool files.\n"
+		"\n"
+		"Options:\n"
+		"    -h        print help message\n"
+		"    -l        print for each z-plane\n"
+		"    -t LIST   specify a list of data numbers\n"
+		"    -x RANGE  specify x-range\n"
+		"    -y RANGE  specify y-range\n"
+		"    -z RANGE  specify z-range\n"
+		"\n"
+		"    RANGE  := start[:[end]] | :[end]\n"
+		"    LIST   := RANGE[,RANGE]*\n";
+
+	fprintf(stderr, "%s\n", GT3_version());
+	fprintf(stderr, "%s\n", usage_message);
+}
+
+
 int
 main(int argc, char **argv)
 {
@@ -359,7 +368,7 @@ main(int argc, char **argv)
 
 		case 'h':
 		default:
-			fprintf(stderr, usage_messages);
+			usage();
 			exit(1);
 			break;
 		}

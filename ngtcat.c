@@ -12,7 +12,6 @@
 #include <string.h>
 #include <unistd.h>
 
-
 #include "gtool3.h"
 #include "seq.h"
 #include "fileiter.h"
@@ -29,24 +28,6 @@
 #ifndef max
 #  define max(a, b) ((a) > (b) ? (a) : (b))
 #endif
-
-
-static const char *usage_messages =
-	"Usage: " PROGNAME " [options] [files...]\n"
-	"\n"
-	"concatenate gtool files (output into stdout).\n"
-	"\n"
-	"Options:\n"
-	"    -h        print help message\n"
-	"    -c        cyclic mode\n"
-	"    -x RANGE  specify domain\n"
-	"    -y RANGE  specify domain\n"
-	"    -z LIST   specify a list of z-plane\n"
-	"    -t LIST   specify a list of data numbers\n"
-	"\n"
-	"    LIST   := RANGE[,RANGE]*\n"
-	"    RANGE  := start[:[end]] | :[end]\n";
-
 
 static int slicing = 0;
 static char *zslice_str = NULL;
@@ -450,6 +431,30 @@ gtcat(const char *path, struct sequence *seq)
 }
 
 
+void
+usage(void)
+{
+	const char *usage_message =
+		"Usage: " PROGNAME " [options] [files...]\n"
+		"\n"
+		"concatenate gtool files (output into stdout).\n"
+		"\n"
+		"Options:\n"
+		"    -h        print help message\n"
+		"    -c        cyclic mode\n"
+		"    -x RANGE  specify range of X\n"
+		"    -y RANGE  specify range of Y\n"
+		"    -z LIST   specify a list of z-plane\n"
+		"    -t LIST   specify a list of data numbers\n"
+		"\n"
+		"    LIST   := RANGE[,RANGE]*\n"
+		"    RANGE  := start[:[end]] | :[end]\n";
+
+	fprintf(stderr, "%s\n", GT3_version());
+	fprintf(stderr, "%s\n", usage_message);
+}
+
+
 int
 main(int argc, char **argv)
 {
@@ -494,7 +499,7 @@ main(int argc, char **argv)
 
 		case 'h':
 		default:
-			fprintf(stderr, usage_messages);
+			usage();
 			exit(1);
 			break;
 		}
