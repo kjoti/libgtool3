@@ -55,17 +55,19 @@ usage(void)
 {
 	static const char *messages =
 		"\n"
-		"Overwrite header fields about time-axis.\n"
+		"Overwrite header fields related to time-axis.\n"
 		"\n"
 		"Options:\n"
 		"    -h        print help message\n"
 		"    -s        specify a snapshot\n"
-		"    -c        specify a calendar\n"
-		"    -t LIST   specify a list of data numbers\n";
+		"    -c CAL    specify a calendar\n"
+		"    -t LIST   specify data numbers\n"
+		"\n"
+		"    CAL : gregorian(default), noleap, all_leap, 360_day, julian\n";
 
 	fprintf(stderr, "%s\n", GT3_version());
 	fprintf(stderr, "Usage: %s [options] time-def [files...]\n", PROGNAME);
-	fprintf(stderr, messages);
+	fprintf(stderr, "%s\n", messages);
 }
 
 
@@ -263,7 +265,7 @@ get_calendar(const char *name)
 		{ "360_day",    CALTIME_360_DAY   },
 		{ "noleap",     CALTIME_NOLEAP    },
 		{ "365_day",    CALTIME_NOLEAP    },
-		{ "allleap",    CALTIME_ALLLEAP   },
+		{ "all_leap",   CALTIME_ALLLEAP   },
 		{ "366_day",    CALTIME_ALLLEAP   },
 		{ "julian",     CALTIME_JULIAN    }
 	};
