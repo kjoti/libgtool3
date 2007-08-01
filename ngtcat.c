@@ -143,7 +143,9 @@ slicecopy2(FILE *dest, GT3_File *fp, size_t esize,
 		}
 
 		for (y = yrange[0]; y < yrange[1]; y++) {
-			off = zoff + off0 + esize * (fp->dimlen[0] * y + xrange[0]);
+			off = (off_t)fp->dimlen[0] * y + xrange[0];
+			off *= esize;
+			off += zoff + off0;
 
 			if (fseeko(fp->fp, off, SEEK_SET) < 0
 				|| fcopy(dest, fp->fp, ssize) < 0)
@@ -239,7 +241,7 @@ slicecopy(FILE *dest, GT3_File *fp)
 		return -1;
 
 	/*
-	 *  For UR4 or UR8, write Fotrran header.
+	 *  For UR4 or UR8, write Fortran header.
 	 */
 	if (fp->fmt == GT3_FMT_UR4 || fp->fmt == GT3_FMT_UR8) {
 		siz = esize * xynum * znum;
@@ -305,7 +307,7 @@ slicecopy(FILE *dest, GT3_File *fp)
 	}
 
 	/*
-	 *  For UR4 or UR8, write Fotrran trailer.
+	 *  For UR4 or UR8, write Fortran trailer.
 	 */
 	if (fp->fmt == GT3_FMT_UR4 || fp->fmt == GT3_FMT_UR8)
 		if (fwrite(&siz, 1, FH_SIZE, dest) != FH_SIZE)

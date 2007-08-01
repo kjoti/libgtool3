@@ -151,12 +151,10 @@ read_header(GT3_HEADER *header, FILE *fp)
 static off_t
 zslice_offset(GT3_File *fp, int zpos)
 {
-	off_t off;
-	int nelem;
-
+	off_t off, nelem;
 
 	off = GT3_HEADER_SIZE + 2 * sizeof(FTN_HEAD);
-	nelem = fp->dimlen[0] * fp->dimlen[1];
+	nelem = (off_t)fp->dimlen[0] * fp->dimlen[1];
 
 	switch (fp->fmt) {
 	case GT3_FMT_UR4:
