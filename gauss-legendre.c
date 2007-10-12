@@ -8,7 +8,7 @@
 #ifndef M_PI
 #  define M_PI 3.14159265358979323846
 #endif
-#define EPS 2.2204460492503131e-14
+#define EPS 2.2204460492503131e-16 /* machine epsilon */
 
 
 void
@@ -36,7 +36,7 @@ gauss_legendre(double sol[], double wght[], int nth)
 
 			dx = -p[2] / dpdx;
 			x += dx;
-		} while (fabs(dx) > EPS);
+		} while (fabs(dx) > 4 * EPS);
 
 		j = nth - 1 - i;
 		sol[i]  = -x;
@@ -89,6 +89,17 @@ zero(double x, double order)
 }
 
 
+int
+equal(double a, double b)
+{
+	double ref = fabs(a) + fabs(b);
+
+	if (a != .0 && b != .0)
+		ref = fabs(a - b) / (0.5 * ref);
+	return ref < 1e-9;
+}
+
+
 double
 P4(double x)
 {
@@ -108,14 +119,15 @@ P5(double x)
 void
 check_P4(double x0, double x1, int nsamp)
 {
-	double x, diff;
+	double x, y1, y2;
 	int i;
 
 	for (i = 0; i < nsamp; i++) {
 		x = ((nsamp - 1 - i) * x0 + i * x1) / (nsamp - 1);
-		diff = legendre_poly(x, 4) - P4(x);
+		y1 = legendre_poly(x, 4);
+		y2 = P4(x);
 
-		assert(zero(diff, 1.));
+		assert(equal(y1, y2));
 	}
 }
 
@@ -123,14 +135,15 @@ check_P4(double x0, double x1, int nsamp)
 void
 check_P5(double x0, double x1, int nsamp)
 {
-	double x, diff;
+	double x, y1, y2;
 	int i;
 
 	for (i = 0; i < nsamp; i++) {
 		x = ((nsamp - 1 - i) * x0 + i * x1) / (nsamp - 1);
-		diff = legendre_poly(x, 5) - P5(x);
+		y1 = legendre_poly(x, 5);
+		y2 = P5(x);
 
-		assert(zero(diff, 1.));
+		assert(equal(y1, y2));
 	}
 }
 
@@ -138,7 +151,7 @@ check_P5(double x0, double x1, int nsamp)
 void
 check_root(int nth)
 {
-	double sol[1000], wght[1000], y, wsum;
+	double sol[1280], wght[1280], y, wsum;
 	int i;
 
 	gauss_legendre(sol, wght, nth);
@@ -151,10 +164,9 @@ check_root(int nth)
 	}
 
 	for (i = 1; i < nth; i++) {
-		assert(!zero(sol[i] - sol[i-1], 1.));
+		assert(sol[i] != sol[i-1]);
 	}
-
-	assert(zero(wsum - 2., 1.));
+	assert(equal(wsum, 2.));
 }
 
 
@@ -174,6 +186,7 @@ main(int argc, char **argv)
 	check_root(321);
 	check_root(900);
 	check_root(901);
+	check_root(1280);
 	return 0;
 }
 #endif
