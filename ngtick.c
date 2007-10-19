@@ -20,7 +20,7 @@
 
 #define PROGNAME "ngtick"
 
-static caltime *global_origin = NULL;
+static caltime global_origin;
 static struct sequence *global_timeseq = NULL;
 static int snapshot_flag = 0;
 
@@ -76,7 +76,7 @@ step(caltime *date, int n, int unit)
 {
 	switch (unit) {
 	case UNIT_HOUR:
-		ct_add_seconds(date, 3600 * n);
+		ct_add_hours(date, n);
 		break;
 	case UNIT_DAY:
 		ct_add_days(date, n);
@@ -118,8 +118,8 @@ modify_date(GT3_HEADER *head,
 	char str[16];
 
 	GT3_setHeaderString(head, "UTIM", "HOUR");
-	GT3_setHeaderInt(head, "TIME", (int)(24. * time));
-	GT3_setHeaderInt(head, "TDUR", (int)(24. * tdur));
+	GT3_setHeaderInt(head, "TIME", (int)(time / 3600.));
+	GT3_setHeaderInt(head, "TDUR", (int)(tdur / 3600.));
 
 	GT3_setHeaderString(head, "DATE",  date_str(str, date));
 	GT3_setHeaderString(head, "DATE1", date_str(str, lower));
@@ -167,8 +167,8 @@ tick(GT3_File *fp, struct caltime *start, int dur, int durunit)
 	date_bnd[1] = *start;
 	step(&date_bnd[1], dur, durunit);
 
-	time_bnd[0] = ct_diff_daysd(&date_bnd[0], global_origin);
-	time_bnd[1] = ct_diff_daysd(&date_bnd[1], global_origin);
+	time_bnd[0] = ct_diff_seconds(&date_bnd[0], &global_origin);
+	time_bnd[1] = ct_diff_seconds(&date_bnd[1], &global_origin);
 
 	for (i = 0; ; i ^= 1) {
 		lower = &date_bnd[i];
@@ -192,17 +192,14 @@ tick(GT3_File *fp, struct caltime *start, int dur, int durunit)
 			/* modify the header */
 			modify_date(&head, upper, upper, upper, time, 0.);
 		} else {
-			time = 5e-1 * (time_bnd[0] + time_bnd[1]);
-			tdur = 5e-1 * (time_bnd[i ^ 1] - time_bnd[i]);
+			time = 0.5 * (time_bnd[0] + time_bnd[1]);
+			tdur = time_bnd[i ^ 1] - time_bnd[i];
 
-			ndays = (int)tdur;
-			nsecs = (int)((tdur - ndays) * 24. * 3600.);
 			date = *lower;
-			ct_add_days(&date, ndays);
-			ct_add_seconds(&date, nsecs);
+			ct_add_seconds(&date, (int)(0.5 * tdur));
 
 			/* modify the header */
-			modify_date(&head, lower, upper, &date, time, 2. * tdur);
+			modify_date(&head, lower, upper, &date, time, tdur);
 		}
 
 		/*
@@ -218,7 +215,7 @@ tick(GT3_File *fp, struct caltime *start, int dur, int durunit)
 		 *  make a step forward.
 		 */
 		step(lower, 2 * dur, durunit);
-		time_bnd[i] = ct_diff_daysd(lower, global_origin);
+		time_bnd[i] = ct_diff_seconds(lower, &global_origin);
 
 		it = get_next(fp);
 		if (it < 0)
@@ -361,7 +358,7 @@ int
 main(int argc, char **argv)
 {
 	int ch;
-	caltime *start;
+	caltime start;
 	int caltype = CALTIME_GREGORIAN;
 	int yr, mon, day, sec, tdur, unit;
 
@@ -397,7 +394,11 @@ main(int argc, char **argv)
 	argc -= optind;
 	argv += optind;
 
-	global_origin = ct_caltime(0, 1, 1, caltype);
+	/*
+	 *  The origin of the time-axis is set to 0-1-1 (1st Jan, B.C. 1).
+	 *  in most GTOOL3-files.
+	 */
+	ct_init_caltime(&global_origin, caltype, 0, 1, 1);
 
 	/*
 	 *  1st argument: time-def specifier.
@@ -412,11 +413,11 @@ main(int argc, char **argv)
 		exit(1);
 	}
 
-	if ((start = ct_caltime(yr, mon, day, caltype)) == NULL) {
+	if (ct_init_caltime(&start, caltype, yr, mon, day) < 0) {
 		fprintf(stderr, "%s: %s: invalid DATE\n", PROGNAME, *argv);
 		exit(1);
 	}
-	ct_add_seconds(start, sec);
+	ct_add_seconds(&start, sec);
 
 	/*
 	 *  process each file.
@@ -424,7 +425,7 @@ main(int argc, char **argv)
 	argc--;
 	argv++;
 	for (; argc > 0 && *argv; argc--, argv++) {
-		if (tick_file(*argv, start, tdur, unit) < 0) {
+		if (tick_file(*argv, &start, tdur, unit) < 0) {
 			fprintf(stderr, "%s: %s: abnormal end\n", PROGNAME, *argv);
 			exit(1);
 		}

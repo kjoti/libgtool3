@@ -87,7 +87,6 @@ ndays_in_years(int from, int to)
 	return ndays + nleap;
 }
 
-
 /*
  *  for 365_day (no leap)
  */
@@ -108,7 +107,6 @@ ndays_in_years_365(int from, int to)
 {
 	return 365 * (to - from);
 }
-
 
 /*
  *  for 366_day (all leap)
@@ -152,7 +150,6 @@ ndays_in_years_360(int from, int to)
 	return 360 * (to - from);
 }
 
-
 /*
  *  for Julian
  */
@@ -186,7 +183,7 @@ ndays_in_years_jul(int from, int to)
 
 
 /*
- *  the number of days since 1st Jan.
+ *  day_of_year: 1st Jan == 0
  */
 int
 ct_day_of_year(const caltime *date)
@@ -197,7 +194,7 @@ ct_day_of_year(const caltime *date)
 
 
 /*
- *  adding 'num' days to current date ('date').
+ *  add 'num' days to current date ('date').
  */
 caltime *
 ct_add_days(caltime *date, int num)
@@ -278,6 +275,61 @@ ct_add_seconds(caltime *date, int sec)
 }
 
 
+caltime *
+ct_add_hours(caltime *date, int hour)
+{
+	int days;
+
+	days = hour / 24;
+	if (days != 0)
+		ct_add_days(date, days);
+	hour -= 24 * days;
+	return ct_add_seconds(date, 3600 * hour);
+}
+
+
+int
+ct_verify_date(int type, int yr, int mo, int dy)
+{
+	mo--;
+	dy--;
+
+	return (
+		type < 0
+		|| type >= CALTIME_DUMMY
+		|| mo < 0
+		|| mo >= 12
+		|| dy < 0
+		|| dy >= (all_traits[type].mon_offset(yr, mo+1, NULL)
+				  - all_traits[type].mon_offset(yr, mo, NULL))
+		) ? -1 : 0;
+}
+
+
+/*
+ *  set 'struct caltime'.
+ *
+ *  ex).
+ *    ct_init_caltime(&date, CALTIME_GREGORIAN, 1900, 1, 1)
+ *    => 1st Jan, 1900 00:00:00
+ *
+ *  ct_init_caltime() returns 0 on successful end, otherwise -1.
+ */
+int
+ct_init_caltime(caltime *date, int type, int yr, int mo, int dy)
+{
+	if (date == NULL || ct_verify_date(type, yr, mo, dy) < 0)
+		return -1;
+
+	date->caltype = type;
+	date->year    = yr;
+	date->month   = mo - 1;
+	date->day     = dy - 1;
+	date->sec     = 0;
+	return 0;
+}
+
+
 int
 ct_set_date(caltime *date, int yr, int mo, int dy)
 {
@@ -292,16 +344,72 @@ ct_set_date(caltime *date, int yr, int mo, int dy)
 
 
 int
-ct_set_time(caltime *date, int sec)
+ct_set_time(caltime *date, int hour, int min, int sec)
 {
-	if (date == NULL || sec < 0 || sec >= 24 * 3600)
+	if (date == NULL
+		|| hour < 0 || hour > 23
+		|| min  < 0 || min  > 59
+		|| sec  < 0 || sec  > 59)
 		return -1;
 
-	date->sec = sec;
+	date->sec = sec + 60 * min + 3600 * hour;
 	return 0;
 }
 
 
+int
+ct_cmpdate(const caltime *date, int yr, int mo, int day,
+		   int hour, int min, int sec)
+{
+	int arg[4], ref[4];
+	int i, diff;
+
+	arg[0] = date->year;
+	arg[1] = date->month;
+	arg[2] = date->day;
+	arg[3] = date->sec;
+	ref[0] = yr;
+	ref[1] = mo - 1;
+	ref[2] = day - 1;
+	ref[3] = sec + 60 * min + 3600 * hour;
+
+	for (i = 0; i < 4; i++) {
+		diff = arg[i] - ref[i];
+		if (diff != 0)
+			return diff > 0 ? 1 : -1;
+	}
+	return 0;
+}
+
+
+int
+ct_isdate(const caltime *date, int yr, int mo, int day)
+{
+	return date->year  == yr
+		&& date->month == mo - 1
+		&& date->day   == day -1;
+}
+
+
+int
+ct_equal(const caltime *date1, const caltime *date2)
+{
+	return date1->caltype == date2->caltype
+		&& date1->year    == date2->year
+		&& date1->month   == date2->month
+		&& date1->day     == date2->day
+		&& date1->sec     == date2->sec;
+}
+
+
+/*
+ *  ct_diff_days() returns the difference of the date.
+ *
+ *  NOTE: ct_diff_days() does not take the time into account.
+ *  e.g., 
+ *     date2="1999-12-31 12:00:00" and date1=2000-1-1 00:00:00",
+ *     => return 1 (not 0).
+ */
 int
 ct_diff_days(const caltime *date2, const caltime *date1)
 {
@@ -313,95 +421,26 @@ ct_diff_days(const caltime *date2, const caltime *date1)
 	p = all_traits + date2->caltype;
 
 	return p->ndays_in_years(date1->year, date2->year)
-		+  p->mon_offset(date2->year, date2->month, NULL) + date2->day
-		-  p->mon_offset(date1->year, date1->month, NULL) - date1->day;
+		+  p->mon_offset(date2->year, date2->month, NULL)
+		-  p->mon_offset(date1->year, date1->month, NULL)
+		+  date2->day
+		-  date1->day;
 }
 
 
 double
 ct_diff_daysd(const caltime *date2, const caltime *date1)
 {
-	struct cal_trait *p;
-
-	if (date2->caltype != date1->caltype)
-		return 0;
-
-	p = all_traits + date2->caltype;
-
-	return p->ndays_in_years(date1->year, date2->year)
-		+  p->mon_offset(date2->year, date2->month, NULL) + date2->day
-		-  p->mon_offset(date1->year, date1->month, NULL) - date1->day
-		+  (date2->sec - date1->sec) / (24.0 * 3600);
+	return ct_diff_days(date2, date1)
+		+  1. * (date2->sec - date1->sec) / (24.0 * 3600);
 }
 
 
-int
+double
 ct_diff_seconds(const caltime *date2, const caltime *date1)
 {
-	struct cal_trait *p;
-
-	if (date2->caltype != date1->caltype)
-		return 0;
-
-	p = all_traits + date2->caltype;
-
-	return 24 * 3600
-		* (p->ndays_in_years(date1->year, date2->year)
-		+  p->mon_offset(date2->year, date2->month, NULL) + date2->day
-		-  p->mon_offset(date1->year, date1->month, NULL) - date1->day)
-		+  date2->sec - date1->sec;
-}
-
-
-int
-ct_diff_hours(const caltime *date2, const caltime *date1)
-{
-	struct cal_trait *p;
-
-	if (date2->caltype != date1->caltype)
-		return 0;
-
-	p = all_traits + date2->caltype;
-
-	return 24
-		* (p->ndays_in_years(date1->year, date2->year)
-		+  p->mon_offset(date2->year, date2->month, NULL) + date2->day
-		-  p->mon_offset(date1->year, date1->month, NULL) - date1->day)
-		+  (date2->sec - date1->sec) / 3600;
-}
-
-
-int
-ct_equal(const caltime *date, int yr, int mo, int day)
-{
-	return date->year  == yr
-		&& date->month == mo - 1
-		&& date->day   == day - 1;
-}
-
-
-int
-ct_equal2(const caltime *date, int yr, int mo, int day,
-		  int hh, int mm, int ss)
-{
-	return date->year  == yr
-		&& date->month == mo - 1
-		&& date->day   == day - 1
-		&& date->sec   == 3600 * hh + 60 * mm + ss;
-}
-
-
-int
-ct_less_than(const caltime *date, int yr, int mo, int day)
-{
-	if (date->year != yr)
-		return date->year < yr;
-
-	mo--;
-	if (date->month != mo)
-		return date->month < mo;
-
-	return date->day < day - 1;
+	return 24. * 3600 * ct_diff_days(date2, date1)
+		+ date2->sec - date1->sec;
 }
 
 
@@ -425,88 +464,20 @@ ct_num_days_in_month(const caltime *date)
 
 
 int
-ct_verify_date(int type, int yr, int mo, int dy)
+ct_snprint(char *buf, size_t num, const caltime *date)
 {
-	mo--;
-	dy--;
-
-	return (
-		type < 0
-		|| type >= CALTIME_DUMMY
-		|| mo < 0
-		|| mo >= 12
-		|| dy < 0
-		|| dy >= (all_traits[type].mon_offset(yr, mo+1, NULL)
-				  - all_traits[type].mon_offset(yr, mo, NULL))
-		) ? -1 : 0;
-}
-
-
-char *
-ct_caltime_str(const caltime *date)
-{
-	static char buf[20];
-
-	int sec, hh;
+	int hour, sec;
 
 	sec = date->sec;
-	hh = sec / 3600;
-	sec -= 3600 * hh;
-
-	sprintf(buf, "%04d-%02d-%02d %02d:%02d:%02d",
-			date->year,
-			date->month + 1,
-			date->day + 1,
-			hh, sec / 60, sec % 60);
-	return buf;
+	hour = sec / 3600;
+	sec -= 3600 * hour;
+	return snprintf(buf, num,
+					date->year > 9999
+					? "%d-%02d-%02d %02d:%02d:%02d"
+					: "%04d-%02d-%02d %02d:%02d:%02d",
+			 		date->year, date->month + 1, date->day + 1,
+			 		hour, sec / 60, sec % 60);
 }
-
-
-/*
- *  constructors
- */
-caltime *
-ct_caltime(int yr, int mo, int d, int type)
-{
-	caltime *date;
-
-	if (ct_verify_date(type, yr, mo, d) < 0
-		|| (date = (caltime *)malloc(sizeof(caltime))) == NULL)
-		return NULL;
-
-	date->caltype = type;
-	date->year  = yr;
-	date->month = mo - 1;
-	date->day   = d - 1;
-	date->sec   = 0;
-
-	return date;
-}
-
-caltime *
-ct_gregorian(int yr, int mo, int d)
-{
-	return ct_caltime(yr, mo, d, CALTIME_GREGORIAN);
-}
-
-caltime *
-ct_noleap(int yr, int mo, int d)
-{
-	return ct_caltime(yr, mo, d, CALTIME_NOLEAP);
-}
-
-caltime *
-ct_allleap(int yr, int mo, int d)
-{
-	return ct_caltime(yr, mo, d, CALTIME_ALLLEAP);
-}
-
-caltime *
-ct_360day(int yr, int mo, int d)
-{
-	return ct_caltime(yr, mo, d, CALTIME_360_DAY);
-}
-
 
 
 #ifdef TEST_MAIN
@@ -525,90 +496,81 @@ main(int argc, char **argv)
 	 *  time_t 0x7fffffff == Tue Jan 19 03:14:07 2038 (UTC)
 	 */
 	{
-		caltime *temp, temp2;
+		caltime temp, temp2;
+		int diff;
 
-		temp = ct_gregorian(1970, 1, 1);
-		ct_add_seconds(temp, 0x7fffffff);
-		assert(ct_equal2(temp, 2038, 1, 19, 3, 14, 7));
-		printf("last time = (%s)\n", ct_caltime_str(temp));
+		ct_init_caltime(&temp, CALTIME_GREGORIAN, 1970, 1, 1);
+		ct_add_seconds(&temp, 0x7fffffff);
+		assert(ct_cmpdate(&temp, 2038, 1, 19, 3, 14, 7) == 0);
 
-		ct_add_seconds(temp, -0x7fffffff);
-		assert(ct_equal2(temp, 1970, 1, 1, 0, 0, 0));
+		temp2 = temp;
+		ct_add_seconds(&temp, -0x7fffffff);
+		assert(ct_cmpdate(&temp, 1970, 1, 1, 0, 0, 0) == 0);
 
-		temp2 = *temp;
-		ct_add_seconds(temp, 0x7fffffff);
-		assert(ct_diff_seconds(temp, &temp2) == 0x7fffffff);
-
-		free(temp);
+		diff = (int)ct_diff_seconds(&temp2, &temp);
+		assert(diff == 0x7fffffff);
 	}
 
 	/*
 	 *  add & sub test.
 	 */
 	{
-		int i;
-		caltime *temp = ct_caltime(1900, 10, 10, CALTIME_GREGORIAN);
-		caltime x;
-		int testv[] = {-1000, 0, 1000, 10000};
+		caltime date;
 
-		for (i = 0; i < sizeof testv / sizeof(int); i++) {
-			x = *temp;
-			ct_add_days(&x, testv[i]);
-			ct_add_seconds(&x, testv[i]);
-
-			ct_add_days(&x, -testv[i]);
-			ct_add_seconds(&x, -testv[i]);
-
-			assert(x.year == temp->year
-				   && x.month == temp->month
-				   && x.day == temp->day
-				   && x.sec == temp->sec);
-		}
-	}
-
-
-	{
-		caltime *date;
-
-		date = ct_caltime(2000, 1, 1, CALTIME_NOLEAP);
-		ct_add_days(date, 31 + 28);
-		assert(ct_equal(date, 2000, 3, 1));
-		free(date);
-
-		date = ct_caltime(2000, 1, 1, CALTIME_360_DAY);
-		ct_add_days(date, 31 + 28);
-		assert(ct_equal(date, 2000, 2, 30));
-		free(date);
+		ct_init_caltime(&date, CALTIME_GREGORIAN, 1999, 12, 31);
+		ct_set_time(&date, 23, 59, 59);
+		ct_add_seconds(&date, 1);
+		assert(ct_cmpdate(&date, 2000, 1, 1, 0, 0, 0) == 0);
+		ct_add_days(&date, 31 + 29);
+		assert(ct_cmpdate(&date, 2000, 3, 1, 0, 0, 0) == 0);
+		ct_add_days(&date, -366);
+		assert(ct_cmpdate(&date, 1999, 3, 1, 0, 0, 0) == 0);
+		ct_add_seconds(&date, -1);
+		assert(ct_cmpdate(&date, 1999, 2, 28, 23, 59, 59) == 0);
+		assert(ct_cmpdate(&date, 1999, 3, 1, 0, 0, 0) < 0);
 	}
 
 	{
-		caltime *date = ct_gregorian(2000, 12, 10);
+		caltime date;
 
-		while (ct_less_than(date, 2001, 3, 3))
-			ct_add_days(date, 1);
+		ct_init_caltime(&date, CALTIME_NOLEAP, 2000, 1, 1);
+		ct_add_days(&date, 31 + 28);
+		assert(ct_isdate(&date, 2000, 3, 1));
 
-		assert(ct_equal(date, 2001, 3, 3));
-		free(date);
+		ct_init_caltime(&date, CALTIME_360_DAY, 2000, 1, 1);
+		ct_add_days(&date, 31 + 28);
+		assert(ct_isdate(&date, 2000, 2, 30));
 	}
 
 	{
-		caltime *date = ct_gregorian(2000, 1, 1);
+		caltime date;
 
-		assert(ct_num_days_in_month(date) == 31);
-		ct_add_months(date, 1);
-		assert(ct_num_days_in_month(date) == 29);
+		ct_init_caltime(&date, CALTIME_GREGORIAN, 2000, 1, 1);
 
-		ct_add_months(date, 12);
-		assert(ct_num_days_in_month(date) == 28);
+		assert(ct_num_days_in_month(&date) == 31);
+		ct_add_months(&date, 1);
+		assert(ct_num_days_in_month(&date) == 29);
+
+		ct_add_months(&date, 12);
+		assert(ct_num_days_in_month(&date) == 28);
+
+		ct_set_date(&date, 2000, 2, 1);
+		assert(ct_day_of_year(&date) == 31);
 	}
 
 	{
-		caltime *date = ct_caltime(100, 1, 1, CALTIME_JULIAN);
+		caltime date;
 
-		ct_add_days(date, 365 * 100 + 25 + 61);
-		assert(ct_equal(date, 200, 3, 2));
-		free(date);
+		ct_init_caltime(&date, CALTIME_JULIAN, 100, 1, 1);
+		ct_add_days(&date, 365 * 100 + 25);
+		assert(ct_isdate(&date, 200, 1, 1));
 	}
+
+	assert(ct_verify_date(CALTIME_GREGORIAN, 1900, 2, 29) == -1);
+	assert(ct_verify_date(CALTIME_GREGORIAN, 2000, 2, 29) == 0);
+	assert(ct_verify_date(CALTIME_GREGORIAN, 2000, 1, 32) == -1);
+	assert(ct_verify_date(CALTIME_GREGORIAN, 2000, 1, 31) == 0);
+	assert(ct_verify_date(CALTIME_360_DAY,   2000, 1, 31) == -1);
 	return 0;
 }
 #endif
