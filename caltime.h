@@ -40,34 +40,35 @@ int ct_set_date(caltime *date, int yr, int mo, int dy);
 int ct_set_time(caltime *date, int hour, int min, int sec);
 
 /*
- *  operators (+/-)
+ *  operators (+)
  */
 caltime* ct_add_days(caltime *date, int days);
 caltime* ct_add_months(caltime *date, int month);
-caltime* ct_add_hours(caltime *date, int sec);
+caltime* ct_add_hours(caltime *date, int hour);
 caltime* ct_add_seconds(caltime *date, int sec);
 
 /*
- *  operators (==, <)
+ *  operators (==, <, >)
  */
+int ct_cmp(const caltime *date1, const caltime *date2); 
+int ct_cmpto(const caltime *date, int, int, int, int, int, int);
+int ct_eqdate(const caltime *date, int yr, int mo, int day);
 int ct_equal(const caltime *date1, const caltime *date2);
-int ct_cmpdate(const caltime *date, int yr, int mo, int day,
-               int hour, int min, int sec);
-int ct_isdate(const caltime *date, int yr, int mo, int day);
+
+/*
+ *  difference
+ */
+int ct_diff_days(const caltime *date2, const caltime *date1);
+double ct_diff_daysd(const caltime *date2, const caltime *date1);
+double ct_diff_seconds(const caltime *date2, const caltime *date1);
 
 /*
  *  utils
  */
 int ct_verify_date(int type, int yr, int mo, int dy);
-
-int ct_diff_days(const caltime *date2, const caltime *date1);
-double ct_diff_daysd(const caltime *date2, const caltime *date1);
-double ct_diff_seconds(const caltime *date2, const caltime *date1);
-
 int ct_day_of_year(const caltime *date);
 int ct_num_days_in_year(const caltime *date);
 int ct_num_days_in_month(const caltime *date);
-
 int ct_snprint(char *buf, size_t num, const caltime *date);
 
 #ifdef __cplusplus

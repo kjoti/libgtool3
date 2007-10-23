@@ -357,24 +357,30 @@ ct_set_time(caltime *date, int hour, int min, int sec)
 }
 
 
+/*
+ *  ct_cmp() compares 'date1' and 'date2'.
+ *
+ *  Return value:
+ *     0  if date1 == date2
+ *     1  if date1 >  date2
+ *    -1  if date1 <  date2
+ */
 int
-ct_cmpdate(const caltime *date, int yr, int mo, int day,
-		   int hour, int min, int sec)
+ct_cmp(const caltime *date1, const caltime *date2)
 {
-	int arg[4], ref[4];
+	int v1[4], v2[4];
 	int i, diff;
 
-	arg[0] = date->year;
-	arg[1] = date->month;
-	arg[2] = date->day;
-	arg[3] = date->sec;
-	ref[0] = yr;
-	ref[1] = mo - 1;
-	ref[2] = day - 1;
-	ref[3] = sec + 60 * min + 3600 * hour;
-
+	v1[0] = date1->year;
+	v1[1] = date1->month;
+	v1[2] = date1->day;
+	v1[3] = date1->sec;
+	v2[0] = date2->year;
+	v2[1] = date2->month;
+	v2[2] = date2->day;
+	v2[3] = date2->sec;
 	for (i = 0; i < 4; i++) {
-		diff = arg[i] - ref[i];
+		diff = v1[i] - v2[i];
 		if (diff != 0)
 			return diff > 0 ? 1 : -1;
 	}
@@ -383,11 +389,26 @@ ct_cmpdate(const caltime *date, int yr, int mo, int day,
 
 
 int
-ct_isdate(const caltime *date, int yr, int mo, int day)
+ct_cmpto(const caltime *date, int yr, int mo, int day,
+         int hour, int min, int sec)
+{
+	caltime date2;
+
+	date2.caltype = date->caltype;
+	if (   ct_set_date(&date2, yr, mo, day)    < 0
+	    || ct_set_time(&date2, hour, min, sec) < 0)
+		return -2;
+
+	return ct_cmp(date, &date2);
+}
+
+
+int
+ct_eqdate(const caltime *date, int yr, int mo, int day)
 {
 	return date->year  == yr
 		&& date->month == mo - 1
-		&& date->day   == day -1;
+		&& date->day   == day - 1;
 }
 
 
@@ -501,11 +522,11 @@ main(int argc, char **argv)
 
 		ct_init_caltime(&temp, CALTIME_GREGORIAN, 1970, 1, 1);
 		ct_add_seconds(&temp, 0x7fffffff);
-		assert(ct_cmpdate(&temp, 2038, 1, 19, 3, 14, 7) == 0);
+		assert(ct_cmpto(&temp, 2038, 1, 19, 3, 14, 7) == 0);
 
 		temp2 = temp;
 		ct_add_seconds(&temp, -0x7fffffff);
-		assert(ct_cmpdate(&temp, 1970, 1, 1, 0, 0, 0) == 0);
+		assert(ct_cmpto(&temp, 1970, 1, 1, 0, 0, 0) == 0);
 
 		diff = (int)ct_diff_seconds(&temp2, &temp);
 		assert(diff == 0x7fffffff);
@@ -520,14 +541,14 @@ main(int argc, char **argv)
 		ct_init_caltime(&date, CALTIME_GREGORIAN, 1999, 12, 31);
 		ct_set_time(&date, 23, 59, 59);
 		ct_add_seconds(&date, 1);
-		assert(ct_cmpdate(&date, 2000, 1, 1, 0, 0, 0) == 0);
+		assert(ct_cmpto(&date, 2000, 1, 1, 0, 0, 0) == 0);
 		ct_add_days(&date, 31 + 29);
-		assert(ct_cmpdate(&date, 2000, 3, 1, 0, 0, 0) == 0);
+		assert(ct_cmpto(&date, 2000, 3, 1, 0, 0, 0) == 0);
 		ct_add_days(&date, -366);
-		assert(ct_cmpdate(&date, 1999, 3, 1, 0, 0, 0) == 0);
+		assert(ct_cmpto(&date, 1999, 3, 1, 0, 0, 0) == 0);
 		ct_add_seconds(&date, -1);
-		assert(ct_cmpdate(&date, 1999, 2, 28, 23, 59, 59) == 0);
-		assert(ct_cmpdate(&date, 1999, 3, 1, 0, 0, 0) < 0);
+		assert(ct_cmpto(&date, 1999, 2, 28, 23, 59, 59) == 0);
+		assert(ct_cmpto(&date, 1999, 3, 1, 0, 0, 0) < 0);
 	}
 
 	{
@@ -535,11 +556,11 @@ main(int argc, char **argv)
 
 		ct_init_caltime(&date, CALTIME_NOLEAP, 2000, 1, 1);
 		ct_add_days(&date, 31 + 28);
-		assert(ct_isdate(&date, 2000, 3, 1));
+		assert(ct_eqdate(&date, 2000, 3, 1));
 
 		ct_init_caltime(&date, CALTIME_360_DAY, 2000, 1, 1);
 		ct_add_days(&date, 31 + 28);
-		assert(ct_isdate(&date, 2000, 2, 30));
+		assert(ct_eqdate(&date, 2000, 2, 30));
 	}
 
 	{
@@ -563,7 +584,7 @@ main(int argc, char **argv)
 
 		ct_init_caltime(&date, CALTIME_JULIAN, 100, 1, 1);
 		ct_add_days(&date, 365 * 100 + 25);
-		assert(ct_isdate(&date, 200, 1, 1));
+		assert(ct_eqdate(&date, 200, 1, 1));
 	}
 
 	assert(ct_verify_date(CALTIME_GREGORIAN, 1900, 2, 29) == -1);
