@@ -69,7 +69,7 @@ struct ElemDict {
 #define cpZERO  "               0"
 #define cpONE   "               1"
 #define cpMISS  "  -9.9900000E+02"
-
+#define DATE_FORMAT "%0*d%02d%02d %02d%02d%02d "
 
 /*  XXX This MUST be sorted by its name. */
 static struct ElemDict elemdict[] = {
@@ -277,6 +277,47 @@ GT3_decodeHeaderDouble(double *rval, const GT3_HEADER *header, const char *key)
 }
 
 
+int
+GT3_decodeHeaderDate(GT3_Date *date, const GT3_HEADER *header,
+					const char *key)
+{
+	const char *strp = header->h;
+	struct ElemDict *p;
+	int val[6] = { 0, 1, 1, 0, 0, 0 };
+	int num, year_width;
+	char buf[ELEM_SZ + 1];
+	char datefmt[] = DATE_FORMAT;
+
+	p = lookup_name(key);
+	if (p == NULL) {
+		gt3_error(GT3_ERR_CALL, "%s: Unknown header item", key);
+		return -1;
+	}
+
+	strp += ELEM_SZ * p->id;
+	memcpy(buf, strp, ELEM_SZ);
+	buf[ELEM_SZ] = '\0';
+
+	year_width = (buf[9] == ' ' && buf[15] != ' ') ? 5 : 4;
+	datefmt[2] = year_width == 5 ? '5' : '4';
+
+	num = sscanf(buf, datefmt,
+				 val, val + 1, val + 2,
+				 val + 3, val + 4, val + 5);
+	if (num != 6) {
+		gt3_error(GT3_ERR_CALL, "%s: Invalid DATE field.\n", buf);
+		return -1;
+	}
+	date->year = val[0];
+	date->mon  = val[1];
+	date->day  = val[2];
+	date->hour = val[3];
+	date->min  = val[4];
+	date->sec  = val[5];
+	return 0;
+}
+
+
 void
 GT3_initHeader(GT3_HEADER *header)
 {
@@ -359,6 +400,27 @@ GT3_setHeaderDouble(GT3_HEADER *header, const char *key, double val)
 }
 
 
+int
+GT3_setHeaderDate(GT3_HEADER *header, const char *key, const GT3_Date *date)
+{
+	char buf[ELEM_SZ + 1];
+	struct ElemDict *p;
+	int year_width;
+
+	p = lookup_name(key);
+	if (p == NULL || p->type != IT_STR) {
+		return -1;
+	}
+	year_width = date->year > 9999 ? 5 : 4;
+	snprintf(buf, sizeof buf, DATE_FORMAT,
+			 year_width,
+			 date->year, date->mon, date->day,
+			 date->hour, date->min, date->sec);
+	memcpy(header->h + ELEM_SZ * p->id, buf, ELEM_SZ);
+	return 0;
+}
+
+
 void
 GT3_mergeHeader(GT3_HEADER *dest, const GT3_HEADER *src)
 {
@@ -436,7 +498,9 @@ main(int argc, char **argv)
 
 	{
 		GT3_HEADER header;
+		GT3_Date date;
 		char buf[33], *p;
+		int rval;
 
 		GT3_initHeader(&header);
 
@@ -467,6 +531,24 @@ main(int argc, char **argv)
 		GT3_setHeaderInt(&header, "AEND1", 320);
 		p = GT3_copyHeaderItem(buf, sizeof buf, &header, "AEND1");
 		assert(p && strcmp(p, "320") == 0 && strcmp(buf, "320") == 0);
+
+		GT3_setHeaderString(&header, "DATE", "20380119 031407");
+		rval = GT3_decodeHeaderDate(&date, &header, "DATE");
+		assert(rval == 0);
+		assert(date.year == 2038 && date.mon == 1 && date.day == 19
+			  && date.hour == 3 && date.min == 14 && date.sec == 7);
+
+		date.year = 10;
+		rval = GT3_setHeaderDate(&header, "DATE2", &date);
+		assert(rval == 0);
+		p = GT3_copyHeaderItem(buf, sizeof buf, &header, "DATE2");
+		assert(p && strcmp(buf, "00100119 031407") == 0);
+
+		date.year = 40010;
+		rval = GT3_setHeaderDate(&header, "DATE2", &date);
+		assert(rval == 0);
+		p = GT3_copyHeaderItem(buf, sizeof buf, &header, "DATE2");
+		assert(p && strcmp(buf, "400100119 031407") == 0);
 	}
 
 	{

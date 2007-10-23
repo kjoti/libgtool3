@@ -159,8 +159,8 @@ tick(GT3_File *fp, struct caltime *start, int dur, int durunit)
 	struct caltime date_bnd[2], date;
 	struct caltime *lower, *upper;
 	GT3_HEADER head;
-	double time_bnd[2], time, tdur;
-	int ndays, nsecs;
+	double time_bnd[2], time, tdur, secs;
+	int days;
 	int i, it;
 
 	date_bnd[0] = *start;
@@ -196,7 +196,11 @@ tick(GT3_File *fp, struct caltime *start, int dur, int durunit)
 			tdur = time_bnd[i ^ 1] - time_bnd[i];
 
 			date = *lower;
-			ct_add_seconds(&date, (int)(0.5 * tdur));
+			secs = 0.5 * tdur;
+			days = (int)(secs / (24. * 3600));
+			secs -= 24 * 3600 * days;
+			ct_add_days(&date, days);
+			ct_add_seconds(&date, (int)secs);
 
 			/* modify the header */
 			modify_date(&head, lower, upper, &date, time, tdur);
