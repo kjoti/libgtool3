@@ -67,11 +67,12 @@ AR = ar
 ARFLAGS = cru
 libgtool3_a_AR = $(AR) $(ARFLAGS)
 libgtool3_a_LIBADD =
-am_libgtool3_a_OBJECTS = bits_set.$(OBJEXT) error.$(OBJEXT) \
-	file.$(OBJEXT) gauss-legendre.$(OBJEXT) grid.$(OBJEXT) \
-	gtdim.$(OBJEXT) header.$(OBJEXT) reverse.$(OBJEXT) \
-	talloc.$(OBJEXT) urc_pack.$(OBJEXT) varbuf.$(OBJEXT) \
-	version.$(OBJEXT) write.$(OBJEXT)
+am_libgtool3_a_OBJECTS = bits_set.$(OBJEXT) caltime.$(OBJEXT) \
+	error.$(OBJEXT) file.$(OBJEXT) gauss-legendre.$(OBJEXT) \
+	grid.$(OBJEXT) gtdim.$(OBJEXT) header.$(OBJEXT) \
+	reverse.$(OBJEXT) talloc.$(OBJEXT) timedim.$(OBJEXT) \
+	urc_pack.$(OBJEXT) varbuf.$(OBJEXT) version.$(OBJEXT) \
+	write.$(OBJEXT)
 libgtool3_a_OBJECTS = $(am_libgtool3_a_OBJECTS)
 binPROGRAMS_INSTALL = $(INSTALL_PROGRAM)
 PROGRAMS = $(bin_PROGRAMS)
@@ -90,8 +91,7 @@ am_ngthead_OBJECTS = ngthead.$(OBJEXT)
 ngthead_OBJECTS = $(am_ngthead_OBJECTS)
 ngthead_LDADD = $(LDADD)
 ngthead_DEPENDENCIES = libgtool3.a
-am_ngtick_OBJECTS = ngtick.$(OBJEXT) caltime.$(OBJEXT) \
-	$(am__objects_1)
+am_ngtick_OBJECTS = ngtick.$(OBJEXT) $(am__objects_1)
 ngtick_OBJECTS = $(am_ngtick_OBJECTS)
 ngtick_LDADD = $(LDADD)
 ngtick_DEPENDENCIES = libgtool3.a
@@ -161,6 +161,7 @@ ECHO_N = @ECHO_N@
 ECHO_T = @ECHO_T@
 EGREP = @EGREP@
 EXEEXT = @EXEEXT@
+GREP = @GREP@
 INSTALL_DATA = @INSTALL_DATA@
 INSTALL_PROGRAM = @INSTALL_PROGRAM@
 INSTALL_SCRIPT = @INSTALL_SCRIPT@
@@ -188,8 +189,6 @@ SHELL = @SHELL@
 STRIP = @STRIP@
 VERSION = @VERSION@
 ac_ct_CC = @ac_ct_CC@
-ac_ct_RANLIB = @ac_ct_RANLIB@
-ac_ct_STRIP = @ac_ct_STRIP@
 am__fastdepCC_FALSE = @am__fastdepCC_FALSE@
 am__fastdepCC_TRUE = @am__fastdepCC_TRUE@
 am__include = @am__include@
@@ -200,19 +199,26 @@ am__untar = @am__untar@
 bindir = @bindir@
 build_alias = @build_alias@
 datadir = @datadir@
+datarootdir = @datarootdir@
+docdir = @docdir@
+dvidir = @dvidir@
 exec_prefix = @exec_prefix@
 host_alias = @host_alias@
+htmldir = @htmldir@
 includedir = @includedir@
 infodir = @infodir@
 install_sh = @install_sh@
 libdir = @libdir@
 libexecdir = @libexecdir@
+localedir = @localedir@
 localstatedir = @localstatedir@
 mandir = @mandir@
 mkdir_p = @mkdir_p@
 oldincludedir = @oldincludedir@
+pdfdir = @pdfdir@
 prefix = @prefix@
 program_transform_name = @program_transform_name@
+psdir = @psdir@
 sbindir = @sbindir@
 sharedstatedir = @sharedstatedir@
 sysconfdir = @sysconfdir@
@@ -221,6 +227,7 @@ lib_LIBRARIES = libgtool3.a
 include_HEADERS = gtool3.h
 libgtool3_a_SOURCES = \
 		bits_set.c \
+		caltime.c \
 		error.c \
 		file.c \
 		gauss-legendre.c \
@@ -229,6 +236,7 @@ libgtool3_a_SOURCES = \
 		header.c \
 		reverse.c \
 		talloc.c \
+		timedim.c \
 		urc_pack.c \
 		varbuf.c \
 		version.c \
@@ -239,7 +247,7 @@ ngtcat_SOURCES = ngtcat.c $(utils)
 ngtls_SOURCES = ngtls.c $(utils)
 ngtsumm_SOURCES = ngtsumm.c $(utils)
 ngtstat_SOURCES = ngtstat.c $(utils)
-ngtick_SOURCES = ngtick.c caltime.c $(utils)
+ngtick_SOURCES = ngtick.c $(utils)
 ngthead_SOURCES = ngthead.c
 ngted_SOURCES = ngted.c copysubst.c $(utils)
 ngtmkax_SOURCES = ngtmkax.c  $(utils)
@@ -409,6 +417,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/seq.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/split.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/talloc.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/timedim.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/urc_pack.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/varbuf.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/version.Po@am__quote@

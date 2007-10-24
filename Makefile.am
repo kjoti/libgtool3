@@ -5,6 +5,7 @@ include_HEADERS = gtool3.h
 
 libgtool3_a_SOURCES = \
 		bits_set.c \
+		caltime.c \
 		error.c \
 		file.c \
 		gauss-legendre.c \
@@ -13,6 +14,7 @@ libgtool3_a_SOURCES = \
 		header.c \
 		reverse.c \
 		talloc.c \
+		timedim.c \
 		urc_pack.c \
 		varbuf.c \
 		version.c \
@@ -24,7 +26,7 @@ ngtcat_SOURCES = ngtcat.c $(utils)
 ngtls_SOURCES = ngtls.c $(utils)
 ngtsumm_SOURCES = ngtsumm.c $(utils)
 ngtstat_SOURCES = ngtstat.c $(utils)
-ngtick_SOURCES = ngtick.c caltime.c $(utils)
+ngtick_SOURCES = ngtick.c $(utils)
 ngthead_SOURCES = ngthead.c
 ngted_SOURCES = ngted.c copysubst.c $(utils)
 ngtmkax_SOURCES = ngtmkax.c  $(utils)

@@ -27,6 +27,7 @@ CFLAGS		+= $(DEBUG) $(DEFS) -Wall -pedantic -O2
 
 OBJS		= \
 		bits_set.o \
+		caltime.o \
 		error.o \
 		file.o \
 		gauss-legendre.o \
@@ -35,6 +36,7 @@ OBJS		= \
 		header.o \
 		reverse.o \
 		talloc.o \
+		timedim.o \
 		urc_pack.o \
 		varbuf.o \
 		version.o \
@@ -71,8 +73,8 @@ ngtsumm: libgtool3.a ngtsumm.o $(UTILS)
 ngtstat: libgtool3.a ngtstat.o $(UTILS)
 	$(CC) $(LDFLAGS) -L. -o $@ ngtstat.o $(UTILS) $(LDADD)
 
-ngtick: libgtool3.a ngtick.o $(UTILS) caltime.o
-	$(CC) $(LDFLAGS) -L. -o $@ ngtick.o $(UTILS) caltime.o $(LDADD)
+ngtick: libgtool3.a ngtick.o $(UTILS)
+	$(CC) $(LDFLAGS) -L. -o $@ ngtick.o $(UTILS) $(LDADD)
 
 ngted: libgtool3.a ngted.o $(UTILS)  copysubst.o
 	$(CC) $(LDFLAGS) -L. -o $@ ngted.o $(UTILS) copysubst.o $(LDADD)
