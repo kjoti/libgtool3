@@ -323,7 +323,7 @@ usage(void)
 		"Options:\n"
 		"    -h        print help message\n"
 		"    -l        print for each Z-plane\n"
-		"    -t LIST   specify data numbers\n"
+		"    -t LIST   specify data No.\n"
 		"    -x RANGE  specify X-range\n"
 		"    -y RANGE  specify Y-range\n"
 		"    -z RANGE  specify Z-range\n"

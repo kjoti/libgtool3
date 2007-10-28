@@ -185,7 +185,7 @@ usage(void)
 		"    -h          print help message\n"
 		"    -n          print axis-length instead of axis-name\n"
 		"    -u          print title and unit\n"
-		"    -t LIST     specify data numbers\n";
+		"    -t LIST     specify data No.\n";
 
 	fprintf(stderr, "%s\n", GT3_version());
 	fprintf(stderr, "%s\n", usage_message);
