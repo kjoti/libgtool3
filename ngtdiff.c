@@ -1,8 +1,7 @@
 /*  -*- tab-width: 4; -*-
  *  vim: ts=4
  *
- *  ngtstat.c -- print statistical info in gtool-files.
- *
+ *  ngtdiff.c -- Compare files.
  */
 #include "internal.h"
 
@@ -36,10 +35,16 @@
 	? *((double *)((vbuf)->data) + (i)) \
 	: *((float *) ((vbuf)->data) + (i)) )
 
+#define ISMISS(vbuf, i) \
+	(((vbuf)->type == GT3_TYPE_DOUBLE) \
+	? *((double *)((vbuf)->data) + (i)) == vbuf->miss \
+	: *((float *) ((vbuf)->data) + (i)) == (float)vbuf->miss )
+
 static int (*equal)(double, double) = NULL;
 static double tolerance = 0.;
 static unsigned ignored_item[64];
 static int zrange[] = { 0, 0x7ffffff };
+static unsigned detail_print = 1;
 
 #define ISCNTRL(c) ((c) < 040 || (c) == 0177)
 
@@ -56,11 +61,12 @@ copy(char *dest, const char *src)
 static int
 equal_rel(double a, double b)
 {
-	double ref = fabs(a) + fabs(b);
+	double err;
 
-	if (a != .0 && b != .0)
-		ref = fabs(a - b) / (0.5 * ref);
-	return ref < tolerance;
+	if (a == b)
+		return 1;
+	err = (a != .0) ? fabs((a - b) / a) : 1.;
+	return err < tolerance;
 }
 
 static int
@@ -72,6 +78,7 @@ equal_abs(double a, double b)
 void
 print_header(const GT3_Varbuf *var1, const GT3_Varbuf *var2)
 {
+	printf("###\n");
 	printf("# FileA: %s (No.%d)\n", var1->fp->path, 1 + var1->fp->curr);
 	printf("# FileB: %s (No.%d)\n", var2->fp->path, 1 + var2->fp->curr);
 }
@@ -150,7 +157,7 @@ diff_header(const GT3_HEADER *head1, const GT3_HEADER *head2)
 	};
 
 	h1[16] = h2[16] = '\0';
-	printf("#\n");
+	printf("#\n# Difference of header fields:\n");
 	printf("#%17s %20s %20s\n", "ITEM", "FileA", "FileB");
 	for (i = 0; i < 64; i++) {
 		if (ignored_item[i])
@@ -191,9 +198,15 @@ diff_var(GT3_Varbuf *var1, GT3_Varbuf *var2)
 {
 	GT3_HEADER head1, head2;
 	char item1[19], item2[19];
+	char vstr1[21], vstr2[21];
+	unsigned miss1, miss2;
 	unsigned flag = 0;
-	int i, j, ij, z, z1, cnt;
+	int i, j, ij, z, z1;
+	int cnt = 0, total = 0;
 	double v1, v2;
+	double diff, maxdiff = 0.;
+	double rms = 0.;
+	int nrms = 0;
 	int ioff = 1, joff = 1, koff = 1;
 	int sameshape;
 
@@ -229,24 +242,18 @@ diff_var(GT3_Varbuf *var1, GT3_Varbuf *var2)
 	}
 
 	if (!sameshape) {
-		printf("# Different shape. Skip checking of Data-body\n");
+		printf("# Different shape. Skip...\n");
 		return 0;
 	}
 
 	/*
 	 *  Compare Data body.
 	 */
-	cnt = 0;
 	z1 = min(max(var1->fp->dimlen[2], var2->fp->dimlen[2]), zrange[1]);
 	for (z = zrange[0]; z < z1; z++) {
-		if (z >= var1->fp->dimlen[2]) {
-			printf("# Out of range in FileA(%d)\n", z);
+		if (z >= var1->fp->dimlen[2] || z >= var2->fp->dimlen[2])
 			continue;
-		}
-		if (z >= var2->fp->dimlen[2]) {
-			printf("# Out of range in FileB(%d)\n", z);
-			continue;
-		}
+
 		if (GT3_readVarZ(var1, z) < 0 || GT3_readVarZ(var2, z) < 0) {
 			GT3_printErrorMessages(stderr);
 			return -1;
@@ -255,26 +262,61 @@ diff_var(GT3_Varbuf *var1, GT3_Varbuf *var2)
 		for (ij = 0; ij < var1->dimlen[0] * var1->dimlen[1]; ij++) {
 			v1 = DATA(var1, ij);
 			v2 = DATA(var2, ij);
-			if (!(v1 == v2 || (equal && equal(v1, v2)))) {
-				if ((flag & 1) == 0) {
-					print_header(var1, var2);
-					flag |= 1;
+			miss1 = ISMISS(var1, ij);
+			miss2 = ISMISS(var2, ij);
+
+			if (miss1 & miss2)
+				continue;
+
+			if (miss1 ^ miss2 || !(v1 == v2 || (equal && equal(v1, v2)))) {
+				if (detail_print) {
+					if ((flag & 1) == 0) {
+						print_header(var1, var2);
+						flag |= 1;
+					}
+					if ((flag & 2) == 0) {
+						printf("#\n# Data:\n");
+						printf("#%5s %5s %5s %20s %20s\n",
+							   "X", "Y", "Z", item1, item2);
+						flag |= 2;
+					}
+					i = ioff + ij % var1->dimlen[0];
+					j = joff + ij / var1->dimlen[0];
+	
+					vstr1[0] = vstr2[0] = '_';
+					vstr1[1] = vstr2[1] = '\0';
+					if (!miss1)
+						snprintf(vstr1, sizeof vstr1, "%20.7g", v1);
+					if (!miss2)
+						snprintf(vstr2, sizeof vstr2, "%20.7g", v2);
+	
+					printf(" %5d %5d %5d %20s %20s\n",
+							i, j, koff + z, vstr1, vstr2);
 				}
-				if ((flag & 2) == 0) {
-					printf("#\n#%5s %5s %5s %20s %20s\n",
-						   "X", "Y", "Z", item1, item2);
-					flag |= 2;
-				}
-				i = ioff + ij % var1->dimlen[0];
-				j = joff + ij / var1->dimlen[0];
-				printf(" %5d %5d %5d %20.7g %20.7g\n",
-						i, j, koff + z, v1, v2);
 				cnt++;
 			}
+			if ((miss1 | miss2) == 0) {
+				diff = v1 - v2;
+				rms += diff * diff;
+				nrms++;
+				diff = fabs(diff);
+				if (diff > maxdiff)
+					maxdiff = diff;
+			}
+		}
+		total += var1->dimlen[0] * var1->dimlen[1];
+	}
+	if (cnt > 0) {
+		if ((flag & 1) == 0)
+			print_header(var1, var2);
+		printf("#\n# Summary:\n");
+		printf("%18s: %s vs %s\n", "ITEMS", item1 + 2, item2 + 2);
+		printf("%18s: %d / %d grids\n", "differ.", cnt, total);
+		if (nrms > 0) {
+			printf("%18s: %.7g\n", "max(|A-B|)", maxdiff);
+			printf("%18s: %.7g\n", "RMS", sqrt(rms/nrms));
 		}
 	}
-	if (cnt > 0)
-		printf("# differ: %d grids.\n\n", cnt);
 	return 0;
 }
 
@@ -321,16 +363,16 @@ diff_file(const char *path1, const char *path2,
 				rval = -1;
 				break;
 			}
-	
+
 			if (GT3_next(fp1) < 0 || GT3_next(fp2) < 0) {
 				GT3_printErrorMessages(stderr);
 				rval = -1;
 				break;
 			}
-	
+
 			if (GT3_eof(fp1) && GT3_eof(fp2))
 				break;
-	
+
 			if (GT3_eof(fp1))
 				GT3_rewind(fp1);
 		}
@@ -400,7 +442,7 @@ main(int argc, char **argv)
 
 	open_logging(stderr, PROGNAME);
 	GT3_setProgname(PROGNAME);
-	while ((ch = getopt(argc, argv, "A:B:STa:hr:t:z:")) != -1)
+	while ((ch = getopt(argc, argv, "A:B:STa:hr:st:z:")) != -1)
 		switch (ch) {
 		case 'A':
 			seq1 = initSeq(optarg, 1, 0x7fffffff);
@@ -435,6 +477,9 @@ main(int argc, char **argv)
 			}
 			equal = ch == 'a' ? equal_abs : equal_rel;
 			break;
+		case 's':
+			detail_print = 0;
+			break;
 		case 't':
 			seq1 = initSeq(optarg, 1, 0x7fffffff);
 			seq2 = initSeq(optarg, 1, 0x7fffffff);
@@ -458,7 +503,6 @@ main(int argc, char **argv)
 		usage();
 		exit(1);
 	}
-
 	rval = diff_file(argv[0], argv[1], seq1, seq2);
 	return rval < 0 ? 1 : 0;
 }
