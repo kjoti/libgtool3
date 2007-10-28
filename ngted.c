@@ -18,6 +18,7 @@
 #include "seq.h"
 #include "myutils.h"
 #include "fileiter.h"
+#include "logging.h"
 
 #define PROGNAME "ngted"
 
@@ -149,24 +150,6 @@ struct edit_command {
 	int ival;
 	struct edit_command *next;
 };
-
-
-static void
-myperror(const char *fmt, ...)
-{
-	va_list ap;
-
-	va_start(ap, fmt);
-	if (errno != 0) {
-		fprintf(stderr, "%s:", PROGNAME);
-		if (fmt) {
-			vfprintf(stderr, fmt, ap);
-			fprintf(stderr, ":");
-		}
-		fprintf(stderr, " %s\n", strerror(errno));
-	}
-	va_end(ap);
-}
 
 
 static void
@@ -348,20 +331,19 @@ get_addr(const char *str, char **endptr)
 	if (isdigit(*str)) {
 		addr = (int)strtol(str, &p, 10) - 1;
 		if (addr < 0 || addr >= 64) {
-			fprintf(stderr, "%s: %d: Out of range.\n", PROGNAME, addr);
+			logging(LOG_ERR, "%d: Out of range.", addr);
 			return -1;
 		}
 		*endptr = p;
 	} else {
 		p = strcpy_to_char(name, sizeof name, str, ':');
 		if (*p != ':') {
-			fprintf(stderr, "%s: \':\' is missing.\n", PROGNAME);
+			logging(LOG_ERR, "\':\' is missing.");
 			return -1;
 		}
 		strtoupper(name);
 		if ((addr = GT3_getHeaderItemID(name)) < 0) {
-			fprintf(stderr, "%s: %s: Unknown item-name.\n",
-					PROGNAME, name);
+			logging(LOG_ERR, "%s: Unknown ITEM.", name);
 			return -1;
 		}
 		*endptr = p + 1;
@@ -379,7 +361,7 @@ setup_edit_func_int(struct edit_command *ec, const char *args)
 
 	ival = (int)strtol(args, &endptr, 10);
 	if (args == endptr) {
-		fprintf(stderr, "%s: argument should be a integer.\n", PROGNAME);
+		logging(LOG_ERR, "Argument should be a integer.");
 		return -1;
 	}
 	if (ec->addr > AITM1 && ec->addr <= AEND3) {
@@ -403,8 +385,7 @@ setup_edit_func_float(struct edit_command *ec, const char *args)
 
 	fval = (float)strtod(args, &endptr);
 	if (args == endptr) {
-		fprintf(stderr, "%s: argument should be a floating-number.\n",
-				PROGNAME);
+		logging(LOG_ERR, "Argument should be a floating-number.");
 		return -1;
 	}
 	snprintf(buf, sizeof buf, "%16.7E", fval);
@@ -425,7 +406,7 @@ setup_edit_func_str(struct edit_command *ec, const char *args)
 	 */
 	for (i = 0; i < sizeof forbidden_addr / sizeof(int); i++)
 		if (ec->addr == forbidden_addr[i]) {
-			fprintf(stderr, "%s: Forbidden operation.\n", PROGNAME);
+			logging(LOG_ERR, "Forbidden operation.");
 			return -1;
 		}
 
@@ -457,18 +438,14 @@ setup_edit_func_str(struct edit_command *ec, const char *args)
 		delim = *args++;
 		p = strcpy_to_char(old, sizeof old, args, delim);
 		if (*p != delim) {
-			fprintf(stderr,
-					"%s: end-delimiter not found (subst 1st argument)\n",
-					PROGNAME);
+			logging(LOG_ERR, "%s: End-delimiter not found", args);
 			return -1;
 		}
 
 		args = p + 1;
 		p = strcpy_to_char(new, sizeof new, args, delim);
 		if (*p != delim) {
-			fprintf(stderr,
-					"%s: end-delimiter not found (subst 2nd argument)\n",
-					PROGNAME);
+			logging(LOG_ERR, "%s: End-delimiter not found", args);
 			return -1;
 		}
 
@@ -481,7 +458,7 @@ setup_edit_func_str(struct edit_command *ec, const char *args)
 	if (ec->cmd_type == APPEND || ec->cmd_type == INSERT) {
 		ec->ival = strlen(args);
 		if (ec->ival > ec->len * ELEMLEN) {
-			fprintf(stderr, "%s: too long argument.\n", PROGNAME);
+			logging(LOG_ERR, "Too long argument.");
 			return -1;
 		}
 		ec->arg1 = strdup(args);
@@ -507,7 +484,7 @@ new_command(const char *str)
 
 	if ((temp = (struct edit_command *)
 		 malloc(sizeof(struct edit_command))) == NULL) {
-		myperror(NULL);
+		logging(LOG_SYSERR, NULL);
 		return NULL;
 	}
 
@@ -517,7 +494,7 @@ new_command(const char *str)
 	}
 
 	if (addr == 0) {
-		fprintf(stderr, "%s: IDFM is not allowed to change.\n", PROGNAME);
+		logging(LOG_ERR, "IDFM is not allowed to change.");
 		free(temp);
 		return NULL;
 	}
@@ -531,8 +508,7 @@ new_command(const char *str)
 		}
 
 	if (cmd == -1) {
-		fprintf(stderr, "%s: %s: Syntax error in the edit command.\n",
-				PROGNAME, curr);
+		logging(LOG_ERR, "%s: Syntax error in the edit command.", curr);
 		free(temp);
 		return NULL;
 	}
@@ -593,7 +569,7 @@ edit(GT3_File *fp, struct edit_command *clist)
 		/* overwrite */
 		if (fseeko(fp->fp, fp->off + 4, SEEK_SET) < 0
 			|| fwrite(head.h, 1, GT3_HEADER_SIZE, fp->fp) != GT3_HEADER_SIZE) {
-			myperror(NULL);
+			logging(LOG_SYSERR, NULL);
 			return -1;
 		}
 
@@ -661,7 +637,7 @@ usage(void)
 		"\n"
 		"Options:\n"
 		"    -h          print help message\n"
-		"    -t LIST     specify data numbers\n"
+		"    -t LIST     specify data No.\n"
 		"    -e COMMAND  specify edit commmand"
 		" (can be appeared in any number of times)\n"
 		"\n"
@@ -682,6 +658,8 @@ main(int argc, char **argv)
 	struct edit_command *temp;
 	int ch;
 
+	open_logging(stderr, PROGNAME);
+	GT3_setProgname(PROGNAME);
 	while ((ch = getopt(argc, argv, "e:ht:")) != -1)
 		switch (ch) {
 		case 'e':
@@ -703,17 +681,16 @@ main(int argc, char **argv)
 		}
 
 	if (!clist) {
-		fprintf(stderr, "%s: No edit-command specified.\n", PROGNAME);
+		logging(LOG_ERR, "No edit-command specified.");
+		usage();
 		exit(1);
 	}
 
-	GT3_setProgname(PROGNAME);
 	argc -= optind;
 	argv += optind;
 	for (; argc > 0 && *argv; argc--, argv++) {
 		if (edit_file(*argv, clist, tseq) < 0) {
-			fprintf(stderr, "%s: %s: error has occurred.\n",
-					PROGNAME, *argv);
+			logging(LOG_ERR, "%s: error has occurred.", *argv);
 			exit(1);
 		}
 		if (tseq)

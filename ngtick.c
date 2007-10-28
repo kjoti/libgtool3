@@ -17,6 +17,7 @@
 #include "caltime.h"
 #include "myutils.h"
 #include "fileiter.h"
+#include "logging.h"
 
 #define PROGNAME "ngtick"
 
@@ -33,24 +34,6 @@ enum {
 
 
 static void
-myperror(const char *fmt, ...)
-{
-	va_list ap;
-
-	va_start(ap, fmt);
-	if (errno != 0) {
-		fprintf(stderr, "%s:", PROGNAME);
-		if (fmt) {
-			vfprintf(stderr, fmt, ap);
-			fprintf(stderr, ":");
-		}
-		fprintf(stderr, " %s\n", strerror(errno));
-	}
-	va_end(ap);
-}
-
-
-static void
 usage(void)
 {
 	static const char *messages =
@@ -61,7 +44,7 @@ usage(void)
 		"    -h        print help message\n"
 		"    -s        specify a snapshot\n"
 		"    -c CAL    specify a calendar\n"
-		"    -t LIST   specify data numbers\n"
+		"    -t LIST   specify data No.\n"
 		"\n"
 		"    CAL : gregorian(default), noleap, all_leap, 360_day, julian\n";
 
@@ -211,7 +194,7 @@ tick(GT3_File *fp, struct caltime *start, int dur, int durunit)
 		 */
 		if (fseeko(fp->fp, fp->off + 4, SEEK_SET) < 0
 			|| fwrite(head.h, 1, GT3_HEADER_SIZE, fp->fp) != GT3_HEADER_SIZE) {
-			myperror(NULL);
+			logging(LOG_SYSERR, NULL);
 			return -1;
 		}
 
@@ -366,15 +349,13 @@ main(int argc, char **argv)
 	int caltype = CALTIME_GREGORIAN;
 	int yr, mon, day, sec, tdur, unit;
 
-
+	open_logging(stderr, PROGNAME);
 	GT3_setProgname(PROGNAME);
-
 	while ((ch = getopt(argc, argv, "c:hst:")) != -1)
 		switch (ch) {
 		case 'c':
 			if ((caltype = get_calendar(optarg)) < 0) {
-				fprintf(stderr, "%s: %s: Unknown calendar name.\n",
-						PROGNAME, optarg);
+				logging(LOG_ERR, "%s: Unknown calendar name.", optarg);
 				exit(1);
 			}
 			break;
@@ -384,7 +365,7 @@ main(int argc, char **argv)
 			break;
 		case 't':
 			if ((global_timeseq = initSeq(optarg, 1, 0x7fffffff)) == NULL) {
-				myperror(NULL);
+				logging(LOG_SYSERR, NULL);
 				exit(1);
 			}
 			break;
@@ -413,12 +394,12 @@ main(int argc, char **argv)
 	}
 
 	if (parse_tdef(*argv, &yr, &mon, &day, &sec, &tdur, &unit) < 0) {
-		fprintf(stderr, "%s: %s: invalid argument\n", PROGNAME, *argv);
+		logging(LOG_ERR, "%s: Invalid argument", *argv);
 		exit(1);
 	}
 
 	if (ct_init_caltime(&start, caltype, yr, mon, day) < 0) {
-		fprintf(stderr, "%s: %s: invalid DATE\n", PROGNAME, *argv);
+		logging(LOG_ERR, "%s: Invalid DATE", *argv);
 		exit(1);
 	}
 	ct_add_seconds(&start, sec);
@@ -430,7 +411,7 @@ main(int argc, char **argv)
 	argv++;
 	for (; argc > 0 && *argv; argc--, argv++) {
 		if (tick_file(*argv, &start, tdur, unit) < 0) {
-			fprintf(stderr, "%s: %s: abnormal end\n", PROGNAME, *argv);
+			logging(LOG_ERR, "%s: abnormal end", *argv);
 			exit(1);
 		}
 		if (global_timeseq)

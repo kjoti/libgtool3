@@ -16,6 +16,7 @@
 #include "seq.h"
 #include "fileiter.h"
 #include "myutils.h"
+#include "logging.h"
 
 #define PROGNAME "ngtcat"
 
@@ -33,24 +34,6 @@ static int slicing = 0;
 static char *zslice_str = NULL;
 static int global_xrange[] = { 0, 0x7fffffff };
 static int global_yrange[] = { 0, 0x7fffffff };
-
-
-static void
-myperror(const char *fmt, ...)
-{
-	va_list ap;
-
-	va_start(ap, fmt);
-	if (errno != 0) {
-		fprintf(stderr, "%s:", PROGNAME);
-		if (fmt) {
-			vfprintf(stderr, fmt, ap);
-			fprintf(stderr, ":");
-		}
-		fprintf(stderr, " %s\n", strerror(errno));
-	}
-	va_end(ap);
-}
 
 
 static int
@@ -193,7 +176,7 @@ slicecopy(FILE *dest, GT3_File *fp)
 	if (znum <= 0
 		|| xrange[1] - xrange[0] <= 0
 		|| yrange[1] - yrange[0] <= 0 ) {
-		fprintf(stderr, "%s: No data in specified domain.\n", PROGNAME);
+		logging(LOG_ERR, "No data in specified domain");
 		return -1; /* NO data to copy */
 	}
 	switch (fp->fmt) {
@@ -379,7 +362,7 @@ gtcat_cyclic(int num, char *path[], struct sequence *seq)
 			if (stat == 0) {
 				if (mcopy(stdout, fp) < 0) {
 					GT3_printErrorMessages(stderr);
-					myperror(NULL);
+					logging(LOG_SYSERR, NULL);
 					errflag = 1;
 				}
 			} else if (stat != GT3_ERR_INDEX)
@@ -411,7 +394,7 @@ gtcat(const char *path, struct sequence *seq)
 			continue;
 
 		if (stat == ITER_ERROR) {
-			fprintf(stderr, "%s: invalid specifier: %s", PROGNAME, seq->it);
+			logging(LOG_ERR, "%s: Invalid -t argument", seq->it);
 			break;
 		}
 
@@ -422,7 +405,7 @@ gtcat(const char *path, struct sequence *seq)
 
 		if (mcopy(stdout, fp) < 0) {
 			GT3_printErrorMessages(stderr);
-			myperror(NULL);
+			logging(LOG_SYSERR, NULL);
 			rval = -1;
 			break;
 		}
@@ -447,7 +430,7 @@ usage(void)
 		"    -x RANGE  specify X-range\n"
 		"    -y RANGE  specify Y-range\n"
 		"    -z LIST   specify Z-planes\n"
-		"    -t LIST   specify data numbers\n"
+		"    -t LIST   specify data No.\n"
 		"\n"
 		"    LIST   := RANGE[,RANGE]*\n"
 		"    RANGE  := start[:[end]] | :[end]\n";
@@ -464,6 +447,8 @@ main(int argc, char **argv)
 	int cyclic = 0;
 	int ch, rval = 0;
 
+	open_logging(stderr, PROGNAME);
+	GT3_setProgname(PROGNAME);
 	while ((ch = getopt(argc, argv, "cht:x:y:z:")) != -1)
 		switch (ch) {
 		case 'c':
@@ -476,9 +461,7 @@ main(int argc, char **argv)
 
 		case 'x':
 			if (set_range(global_xrange, optarg) < 0) {
-				fprintf(stderr,
-						"%s: invalid argument of the -x option: %s\n",
-						PROGNAME, optarg);
+				logging(LOG_ERR, "%s: Invalid argument", optarg);
 				exit(1);
 			}
 			slicing = 1;
@@ -486,9 +469,7 @@ main(int argc, char **argv)
 
 		case 'y':
 			if (set_range(global_yrange, optarg) < 0) {
-				fprintf(stderr,
-						"%s: invalid argument of the -y option: %s\n",
-						PROGNAME, optarg);
+				logging(LOG_ERR, "%s: Invalid argument", optarg);
 				exit(1);
 			}
 			slicing = 1;
@@ -511,7 +492,6 @@ main(int argc, char **argv)
 
 	argc -= optind;
 	argv += optind;
-	GT3_setProgname(PROGNAME);
 
 	if (cyclic) {
 		if (gtcat_cyclic(argc, argv, seq) < 0)

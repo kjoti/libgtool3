@@ -18,6 +18,7 @@
 #include "fileiter.h"
 #include "functmpl.h"
 #include "myutils.h"
+#include "logging.h"
 
 #ifndef min
 #  define min(a,b) ((a) < (b) ? (a) : (b))
@@ -90,24 +91,6 @@ FUNCTMPL_MINVAL(double, double, minval)
 FUNCTMPL_MAXVAL(double, double, maxval)
 FUNCTMPL_AVR(double, double, average)
 FUNCTMPL_SDEVIATION(double, double, std_deviation)
-
-
-static void
-myperror(const char *fmt, ...)
-{
-	va_list ap;
-
-	va_start(ap, fmt);
-	if (errno != 0) {
-		fprintf(stderr, "%s:", PROGNAME);
-		if (fmt) {
-			vfprintf(stderr, fmt, ap);
-			fprintf(stderr, ":");
-		}
-		fprintf(stderr, " %s\n", strerror(errno));
-	}
-	va_end(ap);
-}
 
 
 static void
@@ -221,7 +204,7 @@ ngtstat_var(GT3_Varbuf *varbuf)
 	if (varbuf->bufsize > worksize) {
 		free(work);
 		if ((work = malloc(varbuf->bufsize)) == NULL) {
-			myperror(NULL);
+			logging(LOG_SYSERR, NULL);
 			return -1;
 		}
 		worksize = varbuf->bufsize;
@@ -233,7 +216,7 @@ ngtstat_var(GT3_Varbuf *varbuf)
 		free(stat);
 		if ((stat = (struct statics *)
 			 malloc(sizeof(struct statics) * znum)) == NULL) {
-			myperror(NULL);
+			logging(LOG_SYSERR, NULL);
 			return -1;
 		}
 		max_num_plane = znum;
@@ -358,7 +341,7 @@ usage(void)
 		"Options:\n"
 		"    -h        print help message\n"
 		"    -a        display total info of all Z-planes\n"
-		"    -t LIST   specify data numbers\n"
+		"    -t LIST   specify data No.\n"
 		"    -x RANGE  specify X-range\n"
 		"    -y RANGE  specify Y-range\n"
 		"    -z RANGE  specify Z-range\n"
@@ -378,8 +361,8 @@ main(int argc, char **argv)
 	int rval = 0;
 	int ch;
 
+	open_logging(stderr, PROGNAME);
 	GT3_setProgname(PROGNAME);
-
 	while ((ch = getopt(argc, argv, "hat:x:y:z:")) != -1)
 		switch (ch) {
 		case 'a':
@@ -393,8 +376,7 @@ main(int argc, char **argv)
 		case 'x':
 			slicing = 1;
 			if (set_range(xrange, optarg) < 0) {
-				fprintf(stderr, "%s: invalid argument of -x : %s\n",
-						PROGNAME, optarg);
+				logging(LOG_ERR, "%s: Invalid argument", optarg);
 				exit(1);
 			}
 			break;
@@ -402,16 +384,14 @@ main(int argc, char **argv)
 		case 'y':
 			slicing = 1;
 			if (set_range(yrange, optarg) < 0) {
-				fprintf(stderr, "%s: invalid argument of -y : %s\n",
-						PROGNAME, optarg);
+				logging(LOG_ERR, "%s: Invalid argument", optarg);
 				exit(1);
 			}
 			break;
 
 		case 'z':
 			if (set_range(zrange, optarg) < 0) {
-				fprintf(stderr, "%s: invalid argument of -z : %s\n",
-						PROGNAME, optarg);
+				logging(LOG_ERR, "%s: Invalid argument", optarg);
 				exit(1);
 			}
 			break;

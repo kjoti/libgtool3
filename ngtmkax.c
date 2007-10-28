@@ -14,26 +14,9 @@
 #include <unistd.h>
 
 #include "gtool3.h"
+#include "logging.h"
 
 #define PROGNAME "ngtmkax"
-
-
-static void
-myperror(const char *fmt, ...)
-{
-	va_list ap;
-
-	va_start(ap, fmt);
-	if (errno != 0) {
-		fprintf(stderr, "%s:", PROGNAME);
-		if (fmt) {
-			vfprintf(stderr, fmt, ap);
-			fprintf(stderr, ":");
-		}
-		fprintf(stderr, " %s\n", strerror(errno));
-	}
-	va_end(ap);
-}
 
 
 int
@@ -47,8 +30,7 @@ make_axisfile(const char *name, const char *outdir, const char *fmt)
 		if (GT3_ErrorCount() > 0)
 			GT3_printErrorMessages(stderr);
 		else
-			fprintf(stderr, "%s: %s: Not a Built-in axisname\n",
-					PROGNAME, name);
+			logging(LOG_ERR, "%s: Not a Built-in axisname", name);
 		return -1;
 	}
 
@@ -57,7 +39,7 @@ make_axisfile(const char *name, const char *outdir, const char *fmt)
 	 */
 	snprintf(path, sizeof path, "%s/GTAXLOC.%s", outdir, name);
 	if ((fp = fopen(path, "wb")) == NULL) {
-		myperror(path);
+		logging(LOG_SYSERR, path);
 		return -1;
 	}
 
@@ -72,7 +54,7 @@ make_axisfile(const char *name, const char *outdir, const char *fmt)
 	 */
 	snprintf(path, sizeof path, "%s/GTAXWGT.%s", outdir, name);
 	if ((fp = fopen(path, "wb")) == NULL) {
-		myperror(path);
+		logging(LOG_SYSERR, path);
 		return -1;
 	}
 	if (GT3_writeWeightFile(fp, dim, fmt) < 0) {
@@ -114,7 +96,8 @@ main(int argc, char **argv)
 	const char *outdir = ".";
 	const char *fmt = "UR4";
 
-
+	open_logging(stderr, PROGNAME);
+	GT3_setProgname(PROGNAME);
 	while ((ch = getopt(argc, argv, "f:ho:")) != -1)
 		switch (ch) {
 		case 'f':
@@ -124,9 +107,7 @@ main(int argc, char **argv)
 		case 'o':
 			outdir = strdup(optarg);
 			if (strlen(outdir) > PATH_MAX - 32) {
-				fprintf(stderr, "%s: %s\n",
-						PROGNAME,
-						"The path specified with o-option is too long");
+				logging(LOG_ERR, "%s: Too long path", optarg);
 				exit(1);
 			}
 			break;
