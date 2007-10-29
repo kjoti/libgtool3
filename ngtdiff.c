@@ -420,16 +420,20 @@ void
 usage(void)
 {
 	const char *usage_message =
-		"Usage: " PROGNAME " [options] file1 file2\n"
+		"Usage: " PROGNAME " [options] FileA FileB\n"
 		"\n"
 		"Compare files.\n"
 		"\n"
 		"Options:\n"
 		"    -h        print help message\n"
+		"    -A LIST   specify data No. for FileA\n"
+		"    -B LIST   specify data No. for FileB\n"
 		"    -S        ignore CDATE, CSIGN, MDATE, MSIGN\n"
+		"    -T        ignore TIME, DATE, TDUR, DATE1, DATE2\n"
 		"    -a value  specify tolerance (absolute error)\n"
 		"    -r value  specify tolerance (relative error)\n"
-		"    -t LIST   specify data No.\n"
+		"    -s        output summarized form\n"
+		"    -t LIST   specify data No. for both FileA and FileB\n"
 		"    -z RANGE  specify Z-range\n"
 		"\n"
 		"    RANGE  := start[:[end]] | :[end]\n"
