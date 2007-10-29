@@ -16,7 +16,6 @@
 #include "gtool3.h"
 #include "seq.h"
 #include "fileiter.h"
-#include "functmpl.h"
 #include "myutils.h"
 #include "logging.h"
 
@@ -243,7 +242,7 @@ diff_var(GT3_Varbuf *var1, GT3_Varbuf *var2)
 
 	if (!sameshape) {
 		printf("# Different shape. Skip...\n");
-		return 0;
+		return 1;
 	}
 
 	/*
@@ -317,17 +316,25 @@ diff_var(GT3_Varbuf *var1, GT3_Varbuf *var2)
 			printf("%18s: %.7g\n", "RMS", sqrt(rms/nrms));
 		}
 	}
-	return 0;
+	return cnt > 0 ? 1 : 0;
 }
 
 
+/*
+ *  diff_file() compares two GTOOL3-files.
+ *
+ *  Return value:
+ *    0  no difference
+ *    1  if difference
+ *   -1  error
+ */
 int
 diff_file(const char *path1, const char *path2,
 		  struct sequence *seq1, struct sequence *seq2)
 {
 	GT3_File *fp1, *fp2;
 	GT3_Varbuf *var1, *var2;
-	int rval = 0;
+	int rc, rval = 0;
 
 	if (   (fp1 = GT3_open(path1)) == NULL
 		|| (fp2 = GT3_open(path2)) == NULL
@@ -352,17 +359,19 @@ diff_file(const char *path1, const char *path2,
 			if (stat1 == ITER_OUTRANGE || stat2 == ITER_OUTRANGE)
 				continue;
 
-			if (diff_var(var1, var2) < 0) {
+			if ((rc = diff_var(var1, var2)) < 0) {
 				rval = -1;
 				break;
 			}
+			rval |= rc;
 		}
 	} else {
 		for (;;) {
-			if (diff_var(var1, var2) < 0) {
+			if ((rc = diff_var(var1, var2)) < 0) {
 				rval = -1;
 				break;
 			}
+			rval |= rc;
 
 			if (GT3_next(fp1) < 0 || GT3_next(fp2) < 0) {
 				GT3_printErrorMessages(stderr);
@@ -472,6 +481,7 @@ main(int argc, char **argv)
 		case 'r':
 			tolerance = strtod(optarg, &endptr);
 			if (optarg == endptr) {
+				logging(LOG_ERR, "%s: Invalid argument", optarg);
 				usage();
 				exit(1);
 			}
@@ -487,6 +497,7 @@ main(int argc, char **argv)
 		case 'z':
 			if (set_range(zrange, optarg) < 0) {
 				logging(LOG_ERR, "%s: Invalid argument", optarg);
+				usage();
 				exit(1);
 			}
 			break;
@@ -504,5 +515,5 @@ main(int argc, char **argv)
 		exit(1);
 	}
 	rval = diff_file(argv[0], argv[1], seq1, seq2);
-	return rval < 0 ? 1 : 0;
+	return rval < 0 ? 255 : rval;
 }
