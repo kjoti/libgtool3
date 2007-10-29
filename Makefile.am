@@ -1,6 +1,6 @@
 lib_LIBRARIES = libgtool3.a
 bin_PROGRAMS = ngtcat ngtls ngtsumm ngtstat ngtick ngthead \
-		ngted ngtmkax
+		ngted ngtmkax ngtdiff
 include_HEADERS = gtool3.h
 
 libgtool3_a_SOURCES = \
@@ -20,7 +20,7 @@ libgtool3_a_SOURCES = \
 		version.c \
 		write.c
 
-utils = seq.c fileiter.c split.c get_ints.c
+utils = logging.c seq.c fileiter.c split.c get_ints.c
 
 ngtcat_SOURCES = ngtcat.c $(utils)
 ngtls_SOURCES = ngtls.c $(utils)
@@ -29,7 +29,8 @@ ngtstat_SOURCES = ngtstat.c $(utils)
 ngtick_SOURCES = ngtick.c $(utils)
 ngthead_SOURCES = ngthead.c
 ngted_SOURCES = ngted.c copysubst.c $(utils)
-ngtmkax_SOURCES = ngtmkax.c  $(utils)
+ngtmkax_SOURCES = ngtmkax.c $(utils)
+ngtdiff_SOURCES = ngtdiff.c $(utils)
 
 LDADD = libgtool3.a -lm
 

@@ -38,7 +38,7 @@ PRE_UNINSTALL = :
 POST_UNINSTALL = :
 bin_PROGRAMS = ngtcat$(EXEEXT) ngtls$(EXEEXT) ngtsumm$(EXEEXT) \
 	ngtstat$(EXEEXT) ngtick$(EXEEXT) ngthead$(EXEEXT) \
-	ngted$(EXEEXT) ngtmkax$(EXEEXT)
+	ngted$(EXEEXT) ngtmkax$(EXEEXT) ngtdiff$(EXEEXT)
 subdir = .
 DIST_COMMON = README $(am__configure_deps) $(include_HEADERS) \
 	$(srcdir)/Makefile.am $(srcdir)/Makefile.in \
@@ -76,12 +76,16 @@ am_libgtool3_a_OBJECTS = bits_set.$(OBJEXT) caltime.$(OBJEXT) \
 libgtool3_a_OBJECTS = $(am_libgtool3_a_OBJECTS)
 binPROGRAMS_INSTALL = $(INSTALL_PROGRAM)
 PROGRAMS = $(bin_PROGRAMS)
-am__objects_1 = seq.$(OBJEXT) fileiter.$(OBJEXT) split.$(OBJEXT) \
-	get_ints.$(OBJEXT)
+am__objects_1 = logging.$(OBJEXT) seq.$(OBJEXT) fileiter.$(OBJEXT) \
+	split.$(OBJEXT) get_ints.$(OBJEXT)
 am_ngtcat_OBJECTS = ngtcat.$(OBJEXT) $(am__objects_1)
 ngtcat_OBJECTS = $(am_ngtcat_OBJECTS)
 ngtcat_LDADD = $(LDADD)
 ngtcat_DEPENDENCIES = libgtool3.a
+am_ngtdiff_OBJECTS = ngtdiff.$(OBJEXT) $(am__objects_1)
+ngtdiff_OBJECTS = $(am_ngtdiff_OBJECTS)
+ngtdiff_LDADD = $(LDADD)
+ngtdiff_DEPENDENCIES = libgtool3.a
 am_ngted_OBJECTS = ngted.$(OBJEXT) copysubst.$(OBJEXT) \
 	$(am__objects_1)
 ngted_OBJECTS = $(am_ngted_OBJECTS)
@@ -118,13 +122,14 @@ COMPILE = $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) \
 	$(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
 CCLD = $(CC)
 LINK = $(CCLD) $(AM_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) $(LDFLAGS) -o $@
-SOURCES = $(libgtool3_a_SOURCES) $(ngtcat_SOURCES) $(ngted_SOURCES) \
-	$(ngthead_SOURCES) $(ngtick_SOURCES) $(ngtls_SOURCES) \
-	$(ngtmkax_SOURCES) $(ngtstat_SOURCES) $(ngtsumm_SOURCES)
-DIST_SOURCES = $(libgtool3_a_SOURCES) $(ngtcat_SOURCES) \
+SOURCES = $(libgtool3_a_SOURCES) $(ngtcat_SOURCES) $(ngtdiff_SOURCES) \
 	$(ngted_SOURCES) $(ngthead_SOURCES) $(ngtick_SOURCES) \
 	$(ngtls_SOURCES) $(ngtmkax_SOURCES) $(ngtstat_SOURCES) \
 	$(ngtsumm_SOURCES)
+DIST_SOURCES = $(libgtool3_a_SOURCES) $(ngtcat_SOURCES) \
+	$(ngtdiff_SOURCES) $(ngted_SOURCES) $(ngthead_SOURCES) \
+	$(ngtick_SOURCES) $(ngtls_SOURCES) $(ngtmkax_SOURCES) \
+	$(ngtstat_SOURCES) $(ngtsumm_SOURCES)
 includeHEADERS_INSTALL = $(INSTALL_HEADER)
 HEADERS = $(include_HEADERS)
 ETAGS = etags
@@ -242,7 +247,7 @@ libgtool3_a_SOURCES = \
 		version.c \
 		write.c
 
-utils = seq.c fileiter.c split.c get_ints.c
+utils = logging.c seq.c fileiter.c split.c get_ints.c
 ngtcat_SOURCES = ngtcat.c $(utils)
 ngtls_SOURCES = ngtls.c $(utils)
 ngtsumm_SOURCES = ngtsumm.c $(utils)
@@ -250,7 +255,8 @@ ngtstat_SOURCES = ngtstat.c $(utils)
 ngtick_SOURCES = ngtick.c $(utils)
 ngthead_SOURCES = ngthead.c
 ngted_SOURCES = ngted.c copysubst.c $(utils)
-ngtmkax_SOURCES = ngtmkax.c  $(utils)
+ngtmkax_SOURCES = ngtmkax.c $(utils)
+ngtdiff_SOURCES = ngtdiff.c $(utils)
 LDADD = libgtool3.a -lm
 all: config.h
 	$(MAKE) $(AM_MAKEFLAGS) all-am
@@ -366,6 +372,9 @@ clean-binPROGRAMS:
 ngtcat$(EXEEXT): $(ngtcat_OBJECTS) $(ngtcat_DEPENDENCIES) 
 	@rm -f ngtcat$(EXEEXT)
 	$(LINK) $(ngtcat_LDFLAGS) $(ngtcat_OBJECTS) $(ngtcat_LDADD) $(LIBS)
+ngtdiff$(EXEEXT): $(ngtdiff_OBJECTS) $(ngtdiff_DEPENDENCIES) 
+	@rm -f ngtdiff$(EXEEXT)
+	$(LINK) $(ngtdiff_LDFLAGS) $(ngtdiff_OBJECTS) $(ngtdiff_LDADD) $(LIBS)
 ngted$(EXEEXT): $(ngted_OBJECTS) $(ngted_DEPENDENCIES) 
 	@rm -f ngted$(EXEEXT)
 	$(LINK) $(ngted_LDFLAGS) $(ngted_OBJECTS) $(ngted_LDADD) $(LIBS)
@@ -405,7 +414,9 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/grid.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/gtdim.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/header.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/logging.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ngtcat.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ngtdiff.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ngted.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ngthead.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ngtick.Po@am__quote@
