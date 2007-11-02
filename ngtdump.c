@@ -50,10 +50,10 @@ static int zrange[] = { 0, 0x7fffffff };
 char *
 snprintf_date(char *buf, size_t len, const GT3_Date *date)
 {
-	snprintf(buf, len, "%d-%02d-%02d %02d:%02d:%02d",
+	snprintf(buf, len, "%04d-%02d-%02d %02d:%02d:%02d",
 			date->year, date->mon, date->day,
 			date->hour, date->min, date->sec);
-		
+
 	return buf;
 }
 
@@ -87,10 +87,15 @@ dump_info(GT3_File *fp)
 	printf("#       Data No.: %d\n", fp->curr + 1);
 	GT3_copyHeaderItem(hbuf, sizeof hbuf, &head, "TITLE");
 	printf("#          TITLE: %s\n", hbuf);
+	GT3_copyHeaderItem(hbuf, sizeof hbuf, &head, "UNIT");
+	printf("#           UNIT: %s\n", hbuf);
+	printf("#     Data Shape: %dx%dx%d\n",
+		   fp->dimlen[0], fp->dimlen[1], fp->dimlen[2]);
 
-	GT3_decodeHeaderDate(&date, &head, "DATE");
-	snprintf_date(hbuf, sizeof hbuf, &date);
-	printf("#           DATE: %s\n", hbuf);
+	if (GT3_decodeHeaderDate(&date, &head, "DATE") == 0) {
+		snprintf_date(hbuf, sizeof hbuf, &date);
+		printf("#           DATE: %s\n", hbuf);
+	}
 	printf("#\n");
 	return 0;
 }
@@ -100,7 +105,7 @@ set_dimvalue(char *hbuf, size_t len, GT3_Dim *dim, int idx)
 {
 	hbuf[0] = '\0';
 	if (dim)
-		snprintf(hbuf, len, "%18.10g", dim->values[idx]);
+		snprintf(hbuf, len, "%13.6g", dim->values[idx]);
 }
 
 
@@ -110,7 +115,7 @@ dump_var(GT3_Varbuf *var)
 	int x, y, z, n, ij;
 	GT3_HEADER head;
 	GT3_Dim *dim[] = { NULL, NULL, NULL };
-	const char *dimname[] = { "AITM1", "AITM2", "AITM3" }; 
+	const char *dimname[] = { "AITM1", "AITM2", "AITM3" };
 	char vstr[32];
 	unsigned missf;
 	double val;
@@ -118,7 +123,9 @@ dump_var(GT3_Varbuf *var)
 	int xoff = 1, yoff = 1, zoff = 1;
 	char hbuf[17];
 	char dimv[3][32];
-	char items[4][32];
+	char items[3][32];
+	char vfmt[16];
+	int nwidth, nprec;
 
 
 	GT3_readHeader(&head, var->fp);
@@ -126,12 +133,12 @@ dump_var(GT3_Varbuf *var)
 		items[n][0] = '\0';
 		GT3_copyHeaderItem(hbuf, sizeof hbuf, &head, dimname[n]);
 		if (hbuf[0] != '\0' && strcmp(hbuf, "SFC1") != 0) {
-			snprintf(items[n], sizeof items[n], "%18s", hbuf);
+			snprintf(items[n], sizeof items[n], "%13s", hbuf);
 			if ((dim[n] = GT3_getDim(hbuf)) == NULL) {
 				GT3_printErrorMessages(stderr);
 				logging(LOG_ERR, "%s: Unknown axis name.", hbuf);
 
-				snprintf(items[n], sizeof items[n], "%17s?", hbuf);
+				snprintf(items[n], sizeof items[n], "%12s?", hbuf);
 
 				/* use NUMBERXXX */
 				snprintf(hbuf, sizeof hbuf,
@@ -142,9 +149,25 @@ dump_var(GT3_Varbuf *var)
 	}
 
 	if (get_range_in_chunk(xr, yr, zr, var->fp)) {
+		/* set printf-format for variables */
+		switch (var->fp->fmt) {
+		case GT3_FMT_UR8:
+			nprec = 17;
+			break;
+		case GT3_FMT_URC:
+		case GT3_FMT_URC1:
+			nprec = 7;
+			break;
+		default:
+			nprec = 8;
+			break;
+		}
+		nwidth = nprec + 9;
+		snprintf(vfmt, sizeof vfmt, "%%%d.%dg", nwidth, nprec);
+
 		GT3_copyHeaderItem(hbuf, sizeof hbuf, &head, "ITEM");
-		snprintf(items[3], sizeof items[3], "%17s", hbuf);
-		printf("#%s%s%s%s\n", items[0], items[1], items[2], items[3]);
+		printf("#%s%s%s%*s\n",
+			   items[0], items[1], items[2], nwidth, hbuf);
 		GT3_decodeHeaderInt(&xoff, &head, "ASTR1");
 		GT3_decodeHeaderInt(&yoff, &head, "ASTR2");
 		GT3_decodeHeaderInt(&zoff, &head, "ASTR3");
@@ -169,10 +192,10 @@ dump_var(GT3_Varbuf *var)
 					vstr[0] = '-';
 					vstr[1] = '\0';
 					if (!missf)
-						snprintf(vstr, sizeof vstr, "%17.9g", val);
+						snprintf(vstr, sizeof vstr, vfmt, val);
 
-					printf(" %s%s%s%17s\n", 
-						   dimv[0], dimv[1], dimv[2], vstr);
+					printf(" %s%s%s%*s\n",
+						   dimv[0], dimv[1], dimv[2], nwidth, vstr);
 				}
 			}
 		}
@@ -255,6 +278,23 @@ set_range(int range[], const char *str)
 void
 usage(void)
 {
+	const char *usage_message =
+		"Usage: " PROGNAME " [options] files...\n"
+		"\n"
+		"View data.\n"
+		"\n"
+		"Options:\n"
+		"    -h        print help message\n"
+		"    -t LIST   specify data No.\n"
+		"    -x RANGE  specify X-range\n"
+		"    -y RANGE  specify Y-range\n"
+		"    -z RANGE  specify Z-range\n"
+		"\n"
+		"    RANGE  := start[:[end]] | :[end]\n"
+		"    LIST   := RANGE[,RANGE]*\n";
+
+	fprintf(stderr, "%s\n", GT3_version());
+	fprintf(stderr, "%s\n", usage_message);
 }
 
 
