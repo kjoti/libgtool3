@@ -48,7 +48,7 @@ LDADD		= -lgtool3 -lm
 LIBS		= libgtool3.a
 HEADERS		= gtool3.h
 BINS		= ngtcat ngtls ngtsumm ngtstat ngtick \
-		ngthead ngted ngtmkax ngtdiff
+		ngthead ngted ngtmkax ngtdiff ngtdump
 
 UTILS		= logging.o seq.o fileiter.o split.o get_ints.o
 
@@ -84,6 +84,9 @@ ngtmkax:  libgtool3.a ngtmkax.o $(UTILS)
 
 ngtdiff:  libgtool3.a ngtdiff.o $(UTILS)
 	$(CC) $(LDFLAGS) -L. -o $@ ngtdiff.o $(UTILS) $(LDADD)
+
+ngtdump:  libgtool3.a ngtdump.o $(UTILS)
+	$(CC) $(LDFLAGS) -L. -o $@ ngtdump.o $(UTILS) $(LDADD)
 
 ngthead: ngthead.o
 	$(CC) $(LDFLAGS) -o $@ ngthead.o
