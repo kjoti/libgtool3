@@ -427,7 +427,7 @@ ct_equal(const caltime *date1, const caltime *date2)
  *  ct_diff_days() returns the difference of the date.
  *
  *  NOTE: ct_diff_days() does not take the time into account.
- *  e.g., 
+ *  e.g.,
  *     date2="1999-12-31 12:00:00" and date1=2000-1-1 00:00:00",
  *     => return 1 (not 0).
  */

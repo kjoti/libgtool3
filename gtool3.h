@@ -219,7 +219,7 @@ void GT3_setProgname(const char *name);
 void GT3_setDate(GT3_Date *date, int, int, int, int, int, int);
 int GT3_cmpDate(const GT3_Date *date, int, int, int, int, int, int);
 int GT3_cmpDate2(const GT3_Date *date1, const GT3_Date *date2);
-int GT3_diffDate(GT3_Date *diff, 
+int GT3_diffDate(GT3_Date *diff,
                  const GT3_Date *from, const GT3_Date *to, int ctype);
 int GT3_guessCalendarFile(const char *path);
 
