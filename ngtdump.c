@@ -103,9 +103,15 @@ dump_info(GT3_File *fp)
 void
 set_dimvalue(char *hbuf, size_t len, GT3_Dim *dim, int idx)
 {
-	hbuf[0] = '\0';
-	if (dim)
-		snprintf(hbuf, len, "%13.6g", dim->values[idx]);
+	if (dim) {
+		if (idx == -1)
+			snprintf(hbuf, len, "%13s", "Averaged");
+		else if (idx < -1 || idx >= dim->len)
+			snprintf(hbuf, len, "%13s", "OutOfRange");
+		else
+			snprintf(hbuf, len, "%13.6g", dim->values[idx]);
+	} else
+		hbuf[0] = '\0';
 }
 
 
@@ -126,7 +132,7 @@ dump_var(GT3_Varbuf *var)
 	char items[3][32];
 	char vfmt[16];
 	int nwidth, nprec;
-
+	int conti_z, conti_y;
 
 	GT3_readHeader(&head, var->fp);
 	for (n = 0; n < 3; n++) {
@@ -175,12 +181,16 @@ dump_var(GT3_Varbuf *var)
 		yoff--;
 		zoff--;
 
+		conti_z = yr[1] - yr[0] <= 1 && xr[1] - xr[0] <= 1;
+		conti_y = xr[1] - xr[0] <= 1;
 		for (z = zr[0]; z < zr[1]; z++) {
 			GT3_readVarZ(var, z);
+			if (z > zr[0] && !conti_z)
+				printf("\n");
 
 			set_dimvalue(dimv[2], sizeof dimv[2], dim[2], z + zoff);
 			for (y = yr[0]; y < yr[1]; y++) {
-				if (y > yr[0])
+				if (y > yr[0] && !conti_y)
 					printf("\n");
 				set_dimvalue(dimv[1], sizeof dimv[1], dim[1], y + yoff);
 				for (x = xr[0]; x < xr[1]; x++) {
