@@ -203,10 +203,12 @@ diff_var(GT3_Varbuf *var1, GT3_Varbuf *var2)
 	int i, j, ij, z, z1;
 	int cnt = 0, total = 0;
 	double v1, v2;
-	double diff, maxdiff = 0.;
+	double err, maxerr = 0.;
 	double rms = 0.;
 	int nrms = 0;
 	int ioff = 1, joff = 1, koff = 1;
+	int numA = 0, numB = 0;
+	double sumA = 0., sumB = 0.;
 	int sameshape;
 
 	if (   GT3_readHeader(&head1, var1->fp) < 0
@@ -281,42 +283,64 @@ diff_var(GT3_Varbuf *var1, GT3_Varbuf *var2)
 					}
 					i = ioff + ij % var1->dimlen[0];
 					j = joff + ij / var1->dimlen[0];
-	
+
 					vstr1[0] = vstr2[0] = '_';
 					vstr1[1] = vstr2[1] = '\0';
 					if (!miss1)
 						snprintf(vstr1, sizeof vstr1, "%20.7g", v1);
 					if (!miss2)
 						snprintf(vstr2, sizeof vstr2, "%20.7g", v2);
-	
+
 					printf(" %5d %5d %5d %20s %20s\n",
 							i, j, koff + z, vstr1, vstr2);
 				}
 				cnt++;
 			}
+			if (miss1 == 0) {
+				numA++;
+				sumA += v1;
+			}
+			if (miss2 == 0) {
+				numB++;
+				sumB += v2;
+			}
 			if ((miss1 | miss2) == 0) {
-				diff = v1 - v2;
-				rms += diff * diff;
+				err = v1 - v2;
+				rms += err * err;
 				nrms++;
-				diff = fabs(diff);
-				if (diff > maxdiff)
-					maxdiff = diff;
+				err = fabs(err);
+				if (err > maxerr)
+					maxerr = err;
 			}
 		}
 		total += var1->dimlen[0] * var1->dimlen[1];
 	}
 	if (cnt > 0) {
-		if ((flag & 1) == 0)
+		if ((flag & 1) == 0) {
 			print_header(var1, var2);
+			flag |= 1;
+		}
 		printf("#\n# Summary:\n");
 		printf("%18s: %s vs %s\n", "ITEMS", item1 + 2, item2 + 2);
 		printf("%18s: %d / %d grids\n", "differ.", cnt, total);
+		if (numA > 0) {
+			sumA /= numA;
+			printf("%18s: %.7g\n", "ave(A)", sumA);
+		}
+		if (numB > 0) {
+			sumB /= numB;
+			printf("%18s: %.7g\n", "ave(B)", sumB);
+		}
+		printf("%18s: %.7g\n", "max(|A-B|)", maxerr);
 		if (nrms > 0) {
-			printf("%18s: %.7g\n", "max(|A-B|)", maxdiff);
-			printf("%18s: %.7g\n", "RMS", sqrt(rms/nrms));
+			rms = sqrt(rms / nrms);
+			printf("%18s: %.7g\n", "RMS", rms);
+			if (sumA != 0.)
+				printf("%18s: %.4g%%\n", "RMS/|ave(A)|",
+					   100. * (rms / fabs(sumA)));
 		}
 	}
-	return cnt > 0 ? 1 : 0;
+	return flag ? 1 : 0;
 }
 
 
@@ -379,7 +403,7 @@ diff_file(const char *path1, const char *path2,
 				break;
 			}
 
-			if (GT3_eof(fp1) && GT3_eof(fp2))
+			if (GT3_eof(fp2))
 				break;
 
 			if (GT3_eof(fp1))
