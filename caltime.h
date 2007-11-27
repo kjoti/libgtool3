@@ -50,7 +50,7 @@ caltime* ct_add_seconds(caltime *date, int sec);
 /*
  *  operators (==, <, >)
  */
-int ct_cmp(const caltime *date1, const caltime *date2); 
+int ct_cmp(const caltime *date1, const caltime *date2);
 int ct_cmpto(const caltime *date, int, int, int, int, int, int);
 int ct_eqdate(const caltime *date, int yr, int mo, int day);
 int ct_equal(const caltime *date1, const caltime *date2);
