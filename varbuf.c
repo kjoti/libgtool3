@@ -200,7 +200,8 @@ read_URCv(GT3_Varbuf *var, size_t skip, size_t nelem, FILE *fp,
 	unsigned char pbuf[8 + 4 + 4 + 7 * sizeof(FTN_HEAD)];
 	double ref;
 	int nd, ne;
-	size_t sizh, num;
+	FTN_HEAD sizh;
+	size_t num;
 	int i;
 	float *outp;
 
