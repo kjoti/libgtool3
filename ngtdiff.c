@@ -482,15 +482,13 @@ main(int argc, char **argv)
 	while ((ch = getopt(argc, argv, "A:B:STa:hr:st:z:")) != -1)
 		switch (ch) {
 		case 'A':
-			seq1 = initSeq(optarg, 1, 0x7fffffff);
-			if (seq1 == NULL) {
+			if ((seq1 = initSeq(optarg, 1, 0x7fffffff)) == NULL) {
 				logging(LOG_SYSERR, NULL);
 				exit(1);
 			}
 			break;
 		case 'B':
-			seq2 = initSeq(optarg, 1, 0x7fffffff);
-			if (seq1 == NULL) {
+			if ((seq2 = initSeq(optarg, 1, 0x7fffffff)) == NULL) {
 				logging(LOG_SYSERR, NULL);
 				exit(1);
 			}
@@ -542,6 +540,19 @@ main(int argc, char **argv)
 		usage();
 		exit(1);
 	}
+
+	if (seq1 != NULL && seq2 == NULL)
+		if ((seq2 = initSeq(":", 1, 0x7fffffff)) == NULL) {
+			logging(LOG_SYSERR, NULL);
+			exit(1);
+		}
+
+	if (seq1 == NULL && seq2 != NULL)
+		if ((seq1 = initSeq(":", 1, 0x7fffffff)) == NULL) {
+			logging(LOG_SYSERR, NULL);
+			exit(1);
+		}
+
 	rval = diff_file(argv[0], argv[1], seq1, seq2);
 	return rval < 0 ? 255 : rval;
 }
