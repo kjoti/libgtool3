@@ -17,6 +17,7 @@
 #include "seq.h"
 #include "fileiter.h"
 #include "myutils.h"
+#include "dateiter.h"
 #include "logging.h"
 
 #ifndef min
@@ -29,7 +30,7 @@
 #define PROGNAME "ngtavr"
 
 /*
- * globals
+ *  globals data
  */
 static void    *g_vardata;
 static double  *g_timedur;
@@ -38,38 +39,60 @@ static size_t g_vdatasize;		/* in bytes */
 static size_t g_dimlen[3];		/* dimension length */
 static int    g_datatype;		/* GT3_TYPE_FLOAT or GT3_TYPE_DOUBLE */
 static GT3_HEADER g_head;		/* gt3-header of the 1st chunk */
-static GT3_HEADER g_head_last;	/* gt3-header of the last chunk */
+static GT3_Date g_date1;
+static GT3_Date g_date2;
+
+static int g_counter;			/* # of chunks integrated */
 static double g_totaltdur;
 
 static int g_snapshot_done;
 
+/*
+ *  global options
+ */
 static const char *default_ofile = "gtool.out";
-
 static int g_zrange[] = { 0, 0x7ffffff };
 static int g_zsliced = 0;
+static int calendar_type = GT3_CAL_GREGORIAN;
+static int ignore_tdur = 0;
 
 
+void
+clear_global()
+{
+	int i, len;
 
+	memset(g_vardata, 0, g_vdatasize);
+	len = g_dimlen[0] * g_dimlen[1] * g_dimlen[2];
+	for (i = 0; i < len; i++)
+		g_timedur[i] = 0.;
+
+	g_counter = 0;
+	g_totaltdur = 0.;
+}
 
 
 int
 init_global(GT3_Varbuf *var)
 {
-	size_t len, zlen, elem;
+	size_t len, elem;
+	int zrange[2];
+	int zlen;
 	void *tvar;
 	double *ttime;
-	size_t i;
-
-	if (GT3_readHeader(&g_head, var->fp) < 0) {
-		GT3_printErrorMessages(stderr);
-		return -1;
-	}
 
 	if (g_zsliced) {
-		zlen = g_zrange[1] - g_zrange[0];
+		zrange[0] = g_zrange[0];
+		zrange[1] = g_zrange[1];
 
-		if (zlen > var->dimlen[2])
-			g_zrange[1] = var->dimlen[2];
+		if (zrange[1] > var->dimlen[2])
+			zrange[1] = var->dimlen[2];
+
+		zlen = zrange[1] - zrange[0];
+		if (zlen < 0) {
+			logging(LOG_ERR, "invalid z-range");
+			return -1;
+		}
 	} else
 		zlen = var->dimlen[2];
 
@@ -81,13 +104,9 @@ init_global(GT3_Varbuf *var)
 	if ((tvar = malloc(elem * len)) == NULL
 		|| (ttime = (double *)malloc(sizeof(double) * len)) == NULL) {
 
-		logging(LOG_SYSERR, "for variable data.");
+		logging(LOG_SYSERR, "allocation failed.");
 		return -1;
 	}
-
-	memset(tvar, 0, elem * len);
-	for (i = 0; i < len; i++)
-		ttime[i] = 0.;
 
 	g_vardata = tvar;
 	g_timedur = ttime;
@@ -96,10 +115,8 @@ init_global(GT3_Varbuf *var)
 	g_dimlen[1] = var->dimlen[1];
 	g_dimlen[2] = zlen;
 	g_datatype  = var->type;
-	g_totaltdur = 0.;
 
-
-
+	clear_global();
 	return 0;
 }
 
@@ -120,6 +137,10 @@ timeintegral_f(float *vsum, double *tsum, double *dtsum,
 	int rval = 0;
 	float *data;
 	int i, z;
+
+
+	logging(LOG_NOTICE, "file=%s, No=%d, z=%d..%d",
+			var->fp->path, var->fp->curr + 1, z0 + 1, z1);
 
 
 	assert(z1 < z0 || (z1 - z0) * len * sizeof(float) <= g_vdatasize);
@@ -156,7 +177,7 @@ check_input(const GT3_HEADER *head)
 
 
 void
-get_zrange(int *z0, int *z1, int zend)
+set_zrange(int *z0, int *z1, int zend)
 {
 	int zstr = 0;
 
@@ -177,7 +198,7 @@ get_zrange(int *z0, int *z1, int zend)
 double
 get_tstepsize(const GT3_HEADER *head)
 {
-	int temp;
+	int temp = 0;
 	double dt;
 
 	/*
@@ -189,9 +210,8 @@ get_tstepsize(const GT3_HEADER *head)
 	} else
 		dt = 1.;
 
-
 	if (!g_snapshot_done && temp == 0) {
-		logging(LOG_WARN, "Processing snapshot data...");
+		logging(LOG_NOTICE, "Processing snapshot data...");
 		g_snapshot_done = 1;
 	}
 	if (temp < 0)
@@ -202,110 +222,35 @@ get_tstepsize(const GT3_HEADER *head)
 
 
 int
-ngtavr_file(GT3_File *fp)
+write_average(FILE *fp)
 {
-	GT3_Varbuf *var;
-	int rval = 0;
-	double dt;
-	int z0, z1;
-
-	if ((var = GT3_getVarbuf(fp)) == NULL) {
-		GT3_printErrorMessages(stderr);
-		return -1;
-	}
-
-	if (g_vardata == NULL && init_global(var) < 0) {
-		GT3_freeVarbuf(var);
-		return -1;
-	}
-
-	for (;;) {
-		if (GT3_eof(fp))
-			break;
-
-		if (GT3_readHeader(&g_head_last, fp) < 0) {
-			GT3_printErrorMessages(stderr);
-			rval = -1;
-			break;
-		}
-
-		if (check_input(&g_head_last) < 0) {
-			rval = -1;
-			break;
-		}
-
-		dt = get_tstepsize(&g_head_last);
-		get_zrange(&z0, &z1, fp->dimlen[2]);
-
-		if (timeintegral_f(g_vardata, g_timedur, &g_totaltdur, var,
-						   dt, z0, z1) < 0) {
-			rval = -1;
-			break;
-		}
-
-		/* logging(LOG_INFO, "integral %d", counter); */
-
-		if (GT3_next(fp) < 0) {
-			GT3_printErrorMessages(stderr);
-			rval = -1;
-			break;
-		}
-	}
-
-	GT3_freeVarbuf(var);
-	return rval;
-}
-
-
-
-int
-ngtavr(const char *path)
-{
-	GT3_File *fp;
 	int rval;
+	GT3_Date date;
+	GT3_HEADER head;
 
-	if ((fp = GT3_open(path)) == NULL) {
-		GT3_printErrorMessages(stderr);
-		return -1;
-	}
-
-	rval = ngtavr_file(fp);
-	GT3_close(fp);
-	return rval;
-}
-
-
-int
-write_average(const char *path)
-{
-	FILE *fp;
-	int rval;
-	GT3_Date date2;
-
-
-	if ((fp = fopen(path, "wb")) == NULL) {
-		logging(LOG_SYSERR, "");
-		return -1;
-	}
-
-	GT3_decodeHeaderDate(&date2, &g_head_last, "DATE2");
+	GT3_copyHeader(&head, &g_head);
 
 	/*
-	 *  use the first GT3_HEADER(g_head) in data series.
+	 *  set DATE1, DATE2 and TDUR.
 	 */
-	GT3_setHeaderInt(&g_head, "TDUR", g_totaltdur);
-	GT3_setHeaderDate(&g_head, "DATE2", &date2);
+	GT3_setHeaderDate(&head, "DATE1", &g_date1);
+	GT3_setHeaderDate(&head, "DATE2", &g_date2);
+	GT3_setHeaderInt(&head, "TDUR", g_totaltdur);
+
+	/*
+	 *  DATE&TIME mid-date
+	 */
+	GT3_midDate(&date, &g_date1, &g_date2, calendar_type);
+	GT3_setHeaderDate(&head, "DATE", &date);
 
 	if (g_zsliced) {
-		GT3_setHeaderInt(&g_head, "ASTR1", g_zrange[0] + 1);
-		GT3_setHeaderInt(&g_head, "AEND1", g_zrange[1]    );
+		GT3_setHeaderInt(&head, "ASTR1", g_zrange[0] + 1);
+		GT3_setHeaderInt(&head, "AEND1", g_zrange[1]    );
 	}
 
 	rval = GT3_write(g_vardata, g_datatype,
 					 g_dimlen[0], g_dimlen[1], g_dimlen[2],
-					 &g_head, "UR4", fp);
-	fclose(fp);
-
+					 &head, "UR4", fp);
 	if (rval < 0)
 		GT3_printErrorMessages(stdout);
 
@@ -318,25 +263,239 @@ average()
 {
 	size_t i, len;
 	float *data;
-	double mintdur;
+	double tdur_lowlim;
 	float miss = -999.0;
 
 	len = g_dimlen[0] * g_dimlen[1] * g_dimlen[2];
 
 	/*
-	 *  mintdur: the minimum time-duration where the average
+	 *  The lower limit of time-duration where the average
 	 *  has the meanings.
 	 */
-	mintdur = 0.5 * g_totaltdur;
+	tdur_lowlim = 0.5 * g_totaltdur;
 
 	data = (float *)g_vardata;
 #pragma parallel for
 	for (i = 0; i < len; i++) {
-		if (g_timedur[i] < mintdur || g_timedur[i] == 0.)
+		if (g_timedur[i] < tdur_lowlim || g_timedur[i] == 0.)
 			data[i] = miss;
 		else
 			data[i] /= g_timedur[i];
 	}
+}
+
+
+/*
+ *  integrate_chunk() integrates a current chunk.
+ *
+ *  This function updates some global variable.
+ */
+int
+integrate_chunk(GT3_Varbuf *var)
+{
+	double dt = 1.;
+	int z0, z1;
+	GT3_HEADER head;
+	GT3_Date curr;
+
+
+	if (GT3_readHeader(&head, var->fp) < 0) {
+		GT3_printErrorMessages(stderr);
+		return -1;
+	}
+
+	if (g_counter > 0) {
+		GT3_decodeHeaderDate(&curr, &head, "DATE1");
+
+		if (GT3_cmpDate2(&g_date2, &curr) != 0)
+			logging(LOG_WARN, "Input date is not contiguous in time");
+	}
+
+
+	if (check_input(&head) < 0) {
+
+	}
+
+	if (g_counter == 0)
+		/* update DATE1 (start of integration)  */
+		if (GT3_decodeHeaderDate(&g_date1, &head, "DATE1")  < 0) {
+			logging(LOG_ERR, "DATE1 is missing");
+			logging(LOG_NOTICE, "It can be set by ngtick command");
+			return -1;
+		}
+
+	/* update DATE2 (last date) */
+	if (GT3_decodeHeaderDate(&g_date2, &head, "DATE2")  < 0) {
+		logging(LOG_ERR, "DATE2 is missing");
+		logging(LOG_NOTICE, "It can be set by ngtick command");
+		return -1;
+	}
+	g_counter++;
+
+	if (!ignore_tdur)
+		dt = get_tstepsize(&head);
+
+	set_zrange(&z0, &z1, var->fp->dimlen[2]);
+
+	return timeintegral_f(g_vardata, g_timedur,
+						  &g_totaltdur, var,
+						  dt, z0, z1);
+}
+
+
+/*
+ *  ngtavr_seq() averages specifed chunks.
+ */
+int
+ngtavr_seq(const char *path)
+{
+	static int first_of_all = 1;
+	static GT3_Varbuf *var = NULL;
+	GT3_File *fp;
+	int rval = 0;
+
+	if ((fp = GT3_open(path)) == NULL) {
+		GT3_printErrorMessages(stderr);
+		return -1;
+	}
+
+	if (first_of_all) {
+		first_of_all = 0;
+
+		calendar_type = GT3_guessCalendarFile(path);
+
+		if (GT3_readHeader(&g_head, fp) < 0
+			|| (var = GT3_getVarbuf(fp)) == NULL) {
+			GT3_printErrorMessages(stderr);
+			GT3_close(fp);
+			return -1;
+		}
+		init_global(var);
+	} else {
+		/*
+		 *  XXX
+		 *  Replace file-pointer in Varbuf and invalidate variable cache.
+		 */
+		GT3_reattachVarbuf(var, fp);
+	}
+
+	for (;;) {
+		if (GT3_eof(fp))
+			break;
+
+		if (integrate_chunk(var) < 0) {
+			logging(LOG_ERR, "failed at No.%d in %s.",  fp->curr + 1, path);
+			rval = -1;
+			break;
+		}
+		if (GT3_next(fp) < 0) {
+			GT3_printErrorMessages(stderr);
+			rval = -1;
+			break;
+		}
+	}
+	GT3_close(fp);
+	return rval;
+}
+
+
+
+/*
+ *  ngtavr_eachstep() averages data for each time-duration.
+ */
+int
+ngtavr_eachstep(const char *path, const GT3_Date *step, FILE *output)
+{
+	static int first_of_all = 1;
+	static GT3_Varbuf *var = NULL;
+	static DateIterator it;
+	GT3_Date date;
+	GT3_File *fp;
+	int rval = 0;
+	int diff;
+
+
+	if ((fp = GT3_open(path)) == NULL) {
+		GT3_printErrorMessages(stderr);
+		return -1;
+	}
+
+	if (first_of_all) {
+		first_of_all = 0;
+
+		calendar_type = GT3_guessCalendarFile(path);
+
+		if (GT3_readHeader(&g_head, fp) < 0
+			|| (var = GT3_getVarbuf(fp)) == NULL) {
+			GT3_printErrorMessages(stderr);
+			GT3_close(fp);
+			return -1;
+		}
+
+		if (GT3_decodeHeaderDate(&date, &g_head, "DATE1") < 0) {
+			logging(LOG_ERR, "DATE1 is missing");
+			GT3_close(fp);
+			return -1;
+		}
+
+		setDateIterator(&it, &date, step, calendar_type);
+		init_global(var);
+	} else {
+		/*
+		 *  XXX
+		 *  Replace file-pointer in Varbuf and invalidate variable cache.
+		 */
+		GT3_reattachVarbuf(var, fp);
+	}
+
+
+	for (;;) {
+		if (GT3_eof(fp))
+			break;
+
+		if (integrate_chunk(var) < 0) {
+			logging(LOG_ERR, "failed at No.%d in %s.",  fp->curr + 1, path);
+			rval = -1;
+			break;
+		}
+
+		diff = cmpDateIterator(&it, &g_date2);
+		if (diff > 0) {
+			logging(LOG_WARN, "Time-duration in the input data is greater"
+					" than specified mean-duration");
+		}
+
+		if (diff >= 0) {
+			average();
+			write_average(output);
+			clear_global();
+
+			nextDateIterator(&it);
+		}
+
+		if (GT3_next(fp) < 0) {
+			GT3_printErrorMessages(stderr);
+			rval = -1;
+			break;
+		}
+	}
+
+	GT3_close(fp);
+	return rval;
+}
+
+
+int
+setStepsize(GT3_Date *step, const char *str)
+{
+	GT3_setDate(step, 1, 0, 0, 0, 0, 0);
+	return 0;
+}
+
+
+void
+usage(void)
+{
 }
 
 
@@ -345,13 +504,23 @@ main(int argc, char **argv)
 {
 	int ch, rval = 0;
 	const char *ofile = NULL;
-
+	int each_timestep_mode = 0;
+	GT3_Date step;
+	FILE *ofp;
+	char *mode = "wb";
 
 	open_logging(stderr, PROGNAME);
 	GT3_setProgname(PROGNAME);
 
-	while ((ch = getopt(argc, argv, "o:")) != -1)
+	while ((ch = getopt(argc, argv, "am:o:")) != -1)
 		switch (ch) {
+		case 'a':
+			mode = "ab";
+			break;
+		case 'm':
+			setStepsize(&step, optarg);
+			each_timestep_mode = 1;
+			break;
 		case 'o':
 			ofile = optarg;
 			break;
@@ -360,26 +529,46 @@ main(int argc, char **argv)
 		}
 
 
+	if (!ofile)
+		ofile = default_ofile;
+
 	argc -= optind;
 	argv += optind;
 
-	for (;argc > 0 && *argv; argc--, argv++) {
-		if (ngtavr(*argv) < 0) {
-			logging(LOG_ERR, "failed to process %s.", *argv);
-			exit(1);
-		}
+	if (argc == 0) {
+		logging(LOG_NOTICE, "No input data");
+		usage();
+		exit(0);
 	}
 
-	if (g_vardata) {
+
+	if ((ofp = fopen(ofile, mode)) == NULL) {
+		logging(LOG_SYSERR, ofile);
+		exit(1);
+	}
+
+	if (each_timestep_mode) {
+		for (;argc > 0 && *argv; argc--, argv++)
+			if (ngtavr_eachstep(*argv, &step, ofp) < 0) {
+				logging(LOG_ERR, "failed to process %s.", *argv);
+				exit(1);
+			}
+	} else {
+		for (;argc > 0 && *argv; argc--, argv++) {
+			if (ngtavr_seq(*argv) < 0) {
+				logging(LOG_ERR, "failed to process %s.", *argv);
+				exit(1);
+			}
+		}
+
 		average();
-
-		if (!ofile)
-			ofile = default_ofile;
-
-		if (write_average(ofile) < 0) {
-			logging(LOG_ERR, "%s", ofile);
+		if (write_average(ofp) < 0) {
+			logging(LOG_ERR, ofile);
 			rval = 1;
 		}
 	}
+
+	fclose(ofp);
+
 	return rval;
 }
