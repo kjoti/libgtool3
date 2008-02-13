@@ -458,10 +458,7 @@ usage(void)
 		"    -r value  specify tolerance (relative error)\n"
 		"    -s        output summarized form\n"
 		"    -t LIST   specify data No. for both FileA and FileB\n"
-		"    -z RANGE  specify Z-range\n"
-		"\n"
-		"    RANGE  := start[:[end]] | :[end]\n"
-		"    LIST   := RANGE[,RANGE]*\n";
+		"    -z RANGE  specify Z-range\n";
 
 	fprintf(stderr, "%s\n", GT3_version());
 	fprintf(stderr, "%s\n", usage_message);

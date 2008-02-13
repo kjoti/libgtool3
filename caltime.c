@@ -428,7 +428,7 @@ ct_equal(const caltime *date1, const caltime *date2)
  *
  *  NOTE: ct_diff_days() does not take the time into account.
  *  e.g.,
- *     date2="1999-12-31 12:00:00" and date1=2000-1-1 00:00:00",
+ *     date1="1999-12-31 12:00:00" and date2=2000-1-1 00:00:00",
  *     => return 1 (not 0).
  */
 int
@@ -549,6 +549,24 @@ main(int argc, char **argv)
 		ct_add_seconds(&date, -1);
 		assert(ct_cmpto(&date, 1999, 2, 28, 23, 59, 59) == 0);
 		assert(ct_cmpto(&date, 1999, 3, 1, 0, 0, 0) < 0);
+	}
+
+	{
+		caltime date1, date2;
+
+		/* 1999-12-31 12:00:00 */
+		ct_init_caltime(&date1, CALTIME_GREGORIAN, 1999, 12, 31);
+		ct_set_time(&date1, 12, 0, 0);
+
+		/* 2000-01-01 00:00:00 */
+		ct_init_caltime(&date2, CALTIME_GREGORIAN, 2000, 1, 1);
+		ct_set_time(&date2, 0, 0, 0);
+
+		assert(ct_diff_days(&date2, &date1) == 1);
+		assert(ct_diff_daysd(&date2, &date1) == 0.5);
+
+		assert(ct_diff_days(&date1, &date2) == -1);
+		assert(ct_diff_daysd(&date1, &date2) == -0.5);
 	}
 
 	{
