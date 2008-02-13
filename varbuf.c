@@ -710,6 +710,15 @@ GT3_getVarAttrDouble(double *attr, const GT3_Varbuf *var, const char *key)
 }
 
 
+/*
+ *  replace a file pointer in Varbuf.
+ */
+int
+GT3_reattachVarbuf(GT3_Varbuf *var, GT3_File *fp)
+{
+	return update_varbuf(var, fp);
+}
+
 
 #ifdef TEST
 int
