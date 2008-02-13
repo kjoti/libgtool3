@@ -281,7 +281,7 @@ get_tdur(int tdur[], const char *str)
 	int i, num;
 
 	num = strtol(str, &endptr, 10);
-	if (str == endptr && *endptr == '\0')
+	if (str == endptr || *endptr == '\0')
 		return -1;
 
 	for (i = 0; i < sizeof tab / sizeof tab[0]; i++)
