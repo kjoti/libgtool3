@@ -138,6 +138,12 @@ enum {
     GT3_CAL_DUMMY
 };
 
+enum {
+	GT3_UNIT_DAY,
+	GT3_UNIT_HOUR,
+	GT3_UNIT_MIN,
+	GT3_UNIT_SEC
+};
 
 /*
  *  prototype declarations
@@ -170,6 +176,7 @@ char *GT3_getVarAttrStr(char *attr, int len, const GT3_Varbuf *var,
                         const char *key);
 int GT3_getVarAttrInt(int *attr, const GT3_Varbuf *var, const char *key);
 int GT3_getVarAttrDouble(double *attr, const GT3_Varbuf *var, const char *key);
+int GT3_reattachVarbuf(GT3_Varbuf *var, GT3_File *fp);
 
 /* gtdim.c */
 GT3_Dim *GT3_loadDim(const char *name);
@@ -190,14 +197,20 @@ char *GT3_copyHeaderItem(char *buf, int len, const GT3_HEADER *h,
 int GT3_decodeHeaderInt(int *rval, const GT3_HEADER *h, const char *key);
 int GT3_decodeHeaderDouble(double *rval, const GT3_HEADER *h, const char *key);
 int GT3_decodeHeaderDate(GT3_Date *date, const GT3_HEADER *header, const char *key);
+int GT3_decodeHeaderTunit(const GT3_HEADER *header);
 void GT3_initHeader(GT3_HEADER *header);
 void GT3_setHeaderString(GT3_HEADER *header, const char *key, const char *str);
 int GT3_setHeaderInt(GT3_HEADER *header, const char *key, int val);
 int GT3_setHeaderDouble(GT3_HEADER *header, const char *key, double val);
 int GT3_setHeaderDate(GT3_HEADER *header, const char *key, const GT3_Date *date);
+void GT3_setHeaderEdit(GT3_HEADER *head, const char *str);
+void GT3_setHeaderEttl(GT3_HEADER *head, const char *str);
+void GT3_setHeaderMemo(GT3_HEADER *head, const char *str);
 void GT3_mergeHeader(GT3_HEADER *dest, const GT3_HEADER *src);
 void GT3_copyHeader(GT3_HEADER *dest, const GT3_HEADER *src);
 int GT3_getHeaderItemID(const char *name);
+
+
 
 /* write.c */
 int GT3_write(const void *ptr, int type,
@@ -221,6 +234,11 @@ int GT3_cmpDate(const GT3_Date *date, int, int, int, int, int, int);
 int GT3_cmpDate2(const GT3_Date *date1, const GT3_Date *date2);
 int GT3_diffDate(GT3_Date *diff,
                  const GT3_Date *from, const GT3_Date *to, int ctype);
+void GT3_midDate(GT3_Date *, const GT3_Date *, const GT3_Date *, int);
+void GT3_copyDate(GT3_Date *dest, const GT3_Date *src);
+void GT3_addDate(GT3_Date *date, const GT3_Date *step, int ctype);
+double GT3_getTime(const GT3_Date *date, const GT3_Date *since,
+				   int tunit, int ctype);
 int GT3_guessCalendarFile(const char *path);
 
 /* version */
