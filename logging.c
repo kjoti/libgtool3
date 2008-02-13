@@ -16,7 +16,7 @@ static void
 default_prefix_func(FILE *fp, int type)
 {
 	const char *marks[] = {
-		"INFO: ",
+		"",
 		"NOTICE: ",
 		"WARN: ",
 		"ERROR: ",
