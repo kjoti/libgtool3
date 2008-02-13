@@ -39,7 +39,7 @@ POST_UNINSTALL = :
 bin_PROGRAMS = ngtcat$(EXEEXT) ngtls$(EXEEXT) ngtsumm$(EXEEXT) \
 	ngtstat$(EXEEXT) ngtick$(EXEEXT) ngthead$(EXEEXT) \
 	ngted$(EXEEXT) ngtmkax$(EXEEXT) ngtdiff$(EXEEXT) \
-	ngtdump$(EXEEXT)
+	ngtdump$(EXEEXT) ngtavr$(EXEEXT)
 subdir = .
 DIST_COMMON = README $(am__configure_deps) $(include_HEADERS) \
 	$(srcdir)/Makefile.am $(srcdir)/Makefile.in \
@@ -79,6 +79,11 @@ binPROGRAMS_INSTALL = $(INSTALL_PROGRAM)
 PROGRAMS = $(bin_PROGRAMS)
 am__objects_1 = logging.$(OBJEXT) seq.$(OBJEXT) fileiter.$(OBJEXT) \
 	split.$(OBJEXT) get_ints.$(OBJEXT)
+am_ngtavr_OBJECTS = ngtavr.$(OBJEXT) dateiter.$(OBJEXT) \
+	$(am__objects_1)
+ngtavr_OBJECTS = $(am_ngtavr_OBJECTS)
+ngtavr_LDADD = $(LDADD)
+ngtavr_DEPENDENCIES = libgtool3.a
 am_ngtcat_OBJECTS = ngtcat.$(OBJEXT) $(am__objects_1)
 ngtcat_OBJECTS = $(am_ngtcat_OBJECTS)
 ngtcat_LDADD = $(LDADD)
@@ -127,14 +132,15 @@ COMPILE = $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) \
 	$(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
 CCLD = $(CC)
 LINK = $(CCLD) $(AM_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) $(LDFLAGS) -o $@
-SOURCES = $(libgtool3_a_SOURCES) $(ngtcat_SOURCES) $(ngtdiff_SOURCES) \
-	$(ngtdump_SOURCES) $(ngted_SOURCES) $(ngthead_SOURCES) \
-	$(ngtick_SOURCES) $(ngtls_SOURCES) $(ngtmkax_SOURCES) \
-	$(ngtstat_SOURCES) $(ngtsumm_SOURCES)
-DIST_SOURCES = $(libgtool3_a_SOURCES) $(ngtcat_SOURCES) \
+SOURCES = $(libgtool3_a_SOURCES) $(ngtavr_SOURCES) $(ngtcat_SOURCES) \
 	$(ngtdiff_SOURCES) $(ngtdump_SOURCES) $(ngted_SOURCES) \
 	$(ngthead_SOURCES) $(ngtick_SOURCES) $(ngtls_SOURCES) \
 	$(ngtmkax_SOURCES) $(ngtstat_SOURCES) $(ngtsumm_SOURCES)
+DIST_SOURCES = $(libgtool3_a_SOURCES) $(ngtavr_SOURCES) \
+	$(ngtcat_SOURCES) $(ngtdiff_SOURCES) $(ngtdump_SOURCES) \
+	$(ngted_SOURCES) $(ngthead_SOURCES) $(ngtick_SOURCES) \
+	$(ngtls_SOURCES) $(ngtmkax_SOURCES) $(ngtstat_SOURCES) \
+	$(ngtsumm_SOURCES)
 includeHEADERS_INSTALL = $(INSTALL_HEADER)
 HEADERS = $(include_HEADERS)
 ETAGS = etags
@@ -171,7 +177,6 @@ ECHO_N = @ECHO_N@
 ECHO_T = @ECHO_T@
 EGREP = @EGREP@
 EXEEXT = @EXEEXT@
-GREP = @GREP@
 INSTALL_DATA = @INSTALL_DATA@
 INSTALL_PROGRAM = @INSTALL_PROGRAM@
 INSTALL_SCRIPT = @INSTALL_SCRIPT@
@@ -199,6 +204,8 @@ SHELL = @SHELL@
 STRIP = @STRIP@
 VERSION = @VERSION@
 ac_ct_CC = @ac_ct_CC@
+ac_ct_RANLIB = @ac_ct_RANLIB@
+ac_ct_STRIP = @ac_ct_STRIP@
 am__fastdepCC_FALSE = @am__fastdepCC_FALSE@
 am__fastdepCC_TRUE = @am__fastdepCC_TRUE@
 am__include = @am__include@
@@ -209,26 +216,19 @@ am__untar = @am__untar@
 bindir = @bindir@
 build_alias = @build_alias@
 datadir = @datadir@
-datarootdir = @datarootdir@
-docdir = @docdir@
-dvidir = @dvidir@
 exec_prefix = @exec_prefix@
 host_alias = @host_alias@
-htmldir = @htmldir@
 includedir = @includedir@
 infodir = @infodir@
 install_sh = @install_sh@
 libdir = @libdir@
 libexecdir = @libexecdir@
-localedir = @localedir@
 localstatedir = @localstatedir@
 mandir = @mandir@
 mkdir_p = @mkdir_p@
 oldincludedir = @oldincludedir@
-pdfdir = @pdfdir@
 prefix = @prefix@
 program_transform_name = @program_transform_name@
-psdir = @psdir@
 sbindir = @sbindir@
 sharedstatedir = @sharedstatedir@
 sysconfdir = @sysconfdir@
@@ -263,6 +263,7 @@ ngted_SOURCES = ngted.c copysubst.c $(utils)
 ngtmkax_SOURCES = ngtmkax.c $(utils)
 ngtdiff_SOURCES = ngtdiff.c $(utils)
 ngtdump_SOURCES = ngtdump.c $(utils)
+ngtavr_SOURCES = ngtavr.c dateiter.c $(utils)
 LDADD = libgtool3.a -lm
 all: config.h
 	$(MAKE) $(AM_MAKEFLAGS) all-am
@@ -375,6 +376,9 @@ uninstall-binPROGRAMS:
 
 clean-binPROGRAMS:
 	-test -z "$(bin_PROGRAMS)" || rm -f $(bin_PROGRAMS)
+ngtavr$(EXEEXT): $(ngtavr_OBJECTS) $(ngtavr_DEPENDENCIES) 
+	@rm -f ngtavr$(EXEEXT)
+	$(LINK) $(ngtavr_LDFLAGS) $(ngtavr_OBJECTS) $(ngtavr_LDADD) $(LIBS)
 ngtcat$(EXEEXT): $(ngtcat_OBJECTS) $(ngtcat_DEPENDENCIES) 
 	@rm -f ngtcat$(EXEEXT)
 	$(LINK) $(ngtcat_LDFLAGS) $(ngtcat_OBJECTS) $(ngtcat_LDADD) $(LIBS)
@@ -415,6 +419,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/bits_set.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/caltime.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/copysubst.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/dateiter.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/error.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/file.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/fileiter.Po@am__quote@
@@ -424,6 +429,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/gtdim.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/header.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/logging.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ngtavr.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ngtcat.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ngtdiff.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ngtdump.Po@am__quote@
