@@ -48,7 +48,7 @@ LDADD		= -lgtool3 -lm
 LIBS		= libgtool3.a
 HEADERS		= gtool3.h
 BINS		= ngtcat ngtls ngtsumm ngtstat ngtick \
-		ngthead ngted ngtmkax ngtdiff ngtdump
+		ngthead ngted ngtmkax ngtdiff ngtdump ngtavr
 
 UTILS		= logging.o seq.o fileiter.o split.o get_ints.o
 
@@ -90,6 +90,9 @@ ngtdump:  libgtool3.a ngtdump.o $(UTILS)
 
 ngthead: ngthead.o
 	$(CC) $(LDFLAGS) -o $@ ngthead.o
+
+ngtavr:  libgtool3.a ngtavr.o dateiter.o $(UTILS)
+	$(CC) $(LDFLAGS) -L. -o $@ ngtavr.o $(UTILS) dateiter.o $(LDADD)
 
 install: all
 	$(MKDIR) $(bindir)
