@@ -1,7 +1,7 @@
 /*  -*- tab-width: 4; -*-
  *  vim: ts=4
  *
- *  timedim.c -- support GTOOL3-formatted file.
+ *  timedim.c -- for GT3_Date type
  */
 #include "internal.h"
 
@@ -20,10 +20,28 @@
  *  convert data-type from 'GT3_Date' to 'caltime'.
  */
 static void
-conv2caltime(struct caltime *p, const GT3_Date *date, int ctype)
+conv_date_to_ct(struct caltime *p, const GT3_Date *date, int ctype)
 {
 	ct_init_caltime(p, ctype, date->year, date->mon, date->day);
 	ct_add_seconds(p, date->sec + 60 * (date->min + 60 * date->hour));
+}
+
+
+static void
+conv_ct_to_date(GT3_Date *date, const struct caltime* p)
+{
+	int sec;
+
+	date->year = p->year;
+	date->mon  = 1 + p->month;
+	date->day  = 1 + p->day;
+
+	sec = p->sec;
+	date->hour = sec / 3600;
+	sec -= 3600 * date->hour;
+	date->min  = sec / 60;
+	sec -= 60 * date->min;
+	date->sec = sec;
 }
 
 
@@ -124,8 +142,8 @@ GT3_diffDate(GT3_Date *diff, const GT3_Date *from, const GT3_Date *to,
 		double dsec;
 		int sec;
 
-		conv2caltime(&ct_from, from, ctype);
-		conv2caltime(&ct_to,   to,   ctype);
+		conv_date_to_ct(&ct_from, from, ctype);
+		conv_date_to_ct(&ct_to,   to,   ctype);
 
 		dsec = ct_diff_seconds(&ct_to, &ct_from);
 		diff->day = (int)(dsec / (24. * 3600));
@@ -141,6 +159,88 @@ GT3_diffDate(GT3_Date *diff, const GT3_Date *from, const GT3_Date *to,
 		diff->sec  = dsec - 60 * diff->min;
 	}
 	return (int)flag;
+}
+
+
+void
+GT3_midDate(GT3_Date *mid, const GT3_Date *date1, const GT3_Date *date2,
+			int ctype)
+{
+	struct caltime from, to;
+	int days, secs;
+
+	conv_date_to_ct(&from, date1, ctype);
+	conv_date_to_ct(&to, date2, ctype);
+
+	days = ct_diff_days(&to, &from);
+	ct_add_days(&to, -days);
+	secs = ct_diff_seconds(&to, &from);
+
+	if (days % 2) {
+		days--;
+		secs += 24 * 3600;
+	}
+	ct_add_days(&from, days / 2);
+	ct_add_seconds(&from, secs / 2);
+
+	conv_ct_to_date(mid, &from);
+}
+
+
+void
+GT3_copyDate(GT3_Date *dest, const GT3_Date *src)
+{
+	memcpy(dest, src, sizeof(GT3_Date));
+}
+
+
+void
+GT3_addDate(GT3_Date *date, const GT3_Date *step, int ctype)
+{
+	struct caltime temp;
+
+	conv_date_to_ct(&temp, date, ctype);
+
+	temp.year += step->year;
+	ct_add_months(&temp, step->mon);
+	ct_add_days(&temp, step->day);
+	ct_add_seconds(&temp, step->sec + 60 * (step->min + 60 * step->sec));
+
+	conv_ct_to_date(date, &temp);
+}
+
+
+double
+GT3_getTime(const GT3_Date *date, const GT3_Date *since,
+			int tunit, int ctype)
+{
+	caltime from, to;
+	double sec, fact;
+
+	conv_date_to_ct(&from, since, ctype);
+	conv_date_to_ct(&to,   date,  ctype);
+
+	sec = ct_diff_seconds(&to, &from);
+
+	switch (tunit) {
+	case GT3_UNIT_DAY:
+		fact = 1. / (24. * 3600.);
+		break;
+	case GT3_UNIT_HOUR:
+		fact = 1. / 3600.;
+		break;
+	case GT3_UNIT_MIN:
+		fact = 1. / 60.;
+		break;
+	case GT3_UNIT_SEC:
+		fact = 1.;
+		break;
+	default:
+		fact = 1. / 3600.;
+		break;
+	};
+
+	return fact * sec;
 }
 
 
@@ -160,8 +260,8 @@ guess_calendar(double sec, const GT3_Date *date, const GT3_Date *origin)
 
 	ct = CALTIME_DUMMY;
 	for (i = 0; i < sizeof ctab / sizeof ctab[0]; i++) {
-		conv2caltime(&orig, origin, ctab[i]);
-		conv2caltime(&curr, date, ctab[i]);
+		conv_date_to_ct(&orig, origin, ctab[i]);
+		conv_date_to_ct(&curr, date, ctab[i]);
 
 		time = ct_diff_seconds(&curr, &orig);
 		if (sec - time == 0.) {
@@ -171,8 +271,8 @@ guess_calendar(double sec, const GT3_Date *date, const GT3_Date *origin)
 	}
 	if (ct == CALTIME_DUMMY) {
 		for (i = 0; i < sizeof ctab / sizeof ctab[0]; i++) {
-			conv2caltime(&orig, origin, ctab[i]);
-			conv2caltime(&curr, date, ctab[i]);
+			conv_date_to_ct(&orig, origin, ctab[i]);
+			conv_date_to_ct(&curr, date, ctab[i]);
 
 			time = ct_diff_seconds(&curr, &orig);
 			if (fabs(sec - time) <= 3600.) {
@@ -337,6 +437,51 @@ main(int argc, char **argv)
 		ctype = guess_calendar(3600. * 17532012., &date, &orig);
 		assert(ctype == CALTIME_GREGORIAN);
 	}
+
+	/*
+	 *  test of GT3_midDate().
+	 */
+	{
+		GT3_Date date1, date2, date;
+
+		GT3_setDate(&date1, 1901, 1, 1, 0, 0, 0);
+		GT3_setDate(&date2, 1900, 1, 1, 0, 0, 0);
+
+		/* mid-point in a year(non-leap year): Jul 2 12:00 */
+		GT3_midDate(&date, &date1, &date2, GT3_CAL_GREGORIAN);
+		assert(GT3_cmpDate(&date, 1900, 7, 2, 12, 0, 0) == 0);
+
+		GT3_midDate(&date, &date1, &date2, GT3_CAL_JULIAN);
+		assert(GT3_cmpDate(&date, 1900, 7, 2, 0, 0, 0) == 0);
+
+		GT3_midDate(&date, &date1, &date2, GT3_CAL_360_DAY);
+		assert(GT3_cmpDate(&date, 1900, 7, 1, 0, 0, 0) == 0);
+
+		GT3_setDate(&date1, 1901, 1, 1, 0, 0, 0);
+		GT3_setDate(&date2, 1900, 1, 1, 0, 0, 0);
+
+		GT3_midDate(&date, &date1, &date2, GT3_CAL_GREGORIAN);
+		assert(GT3_cmpDate(&date, 1900, 7, 2, 12, 0, 0) == 0);
+	}
+
+	/*
+	 *  test of GT3_getTime()
+	 */
+	{
+		GT3_Date date, origin;
+		double time;
+
+		GT3_setDate(&origin, 0, 1, 1, 0, 0, 0);
+
+		GT3_setDate(&date, 2100, 1, 1, 12, 0, 0);
+		time = GT3_getTime(&date, &origin, GT3_UNIT_HOUR, GT3_CAL_GREGORIAN);
+		assert(time == 18408252.0);
+
+		GT3_setDate(&date, 2100, 12, 16, 12, 0, 0);
+		time = GT3_getTime(&date, &origin, GT3_UNIT_HOUR, GT3_CAL_GREGORIAN);
+		assert(time == 18416628.0);
+	}
+
 	return 0;
 }
 #endif /* TEST_MAIN */
