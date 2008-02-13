@@ -318,6 +318,36 @@ GT3_decodeHeaderDate(GT3_Date *date, const GT3_HEADER *header,
 }
 
 
+int
+GT3_decodeHeaderTunit(const GT3_HEADER *header)
+{
+	struct { const char *key; size_t len; int val; } tab[] = {
+		{ "HOUR", 4, GT3_UNIT_HOUR },
+		{ "DAY",  3, GT3_UNIT_DAY  },
+		{ "MIN",  3, GT3_UNIT_MIN  },
+		{ "SEC",  3, GT3_UNIT_SEC  }
+	};
+	int unit, i;
+	const char *p;
+
+	p = header->h + ELEM_SZ * UTIM;
+	unit = -1;
+	for (i = 0; i < sizeof tab / sizeof(tab[0]); i++)
+		if (strncmp(p, tab[i].key, tab[i].len) == 0) {
+			unit = tab[i].val;
+			break;
+		}
+
+	if (unit == -1) {
+		char hbuf[17];
+
+		GT3_copyHeaderItem(hbuf, sizeof hbuf, header, "UTIM");
+		gt3_error(GT3_ERR_HEADER, "%s: Unknown time-unit", hbuf);
+	}
+	return unit;
+}
+
+
 void
 GT3_initHeader(GT3_HEADER *header)
 {
@@ -418,6 +448,42 @@ GT3_setHeaderDate(GT3_HEADER *header, const char *key, const GT3_Date *date)
 			 date->hour, date->min, date->sec);
 	memcpy(header->h + ELEM_SZ * p->id, buf, ELEM_SZ);
 	return 0;
+}
+
+
+static void
+set_header_in_blank(GT3_HEADER *head, int begin, int maxnum, const char *str)
+{
+	int i;
+	char *p;
+
+	for (i = 0; i < maxnum; i++) {
+		p = head->h + ELEM_SZ * (i + begin);
+
+		if (is_blank(p)) {
+			memcpy(p, str, min(strlen(str), ELEM_SZ));
+			break;
+		}
+	}
+}
+
+
+void
+GT3_setHeaderEdit(GT3_HEADER *head, const char *str)
+{
+	set_header_in_blank(head, 3, 8, str);
+}
+
+void
+GT3_setHeaderEttl(GT3_HEADER *head, const char *str)
+{
+	set_header_in_blank(head, 16, 8, str);
+}
+
+void
+GT3_setHeaderMemo(GT3_HEADER *head, const char *str)
+{
+	set_header_in_blank(head, 49, 10, str);
 }
 
 
