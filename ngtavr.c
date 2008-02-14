@@ -7,6 +7,7 @@
 #include "internal.h"
 
 #include <assert.h>
+#include <ctype.h>
 #include <errno.h>
 #include <stdarg.h>
 #include <stdlib.h>
@@ -55,7 +56,7 @@ static int g_zsliced = 0;
 static int calendar_type = GT3_CAL_GREGORIAN;
 static int ignore_tdur = 0;
 static int g_format = -1;
-
+static double limit_factor = 0.;
 
 
 void
@@ -361,7 +362,7 @@ average()
 	/*
 	 *  The lower limit of time-duration.
 	 */
-	tdur_lowlim = 0.5 * g_totaltdur;
+	tdur_lowlim = limit_factor * g_totaltdur;
 
 	for (i = 0; i < len; i++) {
 		if (g_timedur[i] < tdur_lowlim || g_timedur[i] == 0.)
@@ -445,7 +446,7 @@ ngtavr_seq(const char *path, struct sequence *seq)
 	logging(LOG_INFO, "Open %s", path);
 
 	if (var == NULL) {
-		calendar_type = GT3_guessCalendarFile(path);
+		calendar_type = get_calendar_type(path);
 
 		if ((var = GT3_getVarbuf(fp)) == NULL) {
 			GT3_printErrorMessages(stderr);
@@ -454,7 +455,7 @@ ngtavr_seq(const char *path, struct sequence *seq)
 		init_global(var);
 	} else {
 		/*
-		 *  Replace file-pointer in Varbuf and invalidate variable cache.
+		 *  Replace file-pointer in Varbuf.
 		 */
 		GT3_reattachVarbuf(var, fp);
 	}
@@ -530,7 +531,7 @@ ngtavr_eachstep(const char *path, const GT3_Date *step,
 			last = seq->tail;
 		}
 
-		calendar_type = GT3_guessCalendarFile(path);
+		calendar_type = get_calendar_type(path);
 
 		if (GT3_readHeader(&g_head, fp) < 0
 			|| (var = GT3_getVarbuf(fp)) == NULL) {
@@ -582,7 +583,6 @@ ngtavr_eachstep(const char *path, const GT3_Date *step,
 	GT3_close(fp);
 	return rval;
 }
-
 
 
 int
@@ -674,7 +674,29 @@ setStepsize(GT3_Date *step, const char *str)
 
 
 int
-output_format(const char *name)
+get_calendar_type(const char *path)
+{
+	const char *cname[] = {
+		"gregorian", "noleap", "all_leap", "360_day",
+		"julian", "???"
+	};
+	int ctype;
+
+	ctype = GT3_guessCalendarFile(path);
+	if (ctype != GT3_CAL_GREGORIAN)
+		logging(LOG_NOTICE, "CalendarType: %s", cname[ctype]);
+
+	if (ctype == GT3_CAL_DUMMY) {
+		logging(LOG_WARN, "Calendar type cannot be determined.");
+		ctype = GT3_CAL_GREGORIAN;
+	}
+	return ctype;
+}
+
+
+
+int
+get_output_format(const char *name)
 {
 	struct { const char *key; int value; } tab[] = {
 		{ "UR4",  GT3_FMT_UR4  },
@@ -685,9 +707,14 @@ output_format(const char *name)
 	};
 	int i;
 	int rval = -1;
+	char buf[8];
+
+	for (i = 0; i < sizeof buf - 1 && name[i] != '\0'; i++)
+		buf[i] = toupper(name[i]);
+	buf[i] = '\0';
 
 	for (i = 0; i < sizeof tab / sizeof tab[0]; i++)
-		if (strcmp(name, tab[i].key) == 0) {
+		if (strcmp(buf, tab[i].key) == 0) {
 			rval = tab[i].value;
 			break;
 		}
@@ -707,7 +734,8 @@ usage(void)
 		"    -h        print help message\n"
 		"    -a        append to output file\n"
 		"    -c        cyclic mode\n"
-		"    -f fmt    specify output format(UR4, URC)\n"
+		"    -f fmt    specify output format {ur8|ur4|urc}\n"
+		"    -l dble   specify limit factor (by default 0.)\n"
 		"    -m tdur   specify time-duration\n"
 		"    -n        specify to ignore TDUR (weight of integration)\n"
 		"    -o path   specify output filename (by default, ./gtool.out)\n"
@@ -742,12 +770,12 @@ main(int argc, char **argv)
 	char *mode = "wb";
 	enum { SEQUENCE_MODE, EACH_TIMESTEP_MODE, CYCLIC_MODE };
 	int avrmode = SEQUENCE_MODE;
-
+	char *endptr;
 
 	open_logging(stderr, PROGNAME);
 	GT3_setProgname(PROGNAME);
 
-	while ((ch = getopt(argc, argv, "acf:hm:no:t:v")) != -1)
+	while ((ch = getopt(argc, argv, "acf:l:hm:no:t:v")) != -1)
 		switch (ch) {
 		case 'a':
 			mode = "ab";
@@ -758,12 +786,23 @@ main(int argc, char **argv)
 			break;
 
 		case 'f':
-			if ((g_format = output_format(optarg)) < 0) {
+			if ((g_format = get_output_format(optarg)) < 0) {
 				logging(LOG_ERR, "%s: Unknown format name", optarg);
 				exit(1);
 			}
 			if (g_format == GT3_FMT_URC1)
 				logging(LOG_WARN, "URC1 is deprecated");
+			break;
+
+		case 'l':
+			limit_factor = strtod(optarg, &endptr);
+			if (optarg == endptr || limit_factor < 0. || limit_factor > 1.) {
+				logging(LOG_ERR,
+						"%s: Invalid argument of -l option", optarg);
+				usage();
+				exit(1);
+			}
+
 			break;
 
 		case 'm':
@@ -833,6 +872,8 @@ main(int argc, char **argv)
 			GT3_printErrorMessages(stderr);
 			exit(1);
 		}
+		calendar_type = get_calendar_type(*argv);
+
 		if (!seq)
 			seq = initSeq(":", 1, chmax);
 
