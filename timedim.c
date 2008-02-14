@@ -245,10 +245,10 @@ GT3_getTime(const GT3_Date *date, const GT3_Date *since,
 
 
 int
-guess_calendar(double sec, const GT3_Date *date, const GT3_Date *origin)
+guess_calendar(double sec, const GT3_Date *date)
 {
 	caltime orig, curr;
-	int i, ct;
+	int i, ct = CALTIME_DUMMY;
 	double time;
 	int ctab[] = {
 		CALTIME_360_DAY,
@@ -258,9 +258,12 @@ guess_calendar(double sec, const GT3_Date *date, const GT3_Date *origin)
 		CALTIME_JULIAN,
 	};
 
-	ct = CALTIME_DUMMY;
+	/*
+	 *  At first time, we assume that the original date is
+	 *  1st Jan, B.C.1 (0-1-1 00:00:00).
+	 */
 	for (i = 0; i < sizeof ctab / sizeof ctab[0]; i++) {
-		conv_date_to_ct(&orig, origin, ctab[i]);
+		ct_init_caltime(&orig, ctab[i], 0, 1, 1);
 		conv_date_to_ct(&curr, date, ctab[i]);
 
 		time = ct_diff_seconds(&curr, &orig);
@@ -269,13 +272,24 @@ guess_calendar(double sec, const GT3_Date *date, const GT3_Date *origin)
 			break;
 		}
 	}
+
+	/*
+	 *  compute the origin reversely.
+	 */
 	if (ct == CALTIME_DUMMY) {
+		int ndays, nsec;
+
+		ndays = (int)(sec / (24. * 3600.));
+		nsec  = (int)(sec - 24. * 3600. * ndays);
+
 		for (i = 0; i < sizeof ctab / sizeof ctab[0]; i++) {
-			conv_date_to_ct(&orig, origin, ctab[i]);
 			conv_date_to_ct(&curr, date, ctab[i]);
 
-			time = ct_diff_seconds(&curr, &orig);
-			if (fabs(sec - time) <= 3600.) {
+			ct_add_days(&curr, -ndays);
+			ct_add_seconds(&curr, -nsec);
+
+			/* 00:00:00, 1st Jan in any year */
+			if (curr.month == 0 && curr.day == 0 && curr.sec == 0) {
 				ct = ctab[i];
 				break;
 			}
@@ -293,7 +307,7 @@ GT3_guessCalendarFile(const char *path)
 {
 	GT3_File *fp;
 	GT3_HEADER head;
-	GT3_Date date, origin;
+	GT3_Date date;
 	int ctype;
 	int i, time;
 	double sec;
@@ -328,8 +342,7 @@ GT3_guessCalendarFile(const char *path)
 
 	sec *= time;
 
-	GT3_setDate(&origin, 0, 1, 1, 0, 0, 0);
-	ctype = guess_calendar(sec, &date, &origin);
+	ctype = guess_calendar(sec, &date);
 
 	GT3_close(fp);
 	return ctype;
@@ -429,12 +442,11 @@ main(int argc, char **argv)
 	assert(GT3_cmpDate(&c, 0, 0, 2, 0, 0, 0) == 0);
 
 	{
-		GT3_Date date, orig;
+		GT3_Date date;
 		int ctype;
 
-		GT3_setDate(&orig, 0, 1, 1, 0, 0, 0);
 		GT3_setDate(&date, 2000, 1, 16, 12, 0, 0);
-		ctype = guess_calendar(3600. * 17532012., &date, &orig);
+		ctype = guess_calendar(3600. * 17532012., &date);
 		assert(ctype == CALTIME_GREGORIAN);
 	}
 
