@@ -738,7 +738,7 @@ usage(void)
 		"    -l dble   specify limit factor (by default 0.)\n"
 		"    -m tdur   specify time-duration\n"
 		"    -n        specify to ignore TDUR (weight of integration)\n"
-		"    -o path   specify output filename (by default, ./gtool.out)\n"
+		"    -o path   specify output filename\n"
 		"    -t LIST   specify data No. to average\n"
 		"    -v        be verbose\n";
 	const char *examples =
