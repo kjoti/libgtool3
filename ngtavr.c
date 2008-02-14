@@ -131,6 +131,27 @@ init_global(GT3_Varbuf *var)
 }
 
 
+int
+get_calendar_type(const char *path)
+{
+	const char *cname[] = {
+		"gregorian", "noleap", "all_leap", "360_day",
+		"julian", "???"
+	};
+	int ctype;
+
+	ctype = GT3_guessCalendarFile(path);
+	if (ctype != GT3_CAL_GREGORIAN)
+		logging(LOG_NOTICE, "CalendarType: %s", cname[ctype]);
+
+	if (ctype == GT3_CAL_DUMMY) {
+		logging(LOG_WARN, "Calendar type cannot be determined.");
+		ctype = GT3_CAL_GREGORIAN;
+	}
+	return ctype;
+}
+
+
 /*
  *  time-integral
  *
@@ -670,27 +691,6 @@ setStepsize(GT3_Date *step, const char *str)
 	d[tab[i].val] = num;
 	GT3_setDate(step, d[0], d[1], d[2], d[3], d[4], d[5]);
 	return 0;
-}
-
-
-int
-get_calendar_type(const char *path)
-{
-	const char *cname[] = {
-		"gregorian", "noleap", "all_leap", "360_day",
-		"julian", "???"
-	};
-	int ctype;
-
-	ctype = GT3_guessCalendarFile(path);
-	if (ctype != GT3_CAL_GREGORIAN)
-		logging(LOG_NOTICE, "CalendarType: %s", cname[ctype]);
-
-	if (ctype == GT3_CAL_DUMMY) {
-		logging(LOG_WARN, "Calendar type cannot be determined.");
-		ctype = GT3_CAL_GREGORIAN;
-	}
-	return ctype;
 }
 
 
