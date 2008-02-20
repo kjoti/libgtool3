@@ -267,7 +267,11 @@ guess_calendar(double sec, const GT3_Date *date)
 		conv_date_to_ct(&curr, date, ctab[i]);
 
 		time = ct_diff_seconds(&curr, &orig);
-		if (sec - time == 0.) {
+		/*
+		 * XXX: We have a margin of error of 1-hour.
+		 * Because TIME is integer-typed and it is in HOUR.
+		 */
+		if (fabs(sec - time) < 3600.) {
 			ct = ctab[i];
 			break;
 		}
