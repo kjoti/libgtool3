@@ -737,7 +737,7 @@ usage(void)
 		"    -f fmt    specify output format {ur8|ur4|urc}\n"
 		"    -l dble   specify limit factor (by default 0.)\n"
 		"    -m tdur   specify time-duration\n"
-		"    -n        specify to ignore TDUR (weight of integration)\n"
+		"    -n        ignore TDUR (weight of integration)\n"
 		"    -o path   specify output filename\n"
 		"    -t LIST   specify data No. to average\n"
 		"    -v        be verbose\n";
