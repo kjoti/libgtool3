@@ -4,9 +4,8 @@
  *
  */
 #include <assert.h>
-#include <stdint.h>
-#include <string.h>
 
+#include "int_pack.h"
 
 #define BWIDTH 32U
 
@@ -100,7 +99,25 @@ unpack_bits_from32(unsigned *data,
 
 
 void
-test()
+test0(void)
+{
+	int nelem, nbit;
+	int len;
+
+	for (nbit = 1; nbit < 32; nbit++)
+		for (nelem = 0; nelem < 100; nelem++) {
+			len = pack32_len(nelem, nbit);
+
+			assert(len * 32 >= nelem * nbit);
+			assert((len - 1) * 32 < nelem * nbit);
+		}
+}
+
+
+
+
+void
+test(void)
 {
 	uint32_t packed[9];
 	unsigned data[9];
@@ -205,6 +222,7 @@ main(int argc, char **argv)
 {
 	unsigned nbit;
 
+	test0();
 	test();
 	for (nbit = 1; nbit < 32; nbit++) {
 		test2(nbit);
