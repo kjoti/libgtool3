@@ -25,12 +25,15 @@ typedef struct {
 
 /*
  *  GTOOL3 format types
+ *
  */
+#define GT3_FMT_MASKBIT 8U
 enum {
     GT3_FMT_UR4,
     GT3_FMT_URC,                    /* URC version 2 */
     GT3_FMT_URC1,                   /* URC version 1 (deprecated) */
-    GT3_FMT_UR8
+    GT3_FMT_UR8,
+	GT3_FMT_URX
 };
 
 /* data type */

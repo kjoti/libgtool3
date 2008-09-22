@@ -15,6 +15,8 @@
 
 #include "gtool3.h"
 #include "bits_set.h"
+#include "int_pack.h"
+#include "talloc.h"
 #include "debug.h"
 
 #ifndef min
@@ -41,13 +43,15 @@ static int read_UR4(GT3_Varbuf *var, size_t skip, size_t nelem, FILE *fp);
 static int read_UR8(GT3_Varbuf *var, size_t skip, size_t nelem, FILE *fp);
 static int read_URC1(GT3_Varbuf *var, size_t skip, size_t nelem, FILE *fp);
 static int read_URC2(GT3_Varbuf *var, size_t skip, size_t nelem, FILE *fp);
+static int read_URX(GT3_Varbuf *var, size_t skip, size_t nelem, FILE *fp);
 
 typedef int (*RFptr)(GT3_Varbuf *, size_t, size_t, FILE *);
 static RFptr read_fptr[] = {
 	read_UR4,
 	read_URC2,
 	read_URC1,
-	read_UR8
+	read_UR8,
+	read_URX
 };
 
 typedef void (*UNPACK_FUNC)(const unsigned *packed, int packed_len,
@@ -273,6 +277,108 @@ read_URC2(GT3_Varbuf *var, size_t skip, size_t nelem, FILE *fp)
 }
 
 
+/*
+ *  XXX: 'skip' and 'nelem' are ignored for now.
+ *  read_URX() reads all data in a z-plane.
+ */
+static int
+read_URX(GT3_Varbuf *var, size_t skip, size_t nelem, FILE *fp)
+{
+#define RESERVE_SIZE (640*320)
+
+	unsigned packed_buf[RESERVE_SIZE];
+	unsigned idata_buf[RESERVE_SIZE];
+	unsigned *packed;
+	unsigned *idata;
+	off_t curr;
+	int zpos;
+	double dma[2];
+	unsigned packed_len;
+	unsigned nbit;
+	unsigned imiss;
+	double scale;
+	float *outp;
+	int i;
+
+
+
+	/*
+	 * XXX: read_URX() always reads all data in a z-plane.
+	 * 'nelem' passed as an argument is ignored.
+	 */
+	nelem = (size_t)(var->dimlen[0] * var->dimlen[1]);
+
+	curr = ftello(fp);
+
+	nbit = (unsigned)var->fp->fmt >> GT3_FMT_MASKBIT;
+	assert(nbit > 0 && nbit < 32);
+
+	packed_len = pack32_len(nelem, nbit);
+
+
+	/* calculate 'zpos' from 'curr' and 'fp->off' */
+	zpos = (int)(curr - var->fp->off);
+	zpos -= 5 * sizeof(FTN_HEAD) + GT3_HEADER_SIZE
+		+ 2 * sizeof(double) * var->dimlen[2];
+
+	assert(zpos % (packed_len * sizeof(uint32_t)) == 0);
+	zpos /= packed_len * sizeof(uint32_t);
+
+	/*
+	 *  read DMA(dmin & amp)
+	 */
+	if (fseeko(fp, var->fp->off
+			   + 2 * sizeof(FTN_HEAD) + GT3_HEADER_SIZE
+			   + sizeof(FTN_HEAD)
+			   + 2 * sizeof(double) * zpos,
+			   SEEK_SET) < 0) {
+		return -1;
+	}
+	if (xfread(dma, sizeof(double), 2, fp, var->fp->path) < 0)
+		return -1;
+	if (IS_LITTLE_ENDIAN)
+		reverse_dwords(dma, 2);
+
+	/*
+	 *  allocate bufs.
+	 */
+	packed = (unsigned *)tiny_alloc(packed_buf, sizeof(packed_buf),
+									sizeof(unsigned) * packed_len);
+	idata  = (unsigned *)tiny_alloc(idata_buf, sizeof(idata_buf),
+									sizeof(unsigned) * nelem);
+
+	/*
+	 *  read packed data.
+	 */
+	fseeko(fp, curr, SEEK_SET);
+	if (xfread(packed, sizeof(uint32_t), packed_len, fp, var->fp->path) < 0) {
+		tiny_free(packed, packed_buf);
+		tiny_free(idata, idata_buf);
+		return -1;
+	}
+
+
+	if (IS_LITTLE_ENDIAN)
+		reverse_words(packed, packed_len);
+
+	unpack_bits_from32(idata, nelem, packed, nbit);
+
+
+	imiss = (1U << nbit) - 1;
+	scale = (imiss == 1) ? 0. : dma[1] / (imiss - 1);
+
+	outp = (float *)var->data;
+	for (i = 0; i < nelem; i++)
+		outp[i] = (idata[i] != imiss)
+			? dma[0] + idata[i] * scale
+			: var->miss;
+
+	tiny_free(packed, packed_buf);
+	tiny_free(idata, idata_buf);
+	return 0;
+}
+
+
 static int
 update_varbuf(GT3_Varbuf *vbuf, GT3_File *fp)
 {
@@ -346,7 +452,7 @@ update_varbuf(GT3_Varbuf *vbuf, GT3_File *fp)
 	status->z  = -1;
 
 	/*
-	 *  all check passed.
+	 *  all checks passed.
 	 */
 	vbuf->fp   = fp;
 	vbuf->type = type;
@@ -463,7 +569,7 @@ GT3_readVarZ(GT3_Varbuf *var, int zpos)
 		return -1;
 
 	nelem = var->dimlen[0] * var->dimlen[1];
-	if (read_fptr[var->fp->fmt](var, 0, nelem, var->fp->fp) < 0) {
+	if (read_fptr[var->fp->fmt & 255U](var, 0, nelem, var->fp->fp) < 0) {
 		debug2("read failed: t=%d, z=%d", var->fp->curr, zpos);
 
 		stat->z  = -1;
@@ -514,7 +620,7 @@ GT3_readVarZY(GT3_Varbuf *var, int zpos, int ypos)
 
 	skip  = ypos * var->dimlen[0];
 	nelem = var->dimlen[0];
-	if (read_fptr[var->fp->fmt](var, skip, nelem, var->fp->fp) < 0) {
+	if (read_fptr[var->fp->fmt & 255U](var, skip, nelem, var->fp->fp) < 0) {
 		debug3("read failed: t=%d, z=%d, y=%d", var->fp->curr, zpos, ypos);
 
 		stat->z  = -1;

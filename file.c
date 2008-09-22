@@ -16,6 +16,7 @@
 #include <string.h>
 
 #include "gtool3.h"
+#include "int_pack.h"
 #include "debug.h"
 
 #define CHNUM_UNKNOWN -1
@@ -46,8 +47,9 @@ static size_t
 chunk_size(int fmt, int nx, int ny, int nz)
 {
 	size_t siz = GT3_HEADER_SIZE + 2 * sizeof(FTN_HEAD);
+	unsigned mask = (1U << GT3_FMT_MASKBIT) - 1U;
 
-	switch (fmt) {
+	switch (fmt & mask) {
 	case GT3_FMT_UR4:
 		siz += 4 * (nx*ny*nz) + 2 * sizeof(FTN_HEAD);
 		break;
@@ -58,10 +60,17 @@ chunk_size(int fmt, int nx, int ny, int nz)
 	case GT3_FMT_UR8:
 		siz += 8 * (nx*ny*nz) + 2 * sizeof(FTN_HEAD);
 		break;
+	case GT3_FMT_URX:
+		siz += 8 * 2 * nz + 2 * sizeof(FTN_HEAD)  /* DMA */
+			+  sizeof(uint32_t)
+			* pack32_len(nx*ny, fmt >> GT3_FMT_MASKBIT) * nz
+			+  2 * sizeof(FTN_HEAD);
+		break;
 	default:
 		assert(!"Unknown format");
 		break;
 	}
+
 	return siz;
 }
 
@@ -152,11 +161,12 @@ static off_t
 zslice_offset(GT3_File *fp, int zpos)
 {
 	off_t off, nelem;
+	unsigned mask = (1 << GT3_FMT_MASKBIT) - 1;
 
 	off = GT3_HEADER_SIZE + 2 * sizeof(FTN_HEAD);
 	nelem = (off_t)fp->dimlen[0] * fp->dimlen[1];
 
-	switch (fp->fmt) {
+	switch (fp->fmt & mask) {
 	case GT3_FMT_UR4:
 		off += sizeof(FTN_HEAD) + 4 * nelem * zpos;
 		break;
@@ -166,6 +176,12 @@ zslice_offset(GT3_File *fp, int zpos)
 		break;
 	case GT3_FMT_UR8:
 		off += sizeof(FTN_HEAD) + 8 * nelem * zpos;
+		break;
+	case GT3_FMT_URX:
+		off += 2 * sizeof(double) * fp->dimlen[2] + 2 * sizeof(FTN_HEAD);
+		off += sizeof(FTN_HEAD);
+		off += zpos * sizeof(uint32_t)
+			* pack32_len(nelem, fp->fmt >> GT3_FMT_MASKBIT);
 		break;
 	default:
 		assert(!"Unknown format");
@@ -211,6 +227,20 @@ GT3_format(const char *str)
 	for (i = 0; i < sizeof ftab / sizeof ftab[0]; i++)
 		if (strcmp(ftab[i].key, str) == 0)
 			return ftab[i].val;
+
+	/* URX */
+	if (strncmp(str, "URX", 3) == 0) {
+		unsigned nbit;
+		char *endptr;
+
+		nbit = (unsigned)strtol(str + 3, &endptr, 10);
+		if (endptr == str + 3
+			|| *endptr != '\0'
+			|| nbit > 31)
+			return -1;
+
+		return GT3_FMT_URX | nbit << GT3_FMT_MASKBIT;
+	}
 
 	return -1;
 }
