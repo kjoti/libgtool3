@@ -34,6 +34,7 @@ OBJS		= \
 		grid.o \
 		gtdim.o \
 		header.o \
+		int_pack.o \
 		reverse.o \
 		talloc.o \
 		timedim.o \
