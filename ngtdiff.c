@@ -156,7 +156,7 @@ diff_header(const GT3_HEADER *head1, const GT3_HEADER *head2)
 	};
 
 	h1[16] = h2[16] = '\0';
-	printf("#\n# Difference of header fields:\n");
+	printf("#\n# Difference in header fields:\n");
 	printf("#%17s %20s %20s\n", "ITEM", "FileA", "FileB");
 	for (i = 0; i < 64; i++) {
 		if (ignored_item[i])
@@ -236,7 +236,7 @@ diff_var(GT3_Varbuf *var1, GT3_Varbuf *var2)
 			memset(head2.h + i * ELEMLEN, ' ', ELEMLEN);
 		}
 
-	if (memcmp(&head1, &head2, sizeof(GT3_HEADER)) != 0) {
+	if (memcmp(&head1, &head2, GT3_HEADER_SIZE) != 0) {
 		print_header(var1, var2);
 		diff_header(&head1, &head2);
 		flag = 1;
