@@ -26,6 +26,7 @@ static struct sequence *global_timeseq = NULL;
 static int snapshot_flag = 0;
 
 enum {
+	UNIT_MIN,
 	UNIT_HOUR,
 	UNIT_DAY,
 	UNIT_MON,
@@ -58,6 +59,9 @@ static caltime *
 step(caltime *date, int n, int unit)
 {
 	switch (unit) {
+	case UNIT_MIN:
+		ct_add_seconds(date, 60 * n);
+		break;
 	case UNIT_HOUR:
 		ct_add_hours(date, n);
 		break;
@@ -271,6 +275,7 @@ get_tdur(int tdur[], const char *str)
 		{ "mo", UNIT_MON    },
 		{ "dy", UNIT_DAY    },
 		{ "hr", UNIT_HOUR   },
+		{ "mn", UNIT_MIN    },
 
 		{ "year", UNIT_YEAR },
 		{ "mon",  UNIT_MON  },
