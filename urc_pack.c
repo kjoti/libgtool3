@@ -355,14 +355,14 @@ main(int argc, char **argv)
 	assert(fabs(data2[3] - data[3]) <= err);
 
 	/* test 6 */
-	data[0] = 1.23456789;
-	data[1] = 2.34567891;
-	data[2] = 3.45678912;
-	data[3] = 4.56789123;
+	data[0] = 0.1234567;
+	data[1] = 0.1234568;
+	data[2] = 0.1234569;
+	data[3] = 0.1234570;
 	PACK(data, 4, vmiss, packed, &ref, &ne, &nd);
 	UNPACK(packed, 2, ref, ne, nd, vmiss, data2);
 
-	err = 4. / 65000.;
+	err = 0.1 / 65000.;
 	print_data(data, data2, 4);
 	assert(fabs(data2[0] - data[0]) <= err);
 	assert(fabs(data2[1] - data[1]) <= err);
@@ -385,10 +385,10 @@ main(int argc, char **argv)
 	assert(fabs(data2[3] - data[3]) <= err);
 
 	/* test 8 */
-	data[0] = 0.;
-	data[1] = 0.123456789;
-	data[2] = 0.987654321;
-	data[3] = 1.0;
+	data[0] = 0.12345678;
+	data[1] = 0.12345679;
+	data[2] = 0.12345680;
+	data[3] = 0.12345681;
 	data[4] = vmiss;
 	data[5] = 1e4;				/* will be ignored */
 
