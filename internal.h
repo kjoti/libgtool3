@@ -45,11 +45,11 @@ typedef unsigned uint32_t;
 #endif
 
 /*
- *  FTN_HEAD:
+ *  fort_size_t:
  *  A type for the header/trailer of Fortran unformatted data.
- *  sizeof(FTN_HEAD) must be 4.
+ *  sizeof(fort_size_t) must be 4.
  */
-typedef uint32_t FTN_HEAD;
+typedef uint32_t fort_size_t;
 
 /*
  *  urc_pack.c

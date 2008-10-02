@@ -55,7 +55,7 @@ get_dimsize(int dim[], const GT3_HEADER *hh)
 static int
 skip_records(FILE *fp, int num)
 {
-	FTN_HEAD head, trail;
+	fort_size_t head, trail;
 	int cnt;
 
 	for (cnt = 0; num > 0; num--, cnt++) {
@@ -96,7 +96,7 @@ error:
 static size_t
 chunk_size_std(size_t nelem, size_t size)
 {
-	return 4 * sizeof(FTN_HEAD) /* 2 records */
+	return 4 * sizeof(fort_size_t) /* 2 records */
 		+ GT3_HEADER_SIZE		/* header */
 		+ size * nelem;			/* body */
 }
@@ -108,8 +108,8 @@ chunk_size_std(size_t nelem, size_t size)
 static size_t
 chunk_size_urc(size_t nelem, int nz)
 {
-	return GT3_HEADER_SIZE + 2 * sizeof(FTN_HEAD)
-		+ (8 + 4 + 4 + 2 * nelem + 8 * sizeof(FTN_HEAD)) * nz;
+	return GT3_HEADER_SIZE + 2 * sizeof(fort_size_t)
+		+ (8 + 4 + 4 + 2 * nelem + 8 * sizeof(fort_size_t)) * nz;
 }
 
 
@@ -119,7 +119,7 @@ chunk_size_urc(size_t nelem, int nz)
 static size_t
 chunk_size_urx(size_t nelem, int nz, int nbit)
 {
-	return 6 * sizeof(FTN_HEAD)	/* 3 records */
+	return 6 * sizeof(fort_size_t)	/* 3 records */
 		+ GT3_HEADER_SIZE		/* header */
 		+ 2 * 8 * nz			/* DMA */
 		+ 4 * pack32_len(nelem, nbit) * nz;	/* body (packed)  */
@@ -141,10 +141,10 @@ chunk_size_mask(size_t nelem, size_t size, GT3_File *fp)
 	if (IS_LITTLE_ENDIAN)
 		reverse_words(&num, 2);
 
-	return GT3_HEADER_SIZE + 2 * sizeof(FTN_HEAD)
-		+  4 + 2 * sizeof(FTN_HEAD)
-		+  4 * ((nelem + 31) / 32) + 2 * sizeof(FTN_HEAD)
-		+  size * num[1] + 2 * sizeof(FTN_HEAD);
+	return GT3_HEADER_SIZE + 2 * sizeof(fort_size_t)
+		+  4 + 2 * sizeof(fort_size_t)
+		+  4 * ((nelem + 31) / 32) + 2 * sizeof(fort_size_t)
+		+  size * num[1] + 2 * sizeof(fort_size_t);
 }
 
 
@@ -163,7 +163,7 @@ chunk_size_maskx(size_t nelem, int nz, int nbit, GT3_File *fp)
 	if (IS_LITTLE_ENDIAN)
 		reverse_words(&num, 2);
 
-	return 14 * sizeof(FTN_HEAD)  /* 7 records */
+	return 14 * sizeof(fort_size_t)  /* 7 records */
 		+ GT3_HEADER_SIZE
 		+ 4
 		+ 4 * nz
@@ -292,7 +292,7 @@ static int
 read_header(GT3_HEADER *header, FILE *fp)
 {
 	const char *magic = "            9010";
-	char temp[GT3_HEADER_SIZE + 2 * sizeof(FTN_HEAD)];
+	char temp[GT3_HEADER_SIZE + 2 * sizeof(fort_size_t)];
 	size_t siz;
 
 	if ((siz = fread(temp, 1, sizeof temp, fp)) != sizeof temp
@@ -305,7 +305,7 @@ read_header(GT3_HEADER *header, FILE *fp)
 		return -1;
 	}
 
-	memcpy(header->h, temp + sizeof(FTN_HEAD), GT3_HEADER_SIZE);
+	memcpy(header->h, temp + sizeof(fort_size_t), GT3_HEADER_SIZE);
 	return 0;
 }
 
@@ -318,32 +318,32 @@ zslice_offset(GT3_File *fp, int zpos)
 {
 	off_t off, nelem;
 
-	off = GT3_HEADER_SIZE + 2 * sizeof(FTN_HEAD);
+	off = GT3_HEADER_SIZE + 2 * sizeof(fort_size_t);
 	nelem = (off_t)fp->dimlen[0] * fp->dimlen[1];
 
 	switch (fp->fmt & GT3_FMT_MASK) {
 	case GT3_FMT_UR4:
-		off += sizeof(FTN_HEAD) + 4 * nelem * zpos;
+		off += sizeof(fort_size_t) + 4 * nelem * zpos;
 		break;
 	case GT3_FMT_URC:
 	case GT3_FMT_URC1:
-		off += (8 + 4 + 4 + 2 * nelem + 8 * sizeof(FTN_HEAD)) * zpos;
+		off += (8 + 4 + 4 + 2 * nelem + 8 * sizeof(fort_size_t)) * zpos;
 		break;
 	case GT3_FMT_UR8:
-		off += sizeof(FTN_HEAD) + 8 * nelem * zpos;
+		off += sizeof(fort_size_t) + 8 * nelem * zpos;
 		break;
 	case GT3_FMT_URX:
-		off += 2 * sizeof(double) * fp->dimlen[2] + 2 * sizeof(FTN_HEAD);
-		off += sizeof(FTN_HEAD);
+		off += 2 * sizeof(double) * fp->dimlen[2] + 2 * sizeof(fort_size_t);
+		off += sizeof(fort_size_t);
 		off += zpos * sizeof(uint32_t)
 			* pack32_len(nelem, fp->fmt >> GT3_FMT_MBIT);
 		break;
 	case GT3_FMT_MR4:
 	case GT3_FMT_MR8:
 	case GT3_FMT_MRX:
-		off += 4 + 2 * sizeof(FTN_HEAD);
+		off += 4 + 2 * sizeof(fort_size_t);
 		off += 4 * pack32_len(nelem * fp->dimlen[2], 1)
-			+ 2 * sizeof(FTN_HEAD);
+			+ 2 * sizeof(fort_size_t);
 		break;
 	default:
 		assert(!"Unknown format");

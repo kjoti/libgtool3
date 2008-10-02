@@ -141,7 +141,7 @@ GT3_loadMask(GT3_Datamask *mask, GT3_File *fp)
 
 	if (fseeko(fp->fp,
 			   fp->off + GT3_HEADER_SIZE + 4
-			   + 5 * sizeof(FTN_HEAD),
+			   + 5 * sizeof(fort_size_t),
 			   SEEK_SET) < 0
 		|| fread(mask->mask, 4, mlen, fp->fp) != mlen) {
 		gt3_error(GT3_ERR_BROKEN, fp->path);
@@ -178,13 +178,13 @@ GT3_loadMaskX(GT3_Datamask *mask, int zpos, GT3_File *fp)
 		return -1;
 
 	if (fseeko(fp->fp,
-			   fp->off + 10 * sizeof(FTN_HEAD)
+			   fp->off + 10 * sizeof(fort_size_t)
 			   + GT3_HEADER_SIZE
 			   + 4
 			   + 4 * fp->dimlen[2]
 			   + 4 * fp->dimlen[2]
 			   + 2 * 8 * fp->dimlen[2]
-			   + sizeof(FTN_HEAD) + 4 * mlen * zpos,
+			   + sizeof(fort_size_t) + 4 * mlen * zpos,
 			   SEEK_SET) < 0
 		|| fread(mask->mask, 4, mlen, fp->fp) != mlen) {
 		gt3_error(GT3_ERR_BROKEN, fp->path);
