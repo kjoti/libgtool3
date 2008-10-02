@@ -57,7 +57,7 @@ print_item1(int cnt, GT3_File *fp)
 	if (utim[0] == '\0')
 		utim[0] = '?';
 
-	printf("%4d %-8s %8s%c %5s %4s %15s %s,%s,%s\n",
+	printf("%4d %-8s %8s%c %5s %5s %15s %s,%s,%s\n",
 		   cnt, item, time, utim[0], tdur, dfmt, date, dim1, dim2, dim3);
 	return 0;
 }
@@ -97,7 +97,7 @@ print_item2(int cnt, GT3_File *fp)
 	if (utim[0] == '\0')
 		utim[0] = '?';
 
-	printf("%4d %-8s %8s%c %5s %4s %15s  %-8s %-8s %-8s\n",
+	printf("%4d %-8s %8s%c %5s %5s %15s  %-8s %-8s %-8s\n",
 		   cnt, item, time, utim[0], tdur, dfmt, date,
 		   dim[0], dim[1], dim[2]);
 	return 0;
