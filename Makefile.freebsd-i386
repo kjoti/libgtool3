@@ -35,6 +35,7 @@ OBJS		= \
 		gtdim.o \
 		header.o \
 		int_pack.o \
+		mask.o \
 		reverse.o \
 		talloc.o \
 		timedim.o \

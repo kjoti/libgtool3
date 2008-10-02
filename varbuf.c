@@ -23,6 +23,7 @@
 #  define min(a,b) ((a) < (b) ? (a) : (b))
 #endif
 
+#define RESERVE_SIZE (640*320)
 
 /*
  *  status staff for GT3_Varbuf.
@@ -37,21 +38,26 @@ struct varbuf_status {
 };
 typedef struct varbuf_status varbuf_status;
 
+static int read_UR4(GT3_Varbuf *var,  int, size_t, size_t nelem, FILE *fp);
+static int read_UR8(GT3_Varbuf *var,  int, size_t, size_t nelem, FILE *fp);
+static int read_URC1(GT3_Varbuf *var, int, size_t, size_t nelem, FILE *fp);
+static int read_URC2(GT3_Varbuf *var, int, size_t, size_t nelem, FILE *fp);
+static int read_URX(GT3_Varbuf *var,  int, size_t, size_t nelem, FILE *fp);
+static int read_MR4(GT3_Varbuf *var,  int, size_t, size_t nelem, FILE *fp);
+static int read_MR8(GT3_Varbuf *var,  int, size_t, size_t nelem, FILE *fp);
+static int read_MRX(GT3_Varbuf *var,  int, size_t, size_t nelem, FILE *fp);
 
-
-static int read_UR4(GT3_Varbuf *var, size_t skip, size_t nelem, FILE *fp);
-static int read_UR8(GT3_Varbuf *var, size_t skip, size_t nelem, FILE *fp);
-static int read_URC1(GT3_Varbuf *var, size_t skip, size_t nelem, FILE *fp);
-static int read_URC2(GT3_Varbuf *var, size_t skip, size_t nelem, FILE *fp);
-static int read_URX(GT3_Varbuf *var, size_t skip, size_t nelem, FILE *fp);
-
-typedef int (*RFptr)(GT3_Varbuf *, size_t, size_t, FILE *);
+typedef int (*RFptr)(GT3_Varbuf *, int, size_t, size_t, FILE *);
 static RFptr read_fptr[] = {
 	read_UR4,
 	read_URC2,
 	read_URC1,
 	read_UR8,
-	read_URX
+	read_URX,
+	read_MR4,
+	read_MR8,
+	read_MRX,
+	NULL
 };
 
 typedef void (*UNPACK_FUNC)(const unsigned *packed, int packed_len,
@@ -148,12 +154,96 @@ sread_dword(void *dest, const void *src)
 
 
 static int
-read_UR4(GT3_Varbuf *var, size_t skip, size_t nelem, FILE *fp)
+read_from_record(void *ptr, size_t skip, size_t nelem,
+				 size_t size, FILE *fp)
+{
+	FTN_HEAD recsiz;			/* record size */
+	off_t eor;
+	size_t nelem_record;		/* # of elements in the record. */
+
+
+	if (fread(&recsiz, sizeof(FTN_HEAD), 1, fp) != 1)
+		return -1;
+	if (IS_LITTLE_ENDIAN)
+		reverse_words(&recsiz, 1);
+
+	if (recsiz % size != 0)
+		return -1;
+
+	/* eor: end of record (position) */
+	eor = ftello(fp) + recsiz + sizeof(FTN_HEAD);
+
+	nelem_record = recsiz / size;
+
+	if (skip > nelem_record)
+		skip = nelem_record;
+	if (nelem > nelem_record - skip)
+		nelem = nelem_record - skip;
+
+	if (nelem > 0) {
+		if (skip != 0 && fseeko(fp, size * skip, SEEK_CUR) < 0)
+			return -1;
+
+		if (fread(ptr, size, nelem, fp) != nelem)
+			return -1;
+	}
+
+	return fseeko(fp, eor, SEEK_SET);
+}
+
+
+/*
+ *  read_words_from_record() reads words from a fortran-unformatted record,
+ *  and stores them in 'ptr'.
+ *
+ *  WORD: 4-byte in size.
+ */
+static int
+read_words_from_record(void *ptr, size_t skip, size_t nelem, FILE *fp)
+{
+	if (read_from_record(ptr, skip, nelem, 4, fp) < 0)
+		return -1;
+
+	if (IS_LITTLE_ENDIAN)
+		reverse_words(ptr, nelem);
+
+	return 0;
+}
+
+/*
+ *  read_dwords_from_record() reads dwords from a fortran-unformatted record,
+ *  and stores them in 'ptr'.
+ *
+ *  DWORD: 8-byte in size.
+ */
+static int
+read_dwords_from_record(void *ptr, size_t skip, size_t nelem, FILE *fp)
+{
+	if (read_from_record(ptr, skip, nelem, 8, fp) < 0)
+		return -1;
+
+	if (IS_LITTLE_ENDIAN)
+		reverse_dwords(ptr, nelem);
+
+	return 0;
+}
+
+
+static int
+read_UR4(GT3_Varbuf *var, int zpos, size_t skip, size_t nelem, FILE *fp)
 {
 	float *ptr;
+	off_t off;
 
-	if (skip != 0 && fseeko(fp, 4 * skip, SEEK_CUR) < 0)
+	off = var->fp->off
+		+ GT3_HEADER_SIZE + 2 * sizeof(FTN_HEAD)
+		+ 4 * (zpos * var->dimlen[0] * var->dimlen[1] + skip)
+		+ sizeof(FTN_HEAD);
+
+	if (fseeko(fp, off, SEEK_SET) < 0) {
+		gt3_error(SYSERR, NULL);
 		return -1;
+	}
 
 	assert(var->type == GT3_TYPE_FLOAT);
 	ptr = (float *)var->data;
@@ -170,12 +260,21 @@ read_UR4(GT3_Varbuf *var, size_t skip, size_t nelem, FILE *fp)
 
 
 static int
-read_UR8(GT3_Varbuf *var, size_t skip, size_t nelem, FILE *fp)
+read_UR8(GT3_Varbuf *var, int zpos, size_t skip, size_t nelem, FILE *fp)
 {
 	double *ptr;
+	off_t off;
 
-	if (skip != 0 && fseeko(fp, 8 * skip, SEEK_CUR) < 0)
+	off = var->fp->off
+		+ GT3_HEADER_SIZE + 2 * sizeof(FTN_HEAD)
+		+ 8 * (zpos * var->dimlen[0] * var->dimlen[1] + skip)
+		+ sizeof(FTN_HEAD);
+
+
+	if (fseeko(fp, off, SEEK_SET) < 0) {
+		gt3_error(SYSERR, NULL);
 		return -1;
+	}
 
 	assert(var->type == GT3_TYPE_DOUBLE);
 	ptr = (double *)var->data;
@@ -197,17 +296,29 @@ read_UR8(GT3_Varbuf *var, size_t skip, size_t nelem, FILE *fp)
  *  XXX: 'skip' and 'nelem' are not in bytes.
  */
 static int
-read_URCv(GT3_Varbuf *var, size_t skip, size_t nelem, FILE *fp,
+read_URCv(GT3_Varbuf *var, int zpos, size_t skip, size_t nelem, FILE *fp,
 		  UNPACK_FUNC unpack_func)
 {
 	unsigned packed[1024];
 	unsigned char pbuf[8 + 4 + 4 + 7 * sizeof(FTN_HEAD)];
+	off_t off;
 	double ref;
 	int nd, ne;
 	FTN_HEAD sizh;
 	size_t num;
 	int i;
 	float *outp;
+
+	off = var->fp->off
+		+ GT3_HEADER_SIZE + 2 * sizeof(FTN_HEAD)
+		+ (8 + 4 + 4
+		   + 2 * var->dimlen[0] * var->dimlen[1]
+		   + 8 * sizeof(FTN_HEAD)) * zpos;
+
+	if (fseeko(fp, off, SEEK_SET) < 0) {
+		gt3_error(SYSERR, NULL);
+		return -1;
+	}
 
 	/*
 	 *  Three parameters (ref, D, and E)
@@ -264,16 +375,16 @@ read_URCv(GT3_Varbuf *var, size_t skip, size_t nelem, FILE *fp,
 
 
 static int
-read_URC1(GT3_Varbuf *var, size_t skip, size_t nelem, FILE *fp)
+read_URC1(GT3_Varbuf *var, int zpos, size_t skip, size_t nelem, FILE *fp)
 {
-	return read_URCv(var, skip, nelem, fp, urc1_unpack);
+	return read_URCv(var, zpos, skip, nelem, fp, urc1_unpack);
 }
 
 
 static int
-read_URC2(GT3_Varbuf *var, size_t skip, size_t nelem, FILE *fp)
+read_URC2(GT3_Varbuf *var, int zpos, size_t skip, size_t nelem, FILE *fp)
 {
-	return read_URCv(var, skip, nelem, fp, urc2_unpack);
+	return read_URCv(var, zpos, skip, nelem, fp, urc2_unpack);
 }
 
 
@@ -282,62 +393,39 @@ read_URC2(GT3_Varbuf *var, size_t skip, size_t nelem, FILE *fp)
  *  read_URX() reads all data in a z-plane.
  */
 static int
-read_URX(GT3_Varbuf *var, size_t skip, size_t nelem, FILE *fp)
+read_URX(GT3_Varbuf *var, int zpos, size_t skip, size_t nelem, FILE *fp)
 {
-#define RESERVE_SIZE (640*320)
-
 	unsigned packed_buf[RESERVE_SIZE];
 	unsigned idata_buf[RESERVE_SIZE];
 	unsigned *packed;
 	unsigned *idata;
-	off_t curr;
-	int zpos;
+	off_t off;
 	double dma[2];
-	unsigned packed_len;
+	size_t packed_len;
 	unsigned nbit;
 	unsigned imiss;
 	double scale;
 	float *outp;
 	int i;
 
-
-
 	/*
 	 * XXX: read_URX() always reads all data in a z-plane.
-	 * 'nelem' passed as an argument is ignored.
+	 * 'skip' and 'nelem' passed as an argument are ignored.
 	 */
 	nelem = (size_t)(var->dimlen[0] * var->dimlen[1]);
-
-	curr = ftello(fp);
-
-	nbit = (unsigned)var->fp->fmt >> GT3_FMT_MASKBIT;
-	assert(nbit > 0 && nbit < 32);
+	nbit = (unsigned)var->fp->fmt >> GT3_FMT_MBIT;
 
 	packed_len = pack32_len(nelem, nbit);
 
-
-	/* calculate 'zpos' from 'curr' and 'fp->off' */
-	zpos = (int)(curr - var->fp->off);
-	zpos -= 5 * sizeof(FTN_HEAD) + GT3_HEADER_SIZE
-		+ 2 * sizeof(double) * var->dimlen[2];
-
-	assert(zpos % (packed_len * sizeof(uint32_t)) == 0);
-	zpos /= packed_len * sizeof(uint32_t);
-
 	/*
-	 *  read DMA(dmin & amp)
+	 *  read packing parameters for URX.
 	 */
-	if (fseeko(fp, var->fp->off
-			   + 2 * sizeof(FTN_HEAD) + GT3_HEADER_SIZE
-			   + sizeof(FTN_HEAD)
-			   + 2 * sizeof(double) * zpos,
-			   SEEK_SET) < 0) {
+	off = var->fp->off + GT3_HEADER_SIZE + 2 * sizeof(FTN_HEAD);
+	if (fseeko(fp, off, SEEK_SET) < 0)
 		return -1;
-	}
-	if (xfread(dma, sizeof(double), 2, fp, var->fp->path) < 0)
+	if (read_dwords_from_record(dma, 2 * zpos, 2, fp) < 0)
 		return -1;
-	if (IS_LITTLE_ENDIAN)
-		reverse_dwords(dma, 2);
+
 
 	/*
 	 *  allocate bufs.
@@ -348,21 +436,17 @@ read_URX(GT3_Varbuf *var, size_t skip, size_t nelem, FILE *fp)
 									sizeof(unsigned) * nelem);
 
 	/*
-	 *  read packed data.
+	 *  read packed DATA-BODY in zpos.
 	 */
-	fseeko(fp, curr, SEEK_SET);
-	if (xfread(packed, sizeof(uint32_t), packed_len, fp, var->fp->path) < 0) {
+	if (read_words_from_record(packed,
+							   zpos * packed_len,
+							   packed_len,
+							   fp) < 0) {
 		tiny_free(packed, packed_buf);
 		tiny_free(idata, idata_buf);
 		return -1;
 	}
-
-
-	if (IS_LITTLE_ENDIAN)
-		reverse_words(packed, packed_len);
-
 	unpack_bits_from32(idata, nelem, packed, nbit);
-
 
 	imiss = (1U << nbit) - 1;
 	scale = (imiss == 1) ? 0. : dma[1] / (imiss - 1);
@@ -376,6 +460,253 @@ read_URX(GT3_Varbuf *var, size_t skip, size_t nelem, FILE *fp)
 	tiny_free(packed, packed_buf);
 	tiny_free(idata, idata_buf);
 	return 0;
+}
+
+
+
+/*
+ *  common to MR4 and MR8.
+ */
+static int
+read_MRN_pre(void *temp,
+			 GT3_Varbuf *var,
+			 size_t size,		/* size of each data (4 or 8) */
+			 int zpos, size_t skip, size_t nelem)
+{
+	GT3_Datamask *mask;
+	size_t nread;
+	int idx0;
+	off_t off;
+
+	mask = var->fp->mask;
+	if (!mask && (mask = GT3_newMask()) == NULL)
+		return -1;
+
+	/*
+	 *  load mask data.
+	 */
+	if (GT3_loadMask(mask, var->fp) != 0)
+		return -1;
+	var->fp->mask = mask;
+	GT3_updateMaskIndex(mask);
+
+	/*
+	 *  seek to the begging of the data-body.
+	 */
+	idx0 = zpos * var->dimlen[0] * var->dimlen[1] + skip;
+	off = var->fp->off + 6 * sizeof(FTN_HEAD)
+		+ GT3_HEADER_SIZE		/* header */
+		+ 4						/* NNN */
+		+ 4 * ((mask->nelem + 31) / 32)	/* MASK */
+		+ sizeof(FTN_HEAD)
+		+ size * mask->index[idx0];
+
+	if (fseeko(var->fp->fp, off, SEEK_SET) < 0)
+		return -1;
+
+
+	/*
+	 *  nread: the # of MASK-ON elements on a z-plane.
+	 */
+	nread = mask->index[idx0 + nelem] - mask->index[idx0];
+
+	if (xfread(temp, size, nread, var->fp->fp, var->fp->path) < 0)
+		return -1;
+
+	return nread;
+}
+
+
+static int
+read_MR4(GT3_Varbuf *var, int zpos, size_t skip, size_t nelem, FILE *fp)
+{
+	float temp_buf[RESERVE_SIZE];
+	float *outp, *temp = NULL;
+	int nread;
+	int offnum;
+	int i, n;
+
+	temp = (float *)tiny_alloc(temp_buf,
+							   sizeof(temp_buf),
+							   sizeof(float) * nelem);
+	if (!temp)
+		return -1;
+
+	if ((nread = read_MRN_pre(temp, var, sizeof(float),
+							  zpos, skip, nelem)) < 0) {
+		tiny_free(temp, temp_buf);
+		return -1;
+	}
+
+	if (IS_LITTLE_ENDIAN)
+		reverse_words(temp, nread);
+
+	offnum = var->dimlen[0] * var->dimlen[1] * zpos;
+	outp = (float *)var->data;
+	outp += skip;
+	for (i = 0, n = 0; i < nelem; i++) {
+		if (GT3_getMaskValue(var->fp->mask, offnum + i)) {
+			outp[i] = temp[n];
+			n++;
+		} else
+			outp[i] = (float)(var->miss);
+	}
+	assert(n == nread);
+
+	tiny_free(temp, temp_buf);
+
+	return 0;
+}
+
+
+static int
+read_MR8(GT3_Varbuf *var, int zpos, size_t skip, size_t nelem, FILE *fp)
+{
+	double temp_buf[RESERVE_SIZE];
+	double *outp, *temp = NULL;
+	int nread;
+	int offnum;
+	int i, n;
+
+	assert(var->type == GT3_TYPE_DOUBLE);
+
+	temp = (double *)tiny_alloc(temp_buf,
+							   sizeof(temp_buf),
+							   sizeof(double) * nelem);
+	if (!temp)
+		return -1;
+
+	if ((nread = read_MRN_pre(temp, var, sizeof(double),
+							  zpos, skip, nelem)) < 0) {
+		tiny_free(temp, temp_buf);
+		return -1;
+	}
+
+	if (IS_LITTLE_ENDIAN)
+		reverse_dwords(temp, nread);
+
+	offnum = var->dimlen[0] * var->dimlen[1] * zpos;
+	outp = (double *)var->data;
+	outp += skip;
+	for (i = 0, n = 0; i < nelem; i++) {
+		if (GT3_getMaskValue(var->fp->mask, offnum + i)) {
+			outp[i] = temp[n];
+			n++;
+		} else
+			outp[i] = var->miss;
+	}
+	assert(n == nread);
+
+	tiny_free(temp, temp_buf);
+
+	return 0;
+}
+
+
+static int
+read_MRX(GT3_Varbuf *var, int zpos, size_t skip, size_t nelem, FILE *fp)
+{
+	off_t off;
+	double dma[2], scale;
+	GT3_Datamask *mask;
+	unsigned nbit;
+	unsigned packed_len, skip2;
+	int i, n;
+	float *outp;
+	int *nnn = NULL, temp_buf[1024];
+	uint32_t *packed = NULL, packed_buf[RESERVE_SIZE];
+	unsigned *idata = NULL, idata_buf[RESERVE_SIZE];
+
+
+	mask = var->fp->mask;
+	if (!mask && (mask = GT3_newMask()) == NULL)
+		return -1;
+
+	/* read MASK. */
+	if (GT3_loadMaskX(mask, zpos, var->fp) != 0)
+		return -1;
+	var->fp->mask = mask;
+
+
+	if ((nnn = (int *)tiny_alloc(temp_buf,
+								 sizeof(temp_buf),
+								 sizeof(int) * var->dimlen[2])) == NULL)
+		return -1;
+
+
+	off = var->fp->off
+		+ GT3_HEADER_SIZE + 2 * sizeof(FTN_HEAD)
+		+ 4 + 2 * sizeof(FTN_HEAD);
+	if (fseeko(fp, off, SEEK_SET) < 0)
+		goto error;
+
+	/* read NNN. */
+	if (read_words_from_record(nnn, 0, var->dimlen[2], fp) < 0)
+		goto error;
+
+	/* skip IZLEN */
+	if (read_words_from_record(NULL, 0, 0, fp) < 0)
+		goto error;
+
+	/* read DMA. */
+	if (read_dwords_from_record(dma, 2 * zpos, 2, fp) < 0)
+		goto error;
+
+	/* skip MASK. */
+	if (read_words_from_record(NULL, 0, 0, fp) < 0)
+		goto error;
+
+	/*
+	 *  read DATA BODY (masked & packed).
+	 */
+	nbit = var->fp->fmt >> GT3_FMT_MBIT;
+	for (skip2 = 0, i = 0; i < zpos; i++)
+		skip2 += pack32_len(nnn[i], nbit);
+	packed_len = pack32_len(nnn[zpos], nbit);
+
+	if ((packed = (uint32_t *)
+		 tiny_alloc(packed_buf,
+					sizeof(packed_buf),
+					sizeof(uint32_t) * packed_len)) == NULL
+		|| read_words_from_record(packed,
+								  skip2,
+								  packed_len,
+								  fp) < 0)
+		goto error;
+
+	/*
+	 *  unpack masked & packed data.
+	 */
+	if ((idata = (unsigned *)
+		 tiny_alloc(idata_buf,
+					sizeof(idata_buf),
+					sizeof(unsigned) * nnn[zpos])) == NULL)
+		goto error;
+
+	unpack_bits_from32(idata, nnn[zpos], packed, nbit);
+
+	outp = (float *)var->data;
+	scale = dma[1] / ((1U << nbit) - 1);
+
+	for (i = 0, n = 0; i < nelem; i++)
+		if (GT3_getMaskValue(mask, i)) {
+			outp[i] = (float)(dma[0] + idata[n] * scale);
+			n++;
+		} else
+			outp[i] = (float)var->miss;
+
+	assert(n == nnn[zpos]);
+
+	tiny_free(idata, idata_buf);
+	tiny_free(packed, packed_buf);
+	tiny_free(nnn, temp_buf);
+	return 0;
+
+error:
+	tiny_free(idata, idata_buf);
+	tiny_free(packed, packed_buf);
+	tiny_free(nnn, temp_buf);
+	return -1;
 }
 
 
@@ -395,6 +726,7 @@ update_varbuf(GT3_Varbuf *vbuf, GT3_File *fp)
 
 	switch (fp->fmt) {
 	case GT3_FMT_UR8:
+	case GT3_FMT_MR8:
 		type = GT3_TYPE_DOUBLE;
 		elsize = sizeof(double);
 		break;
@@ -544,6 +876,7 @@ GT3_readVarZ(GT3_Varbuf *var, int zpos)
 {
 	size_t nelem;
 	varbuf_status *stat = (varbuf_status *)var->stat_;
+	int fmt;
 
 	update2_varbuf(var);
 
@@ -562,14 +895,10 @@ GT3_readVarZ(GT3_Varbuf *var, int zpos)
 		return 0;
 	}
 
-	/*
-	 *  move to z-slice position.
-	 */
-	if (GT3_skipZ(var->fp, zpos) < 0)
-		return -1;
-
 	nelem = var->dimlen[0] * var->dimlen[1];
-	if (read_fptr[var->fp->fmt & 255U](var, 0, nelem, var->fp->fp) < 0) {
+	fmt = (int)(var->fp->fmt & GT3_FMT_MASK);
+
+	if (read_fptr[fmt](var, zpos, 0, nelem, var->fp->fp) < 0) {
 		debug2("read failed: t=%d, z=%d", var->fp->curr, zpos);
 
 		stat->z  = -1;
@@ -590,6 +919,7 @@ GT3_readVarZY(GT3_Varbuf *var, int zpos, int ypos)
 {
 	size_t skip, nelem;
 	varbuf_status *stat = (varbuf_status *)var->stat_;
+	int fmt;
 
 	update2_varbuf(var);
 	if (   zpos < 0 || zpos >= var->dimlen[2]
@@ -615,12 +945,10 @@ GT3_readVarZY(GT3_Varbuf *var, int zpos, int ypos)
 		return 0;
 	}
 
-	if (GT3_skipZ(var->fp, zpos) < 0)
-		return -1;
-
 	skip  = ypos * var->dimlen[0];
 	nelem = var->dimlen[0];
-	if (read_fptr[var->fp->fmt & 255U](var, skip, nelem, var->fp->fp) < 0) {
+	fmt = (int)(var->fp->fmt & GT3_FMT_MASK);
+	if (read_fptr[fmt](var, zpos, skip, nelem, var->fp->fp) < 0) {
 		debug3("read failed: t=%d, z=%d, y=%d", var->fp->curr, zpos, ypos);
 
 		stat->z  = -1;

@@ -27,13 +27,19 @@ typedef struct {
  *  GTOOL3 format types
  *
  */
-#define GT3_FMT_MASKBIT 8U
+#define GT3_FMT_MBIT 8U
+#define GT3_FMT_MASK ((1U << GT3_FMT_MBIT) - 1U)
+
 enum {
     GT3_FMT_UR4,
     GT3_FMT_URC,                    /* URC version 2 */
     GT3_FMT_URC1,                   /* URC version 1 (deprecated) */
     GT3_FMT_UR8,
-	GT3_FMT_URX
+	GT3_FMT_URX,
+	GT3_FMT_MR4,
+	GT3_FMT_MR8,
+	GT3_FMT_MRX,
+	GT3_FMT_NULL
 };
 
 /* data type */
@@ -77,6 +83,22 @@ struct GT3_DimBound {
 };
 typedef struct GT3_DimBound GT3_DimBound;
 
+
+/*
+ *  Mask for MR4, MR8, and MRX.
+ */
+struct GT3_Datamask {
+	size_t nelem;				/* # of elements (current) */
+	size_t reserved;			/* # of elements (reserved) */
+
+	uint32_t *mask;
+
+	int loaded;					/* the chunk number mask is loaded */
+	int indexed;				/* Index up-to-date?  */
+	int *index;					/* sizeof(int) * (nelem + 1) */
+};
+typedef struct GT3_Datamask GT3_Datamask;
+
 /*
  *  Gtool-formatted file.
  */
@@ -97,8 +119,10 @@ struct GT3_File {
     /* XXX: num_chunk is not always available. */
     int num_chunk;              /* # of chunks in a file */
 
-    off_t off;                  /* offset of current chunk */
+    off_t off;                  /* current chunk position */
     off_t size;                 /* file size (in bytes) */
+
+	GT3_Datamask *mask;
 };
 typedef struct GT3_File GT3_File;
 
@@ -180,6 +204,15 @@ char *GT3_getVarAttrStr(char *attr, int len, const GT3_Varbuf *var,
 int GT3_getVarAttrInt(int *attr, const GT3_Varbuf *var, const char *key);
 int GT3_getVarAttrDouble(double *attr, const GT3_Varbuf *var, const char *key);
 int GT3_reattachVarbuf(GT3_Varbuf *var, GT3_File *fp);
+
+/* mask.c */
+GT3_Datamask *GT3_newMask(void);
+void GT3_freeMask(GT3_Datamask *ptr);
+int GT3_setMaskSize(GT3_Datamask *ptr, size_t nelem);
+void GT3_updateMaskIndex(GT3_Datamask *mask);
+int GT3_getMaskValue(const GT3_Datamask *mask, int i);
+int GT3_loadMask(GT3_Datamask *mask, GT3_File *fp);
+int GT3_loadMaskX(GT3_Datamask *mask, int zpos, GT3_File *fp);
 
 /* gtdim.c */
 GT3_Dim *GT3_loadDim(const char *name);

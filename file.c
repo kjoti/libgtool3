@@ -43,37 +43,193 @@ get_dimsize(int dim[], const GT3_HEADER *hh)
 }
 
 
-static size_t
-chunk_size(int fmt, int nx, int ny, int nz)
+#if 0
+/*
+ *  Skip fortran(unformatted) records.
+ *  A record is comprised of
+ *      1) header(4-byte in size)
+ *      2) body
+ *      3) trailer(4-byte in size).
+ *
+ */
+static int
+skip_records(FILE *fp, int num)
 {
-	size_t siz = GT3_HEADER_SIZE + 2 * sizeof(FTN_HEAD);
-	unsigned mask = (1U << GT3_FMT_MASKBIT) - 1U;
+	FTN_HEAD head, trail;
+	int cnt;
 
-	switch (fmt & mask) {
+	for (cnt = 0; num > 0; num--, cnt++) {
+		if (fread(&head, 4, 1, fp) != 1) {
+			if (feof(fp))
+				break;
+
+			goto error;
+		}
+
+		if (IS_LITTLE_ENDIAN)
+			reverse_words(&head, 1);
+
+		if (fseeko(fp, head, SEEK_CUR) < 0)
+			goto error;
+
+		if (fread(&trail, 4, 1, fp) != 1)
+			goto error;
+
+		if (IS_LITTLE_ENDIAN)
+			reverse_words(&head, 1);
+
+		if (head != trail)
+			goto error;
+	}
+	return cnt;
+
+error:
+	gt3_error(GT3_ERR_BROKEN, NULL);
+	return -1;
+}
+#endif
+
+
+/*
+ *  chunk size of UR4(size==4) or UR8(size==8).
+ */
+static size_t
+chunk_size_std(size_t nelem, size_t size)
+{
+	return 4 * sizeof(FTN_HEAD) /* 2 records */
+		+ GT3_HEADER_SIZE		/* header */
+		+ size * nelem;			/* body */
+}
+
+
+/*
+ *  chunk size of URC or URC2.
+ */
+static size_t
+chunk_size_urc(size_t nelem, int nz)
+{
+	return GT3_HEADER_SIZE + 2 * sizeof(FTN_HEAD)
+		+ (8 + 4 + 4 + 2 * nelem + 8 * sizeof(FTN_HEAD)) * nz;
+}
+
+
+/*
+ *  chunk size of URX.
+ */
+static size_t
+chunk_size_urx(size_t nelem, int nz, int nbit)
+{
+	return 6 * sizeof(FTN_HEAD)	/* 3 records */
+		+ GT3_HEADER_SIZE		/* header */
+		+ 2 * 8 * nz			/* DMA */
+		+ 4 * pack32_len(nelem, nbit) * nz;	/* body (packed)  */
+}
+
+
+/*
+ *  chunk size of MR4 or MR8.
+ *
+ *  FIXME: It is assumed that the current file position is next to
+ *  GTOOL3 header record.
+ */
+static size_t
+chunk_size_mask(size_t nelem, size_t size, GT3_File *fp)
+{
+	uint32_t num[] = {0, 0};
+
+	fread(&num, 4, 2, fp->fp);
+	if (IS_LITTLE_ENDIAN)
+		reverse_words(&num, 2);
+
+	return GT3_HEADER_SIZE + 2 * sizeof(FTN_HEAD)
+		+  4 + 2 * sizeof(FTN_HEAD)
+		+  4 * ((nelem + 31) / 32) + 2 * sizeof(FTN_HEAD)
+		+  size * num[1] + 2 * sizeof(FTN_HEAD);
+}
+
+
+/*
+ *  chunk size of MRX.
+ *
+ *  FIXME: It is assumed that the current file position is next to
+ *  GTOOL3 header record.
+ */
+static size_t
+chunk_size_maskx(size_t nelem, int nz, int nbit, GT3_File *fp)
+{
+	uint32_t num[] = {0, 0};
+
+	fread(&num, 4, 2, fp->fp);
+	if (IS_LITTLE_ENDIAN)
+		reverse_words(&num, 2);
+
+	return 14 * sizeof(FTN_HEAD)  /* 7 records */
+		+ GT3_HEADER_SIZE
+		+ 4
+		+ 4 * nz
+		+ 4 * nz
+		+ 2 * 8 * nz
+		+ 4 * pack32_len(nelem, 1) * nz
+		+ 4 * num[1];
+}
+
+
+/*
+ *  chunk_size() returns a current chunk-size, including GTOOL3-header.
+ */
+static size_t
+chunk_size(GT3_File *fp)
+{
+	int fmt;
+	size_t siz = 0, nelem;
+
+
+	fmt = (int)(fp->fmt & GT3_FMT_MASK);
+	switch (fmt) {
 	case GT3_FMT_UR4:
-		siz += 4 * (nx*ny*nz) + 2 * sizeof(FTN_HEAD);
+		nelem = fp->dimlen[0] * fp->dimlen[1] * fp->dimlen[2];
+		siz = chunk_size_std(nelem, 4);
 		break;
+
 	case GT3_FMT_URC:
 	case GT3_FMT_URC1:
-		siz += (8 + 4 + 4 + 2 * nx*ny + 8 * sizeof(FTN_HEAD)) * nz;
+		nelem = fp->dimlen[0] * fp->dimlen[1];
+		siz = chunk_size_urc(nelem, fp->dimlen[2]);
 		break;
+
 	case GT3_FMT_UR8:
-		siz += 8 * (nx*ny*nz) + 2 * sizeof(FTN_HEAD);
+		nelem = fp->dimlen[0] * fp->dimlen[1] * fp->dimlen[2];
+		siz = chunk_size_std(nelem, 8);
 		break;
+
 	case GT3_FMT_URX:
-		siz += 8 * 2 * nz + 2 * sizeof(FTN_HEAD)  /* DMA */
-			+  sizeof(uint32_t)
-			* pack32_len(nx*ny, fmt >> GT3_FMT_MASKBIT) * nz
-			+  2 * sizeof(FTN_HEAD);
+		nelem = fp->dimlen[0] * fp->dimlen[1];
+		siz = chunk_size_urx(nelem, fp->dimlen[2], fp->fmt >> GT3_FMT_MBIT);
 		break;
+
+	case GT3_FMT_MR4:
+		nelem = fp->dimlen[0] * fp->dimlen[1] * fp->dimlen[2];
+		siz = chunk_size_mask(nelem, 4, fp);
+		break;
+
+	case GT3_FMT_MR8:
+		nelem = fp->dimlen[0] * fp->dimlen[1] * fp->dimlen[2];
+		siz = chunk_size_mask(nelem, 8, fp);
+		break;
+
+	case GT3_FMT_MRX:
+		nelem = fp->dimlen[0] * fp->dimlen[1];
+		siz = chunk_size_maskx(nelem, fp->dimlen[2],
+							   fp->fmt >> GT3_FMT_MBIT, fp);
+		break;
+
 	default:
 		assert(!"Unknown format");
 		break;
-	}
 
+	}
 	return siz;
 }
-
 
 /*
  *  Updates GT3_File with a header (when going into a new chunk).
@@ -105,12 +261,12 @@ update(GT3_File *fp, const GT3_HEADER *headp)
 	/*
 	 *  updates GT3_File member.
 	 */
-	fp->fmt    = fmt;
-	fp->chsize = chunk_size(fmt, dim[0], dim[1], dim[2]);
-
+	fp->fmt = fmt;
 	fp->dimlen[0] = dim[0];
 	fp->dimlen[1] = dim[1];
 	fp->dimlen[2] = dim[2];
+	fp->chsize = chunk_size(fp); /* XXX */
+
 	return 0;
 }
 
@@ -161,12 +317,11 @@ static off_t
 zslice_offset(GT3_File *fp, int zpos)
 {
 	off_t off, nelem;
-	unsigned mask = (1 << GT3_FMT_MASKBIT) - 1;
 
 	off = GT3_HEADER_SIZE + 2 * sizeof(FTN_HEAD);
 	nelem = (off_t)fp->dimlen[0] * fp->dimlen[1];
 
-	switch (fp->fmt & mask) {
+	switch (fp->fmt & GT3_FMT_MASK) {
 	case GT3_FMT_UR4:
 		off += sizeof(FTN_HEAD) + 4 * nelem * zpos;
 		break;
@@ -181,7 +336,14 @@ zslice_offset(GT3_File *fp, int zpos)
 		off += 2 * sizeof(double) * fp->dimlen[2] + 2 * sizeof(FTN_HEAD);
 		off += sizeof(FTN_HEAD);
 		off += zpos * sizeof(uint32_t)
-			* pack32_len(nelem, fp->fmt >> GT3_FMT_MASKBIT);
+			* pack32_len(nelem, fp->fmt >> GT3_FMT_MBIT);
+		break;
+	case GT3_FMT_MR4:
+	case GT3_FMT_MR8:
+	case GT3_FMT_MRX:
+		off += 4 + 2 * sizeof(FTN_HEAD);
+		off += 4 * pack32_len(nelem * fp->dimlen[2], 1)
+			+ 2 * sizeof(FTN_HEAD);
 		break;
 	default:
 		assert(!"Unknown format");
@@ -220,7 +382,9 @@ GT3_format(const char *str)
 		{ "URC2", GT3_FMT_URC   },
 		{ "URC",  GT3_FMT_URC1  },
 		{ "UI2",  GT3_FMT_URC1  },  /* deprecated name */
-		{ "UR8",  GT3_FMT_UR8   }
+		{ "UR8",  GT3_FMT_UR8   },
+		{ "MR4",  GT3_FMT_MR4   },
+		{ "MR8",  GT3_FMT_MR8   },
 	};
 	int i;
 
@@ -239,7 +403,21 @@ GT3_format(const char *str)
 			|| nbit > 31)
 			return -1;
 
-		return GT3_FMT_URX | nbit << GT3_FMT_MASKBIT;
+		return GT3_FMT_URX | nbit << GT3_FMT_MBIT;
+	}
+
+	/* MRX */
+	if (strncmp(str, "MRX", 3) == 0) {
+		unsigned nbit;
+		char *endptr;
+
+		nbit = (unsigned)strtol(str + 3, &endptr, 10);
+		if (endptr == str + 3
+			|| *endptr != '\0'
+			|| nbit > 31)
+			return -1;
+
+		return GT3_FMT_MRX | nbit << GT3_FMT_MBIT;
 	}
 
 	return -1;
@@ -295,6 +473,7 @@ open_gt3file(const char *path, const char *mode)
 	gp->curr   = 0;
 	gp->off    = 0;
 	gp->num_chunk = CHNUM_UNKNOWN;
+	gp->mask   = NULL;
 
 	if (update(gp, &head) < 0)
 		goto error;
@@ -422,6 +601,9 @@ void
 GT3_close(GT3_File *fp)
 {
 	if (fp) {
+		if (fp->mask)
+			GT3_freeMask(fp->mask);
+		free(fp->mask);
 		fclose(fp->fp);
 		free(fp->path);
 		free(fp);
