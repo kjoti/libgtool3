@@ -200,7 +200,6 @@ GT3_loadMaskX(GT3_Datamask *mask, int zpos, GT3_File *fp)
 
 
 #ifdef TEST_MAIN
-#include <stdio.h>
 #include <assert.h>
 
 
@@ -210,7 +209,7 @@ main(int argc, char **argv)
 	uint32_t mask[] = {
 		0x00000000,
 		0xffffffff,
-		0xaaaaaaaa
+		0xffff789a
 	};
 	int i;
 
@@ -218,14 +217,30 @@ main(int argc, char **argv)
 		assert(getbit(mask, i) == 0);
 
 	for (i = 32; i < 64; i++)
-		assert(getbit(mask, i) == 1);
+		assert(getbit(mask, i));
 
-	for (i = 64; i < 96; i++)
-		assert(getbit(mask, i) == (i+1) % 2);
+	for (i = 64; i < 80; i++)
+		assert(getbit(mask, i));
 
-	for (i = 0; i < 96; i++)
-		printf("%3d %3d\n", i, getbit(mask, i));
+	assert(getbit(mask, 80) == 0);
+	assert(getbit(mask, 81));
+	assert(getbit(mask, 82));
+	assert(getbit(mask, 83));
 
+	assert(getbit(mask, 84));
+	assert(getbit(mask, 85) == 0);
+	assert(getbit(mask, 86) == 0);
+	assert(getbit(mask, 87) == 0);
+
+	assert(getbit(mask, 88));
+	assert(getbit(mask, 89) == 0);
+	assert(getbit(mask, 90) == 0);
+	assert(getbit(mask, 91));
+
+	assert(getbit(mask, 92));
+	assert(getbit(mask, 93) == 0);
+	assert(getbit(mask, 94));
+	assert(getbit(mask, 95) == 0);
 	return 0;
 }
 #endif

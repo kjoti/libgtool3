@@ -227,7 +227,6 @@ main(int argc, char **argv)
 	for (nbit = 1; nbit < 32; nbit++) {
 		test2(nbit);
 	}
-	printf("pass ALL TESTS\n");
 	return 0;
 }
 #endif /* TEST_MAIN */
