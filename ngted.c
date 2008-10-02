@@ -555,7 +555,7 @@ edit(GT3_File *fp, struct edit_command *clist)
 		return -1;
 	}
 
-	memcpy(&head_copy, &head, sizeof(GT3_HEADER));
+	memcpy(&head_copy, &head, GT3_HEADER_SIZE);
 
 	/*
 	 *  do edit.
@@ -565,7 +565,7 @@ edit(GT3_File *fp, struct edit_command *clist)
 		clist = clist->next;
 	}
 
-	if (memcmp(&head, &head_copy, sizeof(GT3_HEADER)))
+	if (memcmp(&head, &head_copy, GT3_HEADER_SIZE))
 		/* overwrite */
 		if (fseeko(fp->fp, fp->off + 4, SEEK_SET) < 0
 			|| fwrite(head.h, 1, GT3_HEADER_SIZE, fp->fp) != GT3_HEADER_SIZE) {
