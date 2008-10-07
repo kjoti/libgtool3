@@ -95,70 +95,69 @@ GT3_cmpDate2(const GT3_Date *date1, const GT3_Date *date2)
 }
 
 
-/*
- *  Return value:
- *     0:  no difference
- *     1:  month/year
- *     2:  day
- *     4:  hour/min/sec
- *     otherwise:  mix
- */
-int
-GT3_diffDate(GT3_Date *diff, const GT3_Date *from, const GT3_Date *to,
-			 int ctype)
+void
+GT3_getDuration(GT3_Duration *dur,
+				const GT3_Date *date1, const GT3_Date *date2,
+				int ctype)
 {
 	unsigned flag = 0U;
-	int d_ym, d_sec;
+	int dmon, dsec;
 
-	d_ym = 12 * (to->year - from->year) + to->mon - from->mon;
-	d_sec = to->sec - from->sec
-		  + 60 * (to->min - from->min)
-          + 3600 * (to->hour - from->hour);
+	dmon = (date2->mon - date1->mon)
+		+ 12 * (date2->year - date1->year);
 
-	if (d_ym != 0)
+	dsec = (date2->sec - date1->sec)
+		+ 60 * (date2->min - date1->min)
+		+ 3600 * (date2->hour - date1->hour);
+
+	if (dmon != 0)
 		flag |= 1;
-	if (to->day != from->day)
+	if (dsec != 0)
 		flag |= 2;
-	if (d_sec != 0)
+	if (date1->day != date2->day)
 		flag |= 4;
 
-	GT3_setDate(diff, 0, 0, 0, 0, 0, 0);
-
-	if (flag == 1) {
-		diff->year = d_ym / 12;
-		diff->mon  = d_ym % 12;
-	} else if ((flag & 1) == 0 && (flag & 6U)) {
-		diff->day = to->day - from->day;
-		if (d_sec < 0 && diff->day > 0) {
-			diff->day--;
-			d_sec += 24 * 3600;
+	if (flag == 1U) {
+		if (dmon % 12 == 0) {
+			dur->value = dmon / 12;
+			dur->unit = GT3_UNIT_YEAR;
+		} else {
+			dur->value = dmon;
+			dur->unit = GT3_UNIT_MON;
 		}
-		diff->hour = d_sec / 3600;
-		d_sec -= 3600 * diff->hour;
-		diff->min = d_sec / 60;
-		diff->sec = d_sec - 60 * diff->min;
-	} else if (flag != 0) {
-		struct caltime ct_from, ct_to;
-		double dsec;
-		int sec;
-
-		conv_date_to_ct(&ct_from, from, ctype);
-		conv_date_to_ct(&ct_to,   to,   ctype);
-
-		dsec = ct_diff_seconds(&ct_to, &ct_from);
-		diff->day = (int)(dsec / (24. * 3600));
-		if (diff->day < 28)
-			flag &= ~1U;
-
-		dsec -= 24. * 3600 * diff->day;
-		sec  = (int)dsec;
-
-		diff->hour = dsec / 3600;
-		dsec -= 3600 * diff->hour;
-		diff->min  = dsec / 60;
-		diff->sec  = dsec - 60 * diff->min;
+		return;
 	}
-	return (int)flag;
+
+	if (flag & 5U) {
+		/*
+		 *  we need a calendar to compute the duration.
+		 */
+		struct caltime ctdate1, ctdate2;
+
+		conv_date_to_ct(&ctdate1, date1, ctype);
+		conv_date_to_ct(&ctdate2, date2, ctype);
+
+		if (dsec == 0) {
+			dur->value = ct_diff_days(&ctdate2, &ctdate1);
+			dur->unit  = GT3_UNIT_DAY;
+			return;
+		} else
+			dsec = (int)ct_diff_seconds(&ctdate2, &ctdate1);
+	}
+
+	if (dsec % (24 * 3600) == 0) {
+		dur->value = dsec / (24 * 3600);
+		dur->unit = GT3_UNIT_DAY;
+	} else if (dsec % 3600 == 0) {
+		dur->value = dsec / 3600;
+		dur->unit = GT3_UNIT_HOUR;
+	} else if (dsec % 60 == 0) {
+		dur->value = dsec / 60;
+		dur->unit = GT3_UNIT_MIN;
+	} else {
+		dur->value = dsec;
+		dur->unit = GT3_UNIT_SEC;
+	}
 }
 
 
@@ -195,16 +194,26 @@ GT3_copyDate(GT3_Date *dest, const GT3_Date *src)
 
 
 void
-GT3_addDate(GT3_Date *date, const GT3_Date *step, int ctype)
+GT3_addDuration(GT3_Date *date, const GT3_Duration *dur, int ctype)
 {
 	struct caltime temp;
+	typedef caltime* (*add_func)(caltime *date, int year);
+	add_func tbl[] = {
+		ct_add_years,
+		ct_add_months,
+		ct_add_days,
+		ct_add_hours,
+		ct_add_minutes,
+		ct_add_seconds
+	};
+
+	if (dur->unit < 0 || dur->unit > GT3_UNIT_SEC) {
+		gt3_error(GT3_ERR_CALL, "Invalid GT3_Duration unit");
+		return;
+	}
 
 	conv_date_to_ct(&temp, date, ctype);
-
-	temp.year += step->year;
-	ct_add_months(&temp, step->mon);
-	ct_add_days(&temp, step->day);
-	ct_add_seconds(&temp, step->sec + 60 * (step->min + 60 * step->sec));
+	tbl[dur->unit](&temp, dur->value);
 
 	conv_ct_to_date(date, &temp);
 }
@@ -354,11 +363,24 @@ GT3_guessCalendarFile(const char *path)
 
 
 #ifdef TEST_MAIN
+void
+printdate(const GT3_Date *date)
+{
+	printf("%04d-%02d-%02d %02d:%02d:%02d\n",
+		   date->year,
+		   date->mon,
+		   date->day,
+		   date->hour,
+		   date->min,
+		   date->sec);
+}
+
+
+
 int
 main(int argc, char **argv)
 {
-	GT3_Date a, b, c;
-	int rval;
+	GT3_Date a;
 
 	assert(CALTIME_GREGORIAN == GT3_CAL_GREGORIAN);
 	assert(CALTIME_NOLEAP == GT3_CAL_NOLEAP);
@@ -374,76 +396,6 @@ main(int argc, char **argv)
 	assert(GT3_cmpDate(&a, 1970, 7, 15, 0, 0, 0) > 0);
 	assert(GT3_cmpDate(&a, 1970, 7, 15, 15, 0, 0) < 0);
 	assert(GT3_cmpDate(&a, 1970, 7, 15, 12, 0, 0) == 0);
-
-	GT3_setDate(&a, 1900, 10, 14, 3, 20, 40);
-	GT3_setDate(&b, 1900, 10, 14, 4, 25, 50);
-	rval = GT3_diffDate(&c, &a, &b, 0);
-	assert(rval == 4);
-	assert(GT3_cmpDate(&c, 0, 0, 0, 1, 5, 10) == 0);
-
-	GT3_setDate(&b, 1900, 10, 14, 0, 0, 0);
-	rval = GT3_diffDate(&c, &a, &b, 0);
-	assert(rval == 4);
-	assert(GT3_cmpDate(&c, 0, 0, 0, -3, -20, -40) == 0);
-
-	GT3_setDate(&b, 1900, 10, 16, 0, 0, 0);
-	rval = GT3_diffDate(&c, &a, &b, 0);
-	assert(rval == 6);
-	assert(GT3_cmpDate(&c, 0, 0, 1, 20, 39, 20) == 0);
-
-	GT3_setDate(&b, 1900, 10, 1, 3, 20, 40);
-	rval = GT3_diffDate(&c, &a, &b, 0);
-	assert(rval == 2);
-	assert(GT3_cmpDate(&c, 0, 0, -13, 0, 0, 0) == 0);
-
-	GT3_setDate(&b, 1901, 12, 14, 3, 20, 40);
-	rval = GT3_diffDate(&c, &a, &b, 0);
-	assert(rval == 1);
-	assert(GT3_cmpDate(&c, 1, 2, 0, 0, 0, 0) == 0);
-
-	GT3_setDate(&a, 1900, 12, 31, 23, 59, 59);
-	GT3_setDate(&b, 1901, 1, 1, 0, 0, 0);
-	assert(GT3_cmpDate2(&a, &b) < 0);
-	assert(GT3_cmpDate2(&b, &a) > 0);
-	GT3_diffDate(&c, &a, &b, 0);
-	assert(GT3_cmpDate(&c, 0, 0, 0, 0, 0, 1) == 0);
-
-	GT3_diffDate(&c, &b, &a, 0);
-	assert(GT3_cmpDate(&c, 0, 0, 0, 0, 0, -1) == 0);
-
-	GT3_setDate(&b, 1901, 1, 2, 12, 30, 0);
-	GT3_diffDate(&c, &a, &b, 0);
-	assert(GT3_cmpDate(&c, 0, 0, 1, 12, 30, 1) == 0);
-
-	GT3_setDate(&a, 1900, 1, 1, 0, 0, 0);
-	GT3_setDate(&b, 1900, 1, 1, 1, 30, 0);
-	GT3_diffDate(&c, &a, &b, 0);
-	assert(GT3_cmpDate(&c, 0, 0, 0, 1, 30, 0) == 0);
-
-	GT3_setDate(&b, 1901, 7, 1, 0, 0, 0);
-	rval = GT3_diffDate(&c, &a, &b, 0);
-	assert(rval == 1);
-	assert(GT3_cmpDate(&c, 1, 6, 0, 0, 0, 0) == 0);
-
-	/*
-	 *  calendar check.
-	 */
-	GT3_setDate(&a, 1900, 2, 28, 0, 0, 0);
-	GT3_setDate(&b, 1900, 3, 1, 0, 0, 0);
-	GT3_diffDate(&c, &a, &b, GT3_CAL_GREGORIAN);
-	assert(GT3_cmpDate(&c, 0, 0, 1, 0, 0, 0) == 0);
-	GT3_diffDate(&c, &a, &b, GT3_CAL_ALL_LEAP);
-	assert(GT3_cmpDate(&c, 0, 0, 2, 0, 0, 0) == 0);
-	GT3_diffDate(&c, &a, &b, GT3_CAL_JULIAN);
-	assert(GT3_cmpDate(&c, 0, 0, 2, 0, 0, 0) == 0);
-	GT3_diffDate(&c, &a, &b, GT3_CAL_360_DAY);
-	assert(GT3_cmpDate(&c, 0, 0, 3, 0, 0, 0) == 0);
-
-	GT3_setDate(&a, 1904, 2, 28, 0, 0, 0);
-	GT3_setDate(&b, 1904, 3, 1, 0, 0, 0);
-	rval = GT3_diffDate(&c, &a, &b, GT3_CAL_GREGORIAN);
-	assert(rval == 2);
-	assert(GT3_cmpDate(&c, 0, 0, 2, 0, 0, 0) == 0);
 
 	{
 		GT3_Date date;
@@ -481,6 +433,25 @@ main(int argc, char **argv)
 	}
 
 	/*
+	 *  test of GT3_midDate() (part 2)
+	 */
+	{
+		GT3_Date date1, date2, date;
+
+		GT3_setDate(&date1, 1999, 12, 31, 12, 0, 0);
+		GT3_setDate(&date2, 2000,  1,  1, 12, 0, 0);
+
+		GT3_midDate(&date, &date1, &date2, GT3_CAL_GREGORIAN);
+		assert(GT3_cmpDate(&date, 2000, 1, 1, 0, 0, 0) == 0);
+
+		GT3_setDate(&date1, 1999, 12, 31, 23, 59, 59);
+		GT3_setDate(&date2, 2000,  1,  1, 0, 0, 1);
+
+		GT3_midDate(&date, &date1, &date2, GT3_CAL_GREGORIAN);
+		assert(GT3_cmpDate(&date, 2000, 1, 1, 0, 0, 0) == 0);
+	}
+
+	/*
 	 *  test of GT3_getTime()
 	 */
 	{
@@ -496,6 +467,97 @@ main(int argc, char **argv)
 		GT3_setDate(&date, 2100, 12, 16, 12, 0, 0);
 		time = GT3_getTime(&date, &origin, GT3_UNIT_HOUR, GT3_CAL_GREGORIAN);
 		assert(time == 18416628.0);
+	}
+
+	/*
+	 *  test of GT3_getDuration()
+	 */
+	{
+		GT3_Date date1, date2;
+		GT3_Duration dur;
+
+		GT3_setDate(&date1, 1900, 1, 1, 0, 0, 0);
+		GT3_setDate(&date2, 1900, 2, 1, 0, 0, 0);
+		GT3_getDuration(&dur, &date1, &date2, GT3_CAL_GREGORIAN);
+
+		assert(dur.value == 1 && dur.unit == GT3_UNIT_MON);
+
+		GT3_setDate(&date1, 1900, 12, 1, 0, 0, 0);
+		GT3_setDate(&date2, 1901,  1, 1, 0, 0, 0);
+		GT3_getDuration(&dur, &date1, &date2, GT3_CAL_GREGORIAN);
+
+		assert(dur.value == 1 && dur.unit == GT3_UNIT_MON);
+
+
+		GT3_setDate(&date1, 1900, 1, 1, 0, 0, 0);
+		GT3_setDate(&date2, 1900, 1, 2, 12, 0, 0);
+		GT3_getDuration(&dur, &date1, &date2, GT3_CAL_GREGORIAN);
+
+		assert(dur.value == 36 && dur.unit == GT3_UNIT_HOUR);
+
+		GT3_setDate(&date1, 1900, 1, 1, 0,  0, 0);
+		GT3_setDate(&date2, 1900, 1, 1, 0, 20, 0);
+		GT3_getDuration(&dur, &date1, &date2, GT3_CAL_GREGORIAN);
+
+		assert(dur.value == 20 && dur.unit == GT3_UNIT_MIN);
+
+
+		GT3_setDate(&date1, 1900, 1, 1, 0, 20, 0);
+		GT3_setDate(&date2, 1900, 1, 1, 0,  0, 0);
+
+		GT3_getDuration(&dur, &date1, &date2, GT3_CAL_GREGORIAN);
+
+		assert(dur.value == -20 && dur.unit == GT3_UNIT_MIN);
+
+		GT3_setDate(&date1, 2000, 2, 28, 0, 0, 0);
+		GT3_setDate(&date2, 2000, 3,  1, 0, 0, 0);
+
+		GT3_getDuration(&dur, &date1, &date2, GT3_CAL_GREGORIAN);
+
+		assert(dur.value == 2 && dur.unit == GT3_UNIT_DAY);
+
+		GT3_setDate(&date1, 2000, 1, 1, 0, 0, 0);
+		GT3_setDate(&date2, 2001, 1, 1, 0, 0, 1);
+
+		GT3_getDuration(&dur, &date1, &date2, GT3_CAL_GREGORIAN);
+
+		assert(dur.value == 31622401 && dur.unit == GT3_UNIT_SEC);
+	}
+
+	/*
+	 *  test of GT3_addDuration()
+	 */
+	{
+		GT3_Date date;
+		GT3_Duration dur;
+
+		GT3_setDate(&date, 2000, 1, 1, 0, 0, 0);
+		dur.value = 6;
+		dur.unit = GT3_UNIT_YEAR;
+		GT3_addDuration(&date, &dur, GT3_CAL_GREGORIAN);
+
+		assert(GT3_cmpDate(&date, 2006, 1, 1, 0, 0, 0) == 0);
+
+		dur.unit = GT3_UNIT_MON;
+		GT3_addDuration(&date, &dur, GT3_CAL_GREGORIAN);
+		assert(GT3_cmpDate(&date, 2006, 7, 1, 0, 0, 0) == 0);
+
+		dur.unit = GT3_UNIT_DAY;
+		GT3_addDuration(&date, &dur, GT3_CAL_GREGORIAN);
+		assert(GT3_cmpDate(&date, 2006, 7, 7, 0, 0, 0) == 0);
+
+		dur.value = 60;
+		dur.unit = GT3_UNIT_HOUR;
+		GT3_addDuration(&date, &dur, GT3_CAL_GREGORIAN);
+		assert(GT3_cmpDate(&date, 2006, 7, 9, 12, 0, 0) == 0);
+
+		dur.unit = GT3_UNIT_MIN;
+		GT3_addDuration(&date, &dur, GT3_CAL_GREGORIAN);
+		assert(GT3_cmpDate(&date, 2006, 7, 9, 13, 0, 0) == 0);
+
+		dur.unit = GT3_UNIT_SEC;
+		GT3_addDuration(&date, &dur, GT3_CAL_GREGORIAN);
+		assert(GT3_cmpDate(&date, 2006, 7, 9, 13, 1, 0) == 0);
 	}
 
 	return 0;
