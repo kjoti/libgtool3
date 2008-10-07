@@ -370,7 +370,7 @@ GT3_readHeader(GT3_HEADER *header, GT3_File *fp)
 int
 GT3_isHistfile(GT3_File *fp)
 {
-	return fp->mode & 1;
+	return fp->mode & GT3_CONST_CHUNK_SIZE;
 }
 
 
@@ -440,6 +440,13 @@ GT3_countChunk(const char *path)
 	cnt = fp->curr;
 	GT3_close(fp);
 	return cnt;
+}
+
+
+int
+GT3_getNumChunk(const GT3_File *fp)
+{
+	return (fp->num_check >= 0) ? fp->num_chunk : GT3_countChunk(fp->path);
 }
 
 
@@ -515,17 +522,16 @@ GT3_openHistFile(const char *path)
 		return NULL;
 
 	/*
-	 *  check if this is a history-file.
+	 *  check if this is a uniform-file, whose all chunks
+	 *  are in the same size.
+	 *  
 	 */
 	if (gp->size % gp->chsize == 0) {
-		gp->mode |= 1;
+		gp->mode |= GT3_CONST_CHUNK_SIZE;
 		gp->num_chunk = gp->size / gp->chsize;
-	} else {
-		gt3_error(GT3_ERR_CALL, "%s: Not a history-file", path);
+	} else
+		gp->num_chunk = GT3_countChunk(gp->path);
 
-		GT3_close(gp);
-		gp = NULL;
-	}
 	return gp;
 }
 
