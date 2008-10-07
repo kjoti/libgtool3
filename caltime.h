@@ -42,9 +42,11 @@ int ct_set_time(caltime *date, int hour, int min, int sec);
 /*
  *  operators (+)
  */
-caltime* ct_add_days(caltime *date, int days);
+caltime* ct_add_years(caltime *date, int year);
 caltime* ct_add_months(caltime *date, int month);
+caltime* ct_add_days(caltime *date, int day);
 caltime* ct_add_hours(caltime *date, int hour);
+caltime* ct_add_minutes(caltime *date, int min);
 caltime* ct_add_seconds(caltime *date, int sec);
 
 /*

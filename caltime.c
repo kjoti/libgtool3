@@ -288,6 +288,27 @@ ct_add_hours(caltime *date, int hour)
 }
 
 
+caltime *
+ct_add_minutes(caltime *date, int min)
+{
+	int hours;
+
+	hours = min / 60;
+	if (hours != 0)
+		ct_add_hours(date, hours);
+	min -= 60 * hours;
+	return ct_add_seconds(date, 60 * min);
+}
+
+
+caltime *
+ct_add_years(caltime *date, int num)
+{
+	date->year += num;
+	return date;
+}
+
+
 int
 ct_verify_date(int type, int yr, int mo, int dy)
 {
@@ -549,6 +570,15 @@ main(int argc, char **argv)
 		ct_add_seconds(&date, -1);
 		assert(ct_cmpto(&date, 1999, 2, 28, 23, 59, 59) == 0);
 		assert(ct_cmpto(&date, 1999, 3, 1, 0, 0, 0) < 0);
+	}
+
+	/* ct_add_minutes() */
+	{
+		caltime date;
+
+		ct_init_caltime(&date, CALTIME_GREGORIAN, 2000, 1, 1);
+		ct_add_minutes(&date, 527040);
+		assert(ct_cmpto(&date, 2001, 1, 1, 0, 0, 0) == 0);
 	}
 
 	{
