@@ -35,17 +35,23 @@ enum {
     GT3_FMT_URC,                    /* URC version 2 */
     GT3_FMT_URC1,                   /* URC version 1 (deprecated) */
     GT3_FMT_UR8,
-	GT3_FMT_URX,
-	GT3_FMT_MR4,
-	GT3_FMT_MR8,
-	GT3_FMT_MRX,
-	GT3_FMT_NULL
+    GT3_FMT_URX,
+    GT3_FMT_MR4,
+    GT3_FMT_MR8,
+    GT3_FMT_MRX,
+    GT3_FMT_NULL
 };
 
 /* data type */
 enum {
     GT3_TYPE_FLOAT,
     GT3_TYPE_DOUBLE
+};
+
+
+/* for mode in GT3_File */
+enum {
+    GT3_CONST_CHUNK_SIZE = 1U
 };
 
 /*
@@ -88,14 +94,14 @@ typedef struct GT3_DimBound GT3_DimBound;
  *  Mask for MR4, MR8, and MRX.
  */
 struct GT3_Datamask {
-	size_t nelem;				/* # of elements (current) */
-	size_t reserved;			/* # of elements (reserved) */
+    size_t nelem;               /* # of elements (current) */
+    size_t reserved;            /* # of elements (reserved) */
 
-	uint32_t *mask;
+    uint32_t *mask;
 
-	int loaded;					/* the chunk number mask is loaded */
-	int indexed;				/* Index up-to-date?  */
-	int *index;					/* sizeof(int) * (nelem + 1) */
+    int loaded;                 /* the chunk number mask is loaded */
+    int indexed;                /* Index up-to-date?  */
+    int *index;                 /* sizeof(int) * (nelem + 1) */
 };
 typedef struct GT3_Datamask GT3_Datamask;
 
@@ -122,7 +128,7 @@ struct GT3_File {
     off_t off;                  /* current chunk position */
     off_t size;                 /* file size (in bytes) */
 
-	GT3_Datamask *mask;
+    GT3_Datamask *mask;
 };
 typedef struct GT3_File GT3_File;
 
@@ -155,6 +161,12 @@ struct GT3_Date {
 };
 typedef struct GT3_Date GT3_Date;
 
+struct GT3_Duration {
+    int value;
+    int unit;                   /* GT3_UNIT_XXX */
+};
+typedef struct GT3_Duration GT3_Duration;
+
 /* XXX calendar type */
 enum {
     GT3_CAL_GREGORIAN,
@@ -165,11 +177,14 @@ enum {
     GT3_CAL_DUMMY
 };
 
+
 enum {
-	GT3_UNIT_DAY,
-	GT3_UNIT_HOUR,
-	GT3_UNIT_MIN,
-	GT3_UNIT_SEC
+    GT3_UNIT_YEAR,
+    GT3_UNIT_MON,
+    GT3_UNIT_DAY,
+    GT3_UNIT_HOUR,
+    GT3_UNIT_MIN,
+    GT3_UNIT_SEC
 };
 
 /*
@@ -268,13 +283,11 @@ void GT3_setProgname(const char *name);
 void GT3_setDate(GT3_Date *date, int, int, int, int, int, int);
 int GT3_cmpDate(const GT3_Date *date, int, int, int, int, int, int);
 int GT3_cmpDate2(const GT3_Date *date1, const GT3_Date *date2);
-int GT3_diffDate(GT3_Date *diff,
-                 const GT3_Date *from, const GT3_Date *to, int ctype);
 void GT3_midDate(GT3_Date *, const GT3_Date *, const GT3_Date *, int);
 void GT3_copyDate(GT3_Date *dest, const GT3_Date *src);
-void GT3_addDate(GT3_Date *date, const GT3_Date *step, int ctype);
+void GT3_addDuration(GT3_Date *date, const GT3_Duration *dur, int ctype);
 double GT3_getTime(const GT3_Date *date, const GT3_Date *since,
-				   int tunit, int ctype);
+                   int tunit, int ctype);
 int GT3_guessCalendarFile(const char *path);
 
 /* version */
