@@ -446,7 +446,7 @@ GT3_countChunk(const char *path)
 int
 GT3_getNumChunk(const GT3_File *fp)
 {
-	return (fp->num_check >= 0) ? fp->num_chunk : GT3_countChunk(fp->path);
+	return (fp->num_chunk >= 0) ? fp->num_chunk : GT3_countChunk(fp->path);
 }
 
 
