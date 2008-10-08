@@ -331,9 +331,8 @@ diff_var(GT3_Varbuf *var1, GT3_Varbuf *var2)
 			sumB /= numB;
 			printf("%18s: %.7g\n", "ave(B)", sumB);
 		}
-		if (numA > 0 && numB > 0 && sumA != .0)
-			printf("%18s: %.4g%%\n", "rerr of ave",
-				   100. * fabs((sumA - sumB) / sumA));
+		if (numA > 0 && numB > 0)
+			printf("%18s: %.4g\n", "ave(B)-ave(A)", sumB - sumA);
 
 		printf("%18s: %.7g\n", "max(|A-B|)", maxerr);
 		if (nrms > 0) {
