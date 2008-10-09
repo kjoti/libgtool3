@@ -237,7 +237,7 @@ read_UR4(GT3_Varbuf *var, int zpos, size_t skip, size_t nelem, FILE *fp)
 
 	off = var->fp->off
 		+ GT3_HEADER_SIZE + 2 * sizeof(fort_size_t)
-		+ 4 * (zpos * var->dimlen[0] * var->dimlen[1] + skip)
+		+ sizeof(float) * (zpos * var->dimlen[0] * var->dimlen[1] + skip)
 		+ sizeof(fort_size_t);
 
 	if (fseeko(fp, off, SEEK_SET) < 0) {
@@ -246,10 +246,12 @@ read_UR4(GT3_Varbuf *var, int zpos, size_t skip, size_t nelem, FILE *fp)
 	}
 
 	assert(var->type == GT3_TYPE_FLOAT);
+	assert(var->bufsize >= sizeof(float) * nelem);
+
 	ptr = (float *)var->data;
 	ptr += skip;
 
-	if (xfread(ptr, 4, nelem, fp, var->fp->path) < 0)
+	if (xfread(ptr, sizeof(float), nelem, fp, var->fp->path) < 0)
 		return -1;
 
 	if (IS_LITTLE_ENDIAN)
@@ -267,7 +269,7 @@ read_UR8(GT3_Varbuf *var, int zpos, size_t skip, size_t nelem, FILE *fp)
 
 	off = var->fp->off
 		+ GT3_HEADER_SIZE + 2 * sizeof(fort_size_t)
-		+ 8 * (zpos * var->dimlen[0] * var->dimlen[1] + skip)
+		+ sizeof(double) * (zpos * var->dimlen[0] * var->dimlen[1] + skip)
 		+ sizeof(fort_size_t);
 
 
@@ -280,7 +282,7 @@ read_UR8(GT3_Varbuf *var, int zpos, size_t skip, size_t nelem, FILE *fp)
 	ptr = (double *)var->data;
 	ptr += skip;
 
-	if (xfread(ptr, 8, nelem, fp, var->fp->path) < 0)
+	if (xfread(ptr, sizeof(double), nelem, fp, var->fp->path) < 0)
 		return -1;
 
 	if (IS_LITTLE_ENDIAN)
@@ -426,7 +428,6 @@ read_URX(GT3_Varbuf *var, int zpos, size_t skip, size_t nelem, FILE *fp)
 	if (read_dwords_from_record(dma, 2 * zpos, 2, fp) < 0)
 		return -1;
 
-
 	/*
 	 *  allocate bufs.
 	 */
@@ -438,10 +439,12 @@ read_URX(GT3_Varbuf *var, int zpos, size_t skip, size_t nelem, FILE *fp)
 	/*
 	 *  read packed DATA-BODY in zpos.
 	 */
-	if (read_words_from_record(packed,
-							   zpos * packed_len,
-							   packed_len,
-							   fp) < 0) {
+	if (packed == NULL
+		|| idata == NULL
+		|| read_words_from_record(packed,
+								  zpos * packed_len,
+								  packed_len,
+								  fp) < 0) {
 		tiny_free(packed, packed_buf);
 		tiny_free(idata, idata_buf);
 		return -1;
@@ -461,7 +464,6 @@ read_URX(GT3_Varbuf *var, int zpos, size_t skip, size_t nelem, FILE *fp)
 	tiny_free(idata, idata_buf);
 	return 0;
 }
-
 
 
 /*
@@ -504,11 +506,11 @@ read_MRN_pre(void *temp,
 	if (fseeko(var->fp->fp, off, SEEK_SET) < 0)
 		return -1;
 
-
 	/*
-	 *  nread: the # of MASK-ON elements on a z-plane.
+	 *  nread: the # of MASK-ON elements.
 	 */
 	nread = mask->index[idx0 + nelem] - mask->index[idx0];
+	assert(nread <= nelem);
 
 	if (xfread(temp, size, nread, var->fp->fp, var->fp->path) < 0)
 		return -1;
@@ -541,7 +543,7 @@ read_MR4(GT3_Varbuf *var, int zpos, size_t skip, size_t nelem, FILE *fp)
 	if (IS_LITTLE_ENDIAN)
 		reverse_words(temp, nread);
 
-	offnum = var->dimlen[0] * var->dimlen[1] * zpos;
+	offnum = var->dimlen[0] * var->dimlen[1] * zpos + skip;
 	outp = (float *)var->data;
 	outp += skip;
 	for (i = 0, n = 0; i < nelem; i++) {
@@ -585,7 +587,7 @@ read_MR8(GT3_Varbuf *var, int zpos, size_t skip, size_t nelem, FILE *fp)
 	if (IS_LITTLE_ENDIAN)
 		reverse_dwords(temp, nread);
 
-	offnum = var->dimlen[0] * var->dimlen[1] * zpos;
+	offnum = var->dimlen[0] * var->dimlen[1] * zpos + skip;
 	outp = (double *)var->data;
 	outp += skip;
 	for (i = 0, n = 0; i < nelem; i++) {
@@ -919,11 +921,15 @@ GT3_readVarZY(GT3_Varbuf *var, int zpos, int ypos)
 {
 	size_t skip, nelem;
 	varbuf_status *stat = (varbuf_status *)var->stat_;
-	int fmt;
-
-	fmt = (int)(var->fp->fmt & GT3_FMT_MASK);
-	if (fmt == GT3_FMT_URX || fmt == GT3_FMT_MRX)
-		return GT3_readVarZ(var, zpos);
+	int i, fmt;
+	int supported[] = {
+		GT3_FMT_UR4,
+		GT3_FMT_URC,
+		GT3_FMT_URC1,
+		GT3_FMT_UR8,
+		GT3_FMT_MR4,
+		GT3_FMT_MR8
+	};
 
 	update2_varbuf(var);
 	if (   zpos < 0 || zpos >= var->dimlen[2]
@@ -931,6 +937,16 @@ GT3_readVarZY(GT3_Varbuf *var, int zpos, int ypos)
 		gt3_error(GT3_ERR_INDEX, "GT3_readVarZY(): y=%d, z=%d", ypos, zpos);
 		return -1;
 	}
+
+	/*
+	 *  In some format, use GT3_readVarZ().
+	 */
+	fmt = (int)(var->fp->fmt & GT3_FMT_MASK);
+	for (i = 0; i < sizeof supported / sizeof(int); i++)
+		if (fmt == supported[i])
+			break;
+	if (i == sizeof supported / sizeof(int))
+		return GT3_readVarZ(var, zpos);
 
 	/*
 	 *  for small buffer-size.

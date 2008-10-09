@@ -154,7 +154,7 @@ slicecopy(FILE *dest, GT3_File *fp)
 	int xrange[2];
 	int yrange[2];
 	int xstr0, ystr0, zstr0;
-	int zfirst, zorder;
+	int zfirst = 0, zorder;
 	int xynum, znum, nz;
 	int all_flag;
 
@@ -305,7 +305,23 @@ slicecopy(FILE *dest, GT3_File *fp)
 static int
 mcopy(FILE *dest, GT3_File *fp)
 {
-	return slicing ? slicecopy(dest, fp) : fcopy(dest, fp->fp, fp->chsize);
+	if (slicing) {
+		int support_slice[] = {
+			GT3_FMT_UR4,
+			GT3_FMT_URC,
+			GT3_FMT_URC1,
+			GT3_FMT_UR8
+		};
+		int i;
+
+		for (i = 0; i < sizeof support_slice / sizeof(int); i++)
+			if (fp->fmt == support_slice[i])
+				return slicecopy(dest, fp);
+
+		logging(LOG_ERR, "Slicing unsupported in this format");
+		return -1;
+	} else
+		return fcopy(dest, fp->fp, fp->chsize);
 }
 
 

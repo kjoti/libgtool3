@@ -8,6 +8,13 @@
 #define GTOOL3__H
 
 #include <sys/types.h>
+
+#ifndef HAVE_INTTYPES_H
+typedef unsigned uint32_t;
+#else
+#include <inttypes.h>
+#endif
+
 #include <stdio.h>
 
 #ifdef __cplusplus
@@ -289,6 +296,12 @@ void GT3_addDuration(GT3_Date *date, const GT3_Duration *dur, int ctype);
 double GT3_getTime(const GT3_Date *date, const GT3_Date *since,
                    int tunit, int ctype);
 int GT3_guessCalendarFile(const char *path);
+
+int GT3_calcDuration(GT3_Duration *dur,
+                     const GT3_Date *date1, const GT3_Date *date2,
+                     int calendar);
+
+int GT3_getDuration(GT3_Duration *dur, GT3_File *fp, int calendar);
 
 /* version */
 char *GT3_version(void);

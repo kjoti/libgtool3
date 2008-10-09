@@ -1,8 +1,7 @@
 #ifndef INTPACK__H
 #define INTPACK__H
 
-
-#include <stdint.h>
+#include "internal.h"
 #include <string.h>
 
 unsigned pack32_len(size_t siz, unsigned nbit);

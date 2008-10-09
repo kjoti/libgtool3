@@ -295,6 +295,11 @@ GT3_decodeHeaderDate(GT3_Date *date, const GT3_HEADER *header,
 	}
 
 	strp += ELEM_SZ * p->id;
+	if (is_blank(strp)) {
+		gt3_error(GT3_ERR_HEADER, "%s: Empty field", key);
+		return -1;
+	}
+
 	memcpy(buf, strp, ELEM_SZ);
 	buf[ELEM_SZ] = '\0';
 

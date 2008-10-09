@@ -15,7 +15,6 @@
 static void
 reset_mask(GT3_Datamask *ptr)
 {
-	ptr->nelem = 0;
 	ptr->loaded = -1;
 	ptr->indexed = 0;
 }
@@ -42,6 +41,7 @@ GT3_newMask(void)
 	}
 
 	reset_mask(mask);
+	mask->nelem = 0;
 	mask->reserved = 0;
 	mask->mask = NULL;
 	mask->index = NULL;
@@ -101,6 +101,7 @@ GT3_updateMaskIndex(GT3_Datamask *mask)
 	int i;
 	int idx = 0;
 
+	assert(mask->loaded != -1);
 	if (mask->indexed)
 		return;					/* no need to update */
 
@@ -118,6 +119,7 @@ GT3_updateMaskIndex(GT3_Datamask *mask)
 int
 GT3_getMaskValue(const GT3_Datamask *mask, int i)
 {
+	assert(i >= 0 && i < mask->nelem);
 	return getbit(mask->mask, i);
 }
 
@@ -130,6 +132,7 @@ GT3_loadMask(GT3_Datamask *mask, GT3_File *fp)
 {
 	size_t nelem, mlen;
 
+	assert(fp->fmt == GT3_FMT_MR4 || fp->fmt == GT3_FMT_MR8);
 
 	if (mask->loaded == fp->curr)
 		return 0;

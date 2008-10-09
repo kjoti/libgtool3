@@ -321,13 +321,6 @@ GT3_calcDuration(GT3_Duration *dur,
 	unsigned flag = 0U;
 	int dmon, dsec;
 
-	if (   ct_verify_date(calendar, date1->year, date1->mon, date1->day) < 0
-		|| ct_verify_date(calendar, date2->year, date2->mon, date2->day) < 0) {
-
-		gt3_error(GT3_ERR_CALL, "GT3_calcDuration: Invalid date");
-		return -1;
-	}
-
 	dmon = (date2->mon - date1->mon)
 		+ 12 * (date2->year - date1->year);
 
@@ -394,7 +387,7 @@ GT3_calcDuration(GT3_Duration *dur,
 
 
 /*
- *  get time duration.
+ *  get time duration between "DATE1" and "DATE2".
  *
  *  XXX: use "DATE1" and "DATE2" instead of "TDUR",
  *  which is inaccurate in some case.
@@ -407,26 +400,10 @@ GT3_getDuration(GT3_Duration *dur, GT3_File *fp, int calendar)
 	unsigned flag = 0U;
 	int dmon, dsec;
 
-
-	if (GT3_readHeader(&head, fp) < 0)
+	if (GT3_readHeader(&head, fp) < 0
+		|| GT3_decodeHeaderDate(&date1, &head, "DATE1") < 0
+		|| GT3_decodeHeaderDate(&date2, &head, "DATE2") < 0)
 		return -1;
-
-	if (GT3_decodeHeaderDate(&date1, &head, "DATE1") < 0
-		|| GT3_decodeHeaderDate(&date2, &head, "DATE2") < 0) {
-
-		/*
-		 *  use "DATE" in the current chunk and in the next.
-		 */
-		GT3_setDate(&date1, 0, 0, 0, 0, 0, 0);
-
-		if (GT3_decodeHeaderDate(&date1, &head, "DATE") < 0)
-			return -1;
-
-		GT3_copyDate(&date2, &date1);
-		GT3_next(fp);
-		GT3_decodeHeaderDate(&date2, &head, "DATE");
-		GT3_seek(fp, -1, SEEK_CUR);
-	}
 
 	dmon = (date2.mon - date1.mon) + 12 * (date2.year - date1.year);
 	dsec = (date2.sec - date1.sec)
@@ -507,12 +484,13 @@ main(int argc, char **argv)
 	assert(CALTIME_DUMMY == GT3_CAL_DUMMY);
 
 	/* GT3_cmpDate */
-	GT3_setDate(&a, 1970, 7, 15, 12, 0, 0);
-	assert(GT3_cmpDate(&a, 1970, 7, 1, 12, 0, 0) > 0);
-	assert(GT3_cmpDate(&a, 1970, 8, 1, 12, 0, 0) < 0);
-	assert(GT3_cmpDate(&a, 1970, 7, 15, 0, 0, 0) > 0);
-	assert(GT3_cmpDate(&a, 1970, 7, 15, 15, 0, 0) < 0);
-	assert(GT3_cmpDate(&a, 1970, 7, 15, 12, 0, 0) == 0);
+	GT3_setDate(&a, 1970, 7, 15, 12, 20, 45);
+	assert(GT3_cmpDate(&a, 1969, 8, 1,   0,  0,  0) > 0);
+	assert(GT3_cmpDate(&a, 1970, 7, 15, 12, 20, 40) > 0);
+	assert(GT3_cmpDate(&a, 1970, 7, 15, 12, 20, 45) == 0);
+	assert(GT3_cmpDate(&a, 1970, 7, 15, 12, 20, 50) < 0);
+	assert(GT3_cmpDate(&a, 1970, 7, 15, 12, 21, 10) < 0);
+	assert(GT3_cmpDate(&a, 1970, 7, 15, 13, 10, 10) < 0);
 
 	{
 		GT3_Date date;

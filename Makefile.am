@@ -12,6 +12,8 @@ libgtool3_a_SOURCES = \
 		grid.c \
 		gtdim.c \
 		header.c \
+		int_pack.c \
+		mask.c \
 		reverse.c \
 		talloc.c \
 		timedim.c \
