@@ -202,6 +202,7 @@ int GT3_readHeader(GT3_HEADER *header, GT3_File *fp);
 int GT3_isHistfile(GT3_File *fp);
 int GT3_format(const char *str);
 int GT3_countChunk(const char *path);
+int GT3_getNumChunk(const GT3_File *fp);
 GT3_File *GT3_open(const char *path);
 GT3_File *GT3_openHistFile(const char *path);
 GT3_File *GT3_openRW(const char *path);
