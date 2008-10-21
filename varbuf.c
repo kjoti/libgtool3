@@ -613,6 +613,7 @@ read_MRX(GT3_Varbuf *var, int zpos, size_t skip, size_t nelem, FILE *fp)
 	GT3_Datamask *mask;
 	unsigned nbit;
 	unsigned packed_len, skip2;
+	unsigned imiss;
 	int i, n;
 	float *outp;
 	int *nnn = NULL, temp_buf[1024];
@@ -687,9 +688,10 @@ read_MRX(GT3_Varbuf *var, int zpos, size_t skip, size_t nelem, FILE *fp)
 
 	unpack_bits_from32(idata, nnn[zpos], packed, nbit);
 
-	outp = (float *)var->data;
-	scale = dma[1] / ((1U << nbit) - 1);
+	imiss = (1U << nbit) - 1;
+	scale = (imiss == 1) ? 0. : dma[1] / (imiss - 1);
 
+	outp = (float *)var->data;
 	for (i = 0, n = 0; i < nelem; i++)
 		if (GT3_getMaskValue(mask, i)) {
 			outp[i] = (float)(dma[0] + idata[n] * scale);
