@@ -1,3 +1,5 @@
+#include "internal.h"
+
 #include <sys/types.h>
 #include <stdio.h>
 #include "gtool3.h"

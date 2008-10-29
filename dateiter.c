@@ -5,6 +5,8 @@
  *
  *  use caltime routine.
  */
+#include "internal.h"
+
 #include "gtool3.h"
 #include "caltime.h"
 #include "dateiter.h"

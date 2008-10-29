@@ -397,9 +397,9 @@ read_URC2(GT3_Varbuf *var, int zpos, size_t skip, size_t nelem, FILE *fp)
 static int
 read_URX(GT3_Varbuf *var, int zpos, size_t skip, size_t nelem, FILE *fp)
 {
-	unsigned packed_buf[RESERVE_SIZE];
+	uint32_t packed_buf[RESERVE_SIZE];
 	unsigned idata_buf[RESERVE_SIZE];
-	unsigned *packed;
+	uint32_t *packed;
 	unsigned *idata;
 	off_t off;
 	double dma[2];
@@ -431,8 +431,8 @@ read_URX(GT3_Varbuf *var, int zpos, size_t skip, size_t nelem, FILE *fp)
 	/*
 	 *  allocate bufs.
 	 */
-	packed = (unsigned *)tiny_alloc(packed_buf, sizeof(packed_buf),
-									sizeof(unsigned) * packed_len);
+	packed = (uint32_t *)tiny_alloc(packed_buf, sizeof(packed_buf),
+									sizeof(uint32_t) * packed_len);
 	idata  = (unsigned *)tiny_alloc(idata_buf, sizeof(idata_buf),
 									sizeof(unsigned) * nelem);
 
@@ -612,7 +612,7 @@ read_MRX(GT3_Varbuf *var, int zpos, size_t skip, size_t nelem, FILE *fp)
 	double dma[2], scale;
 	GT3_Datamask *mask;
 	unsigned nbit;
-	unsigned packed_len, skip2;
+	size_t packed_len, skip2;
 	unsigned imiss;
 	int i, n;
 	float *outp;
