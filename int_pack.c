@@ -10,15 +10,16 @@
 #define BWIDTH 32U
 
 
-unsigned
+size_t
 pack32_len(size_t siz, unsigned nbit)
 {
 	/* len = (nbit * siz + BWIDTH - 1) / BWIDTH; */
-	unsigned n = siz / BWIDTH; /* to avoid overflow */
+	size_t n = siz / BWIDTH; /* to avoid overflow */
 
 	siz -= n * BWIDTH;
 	return nbit * n + (nbit * siz + BWIDTH - 1) / BWIDTH;
 }
+
 
 /*
  *  pack N-bit integers into a 32-bit integers array.
@@ -31,10 +32,10 @@ pack_bits_into32(uint32_t *packed,
 				 const unsigned *data, size_t nelem,
 				 unsigned nbit)
 {
-	unsigned i, off;
+	unsigned off;
 	unsigned value, mask;
 	uint32_t *ptr;
-	size_t len;
+	size_t i, len;
 
 
 	assert(nbit > 0 && nbit < 32);
@@ -101,8 +102,8 @@ unpack_bits_from32(unsigned *data,
 void
 test0(void)
 {
-	int nelem, nbit;
-	int len;
+	int nbit;
+	int nelem, len;
 
 	for (nbit = 1; nbit < 32; nbit++)
 		for (nelem = 0; nelem < 100; nelem++) {
