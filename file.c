@@ -43,53 +43,6 @@ get_dimsize(int dim[], const GT3_HEADER *hh)
 }
 
 
-#if 0
-/*
- *  Skip fortran(unformatted) records.
- *  A record is comprised of
- *      1) header(4-byte in size)
- *      2) body
- *      3) trailer(4-byte in size).
- *
- */
-static int
-skip_records(FILE *fp, int num)
-{
-	fort_size_t head, trail;
-	int cnt;
-
-	for (cnt = 0; num > 0; num--, cnt++) {
-		if (fread(&head, 4, 1, fp) != 1) {
-			if (feof(fp))
-				break;
-
-			goto error;
-		}
-
-		if (IS_LITTLE_ENDIAN)
-			reverse_words(&head, 1);
-
-		if (fseeko(fp, head, SEEK_CUR) < 0)
-			goto error;
-
-		if (fread(&trail, 4, 1, fp) != 1)
-			goto error;
-
-		if (IS_LITTLE_ENDIAN)
-			reverse_words(&head, 1);
-
-		if (head != trail)
-			goto error;
-	}
-	return cnt;
-
-error:
-	gt3_error(GT3_ERR_BROKEN, NULL);
-	return -1;
-}
-#endif
-
-
 /*
  *  chunk size of UR4(size==4) or UR8(size==8).
  */
@@ -175,7 +128,8 @@ chunk_size_maskx(size_t nelem, int nz, int nbit, GT3_File *fp)
 
 
 /*
- *  chunk_size() returns a current chunk-size, including GTOOL3-header.
+ *  chunk_size() returns a current chunk-size.
+ *  The chunk comprises the gtool3-header and the data-body.
  */
 static size_t
 chunk_size(GT3_File *fp)
@@ -394,33 +348,72 @@ GT3_format(const char *str)
 
 	/* URX */
 	if (strncmp(str, "URX", 3) == 0) {
-		unsigned nbit;
+		unsigned nbits;
 		char *endptr;
 
-		nbit = (unsigned)strtol(str + 3, &endptr, 10);
+		nbits = (unsigned)strtol(str + 3, &endptr, 10);
 		if (endptr == str + 3
 			|| *endptr != '\0'
-			|| nbit > 31)
+			|| nbits > 31)
 			return -1;
 
-		return GT3_FMT_URX | nbit << GT3_FMT_MBIT;
+		return GT3_FMT_URX | nbits << GT3_FMT_MBIT;
 	}
 
 	/* MRX */
 	if (strncmp(str, "MRX", 3) == 0) {
-		unsigned nbit;
+		unsigned nbits;
 		char *endptr;
 
-		nbit = (unsigned)strtol(str + 3, &endptr, 10);
+		nbits = (unsigned)strtol(str + 3, &endptr, 10);
 		if (endptr == str + 3
 			|| *endptr != '\0'
-			|| nbit > 31)
+			|| nbits > 31)
 			return -1;
 
-		return GT3_FMT_MRX | nbit << GT3_FMT_MBIT;
+		return GT3_FMT_MRX | nbits << GT3_FMT_MBIT;
 	}
 
 	return -1;
+}
+
+
+int
+GT3_format_string(char *str, int fmt)
+{
+	struct { int key; const char *value; } dict[] = {
+		{ GT3_FMT_UR4,  "UR4"  },
+		{ GT3_FMT_URC,  "URC2" },
+		{ GT3_FMT_URC1, "URC"  },
+		{ GT3_FMT_UR8,  "UR8"  },
+		{ GT3_FMT_URX,  "URX"  },
+		{ GT3_FMT_MR4,  "MR4"  },
+		{ GT3_FMT_MR8,  "MR8"  },
+		{ GT3_FMT_MRX,  "MRX"  }
+	};
+	int i;
+	unsigned nbits;
+
+	for (i = 0; i < sizeof dict / sizeof dict[0]; i++)
+		if (dict[i].key == (fmt & GT3_FMT_MASK))
+			break;
+
+	if (i == sizeof dict / sizeof dict[0]) {
+		gt3_error(GT3_ERR_CALL, "%d: Invalid format id", fmt);
+		return -1;
+	}
+	if (dict[i].key == GT3_FMT_URX || dict[i].key == GT3_FMT_MRX) {
+		nbits = (unsigned)fmt >> GT3_FMT_MBIT;
+
+		if (nbits > 31) {
+			gt3_error(GT3_ERR_CALL, "%d: Invalid format id (nbit)", fmt);
+			return -1;
+		}
+		sprintf(str, "%s%02u", dict[i].value, nbits);
+	} else
+		sprintf(str, "%s", dict[i].value);
+
+	return 0;
 }
 
 
@@ -524,7 +517,7 @@ GT3_openHistFile(const char *path)
 	/*
 	 *  check if this is a uniform-file, whose all chunks
 	 *  are in the same size.
-	 *  
+	 *
 	 */
 	if (gp->size % gp->chsize == 0) {
 		gp->mode |= GT3_CONST_CHUNK_SIZE;
@@ -717,41 +710,31 @@ GT3_skipZ(GT3_File *fp, int z)
 }
 
 
-
-#ifdef TEST
-int
-test(const char *path)
-{
-	GT3_File *fp;
-	int i;
-
-	if ((fp = GT3_open(path)) == NULL) {
-		return -1;
-	}
-
-	for (i = 0; i < 20; i++) {
-		GT3_seek(fp, 1, SEEK_CUR);
-		printf("%d %d %d\n", fp->curr, fp->num_chunk, (int)fp->off);
-	}
-
-	for (i = 0; i < 20; i++) {
-		GT3_seek(fp, -1, SEEK_CUR);
-		printf("%d %d %d\n", fp->curr, fp->num_chunk, (int)fp->off);
-	}
-
-	GT3_seek(fp, -9999, SEEK_SET); /* out-of-range */
-	GT3_seek(fp, 9999, SEEK_SET); /* may be out-of-range */
-	GT3_close(fp);
-	return 0;
-}
-
+#ifdef TEST_MAIN
 int
 main(int argc, char **argv)
 {
-	GT3_setErrorFile(stderr);
-	GT3_setPrintOnError(1);
-	while (--argc > 0 && *++argv)
-		test(*argv);
+	const char *name[] = {
+		"UR4", "URC", "URC2", "UR8",
+		"MR4", "MR8",
+		"URX01", "URX12", "URX31",
+		"MRX01", "URX12", "MRX31"
+	};
+	int i, fmt, rval;
+	char dfmt[17];
+
+
+	for (i = 0; i < sizeof name / sizeof name[0]; i++) {
+		fmt = GT3_format(name[i]);
+
+		assert(fmt >= 0);
+
+		rval = GT3_format_string(dfmt, fmt);
+		assert(rval == 0);
+		assert(strcmp(name[i], dfmt) == 0);
+
+	}
+
 	return 0;
 }
 #endif
