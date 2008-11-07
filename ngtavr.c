@@ -43,8 +43,6 @@ static double g_miss_value;
 
 static int g_counter;			/* # of chunks integrated */
 static double g_totaltdur;
-static int g_default_format = GT3_FMT_UR8;
-
 static int g_snapshot_done;
 
 /*
@@ -55,9 +53,8 @@ static int g_zrange[] = { 0, 0x7ffffff };
 static int g_zsliced = 0;
 static int calendar_type = GT3_CAL_GREGORIAN;
 static int ignore_tdur = 0;
-static int g_format = -1;
 static double limit_factor = 0.;
-
+static char  g_format[] = "UR8             ";
 
 void
 clear_global()
@@ -71,7 +68,7 @@ clear_global()
 	}
 	g_counter = 0;
 	g_totaltdur = 0.;
-	g_default_format = GT3_FMT_UR8;
+	/* g_default_format = GT3_FMT_UR8; */
 	g_snapshot_done = 0;
 
 	GT3_setDate(&g_date1, 0, 1, 1, 0, 0, 0);
@@ -295,9 +292,6 @@ write_average(FILE *fp)
 	GT3_HEADER head;
 	double time;
 	int timeunit;
-	int fmt;
-	const char *dfmt[] = { "UR4", "URC", "URC1", "UR8" };
-
 
 	GT3_copyHeader(&head, &g_head);
 
@@ -360,11 +354,9 @@ write_average(FILE *fp)
 			g_date2.year, g_date2.mon, g_date2.day,
 			g_date2.hour, g_date2.min, g_date2.sec);
 
-	fmt = g_format != -1 ? g_format : g_default_format;
-
 	rval = GT3_write(g_vardata, GT3_TYPE_DOUBLE,
 					 g_dimlen[0], g_dimlen[1], g_dimlen[2],
-					 &head, dfmt[fmt], fp);
+					 &head, g_format, fp);
 	if (rval < 0)
 		GT3_printErrorMessages(stdout);
 
@@ -414,12 +406,6 @@ integrate_chunk(GT3_Varbuf *var)
 
 	if (g_counter > 0 && check_input(var, &head) < 0)
 		return -1;
-
-	/*
-	 *  update default output format:
-	 */
-	if (var->type != GT3_TYPE_DOUBLE)
-		g_default_format = GT3_FMT_UR4;
 
 	GT3_copyHeader(&g_head, &head);
 
@@ -694,31 +680,14 @@ setStepsize(GT3_Date *step, const char *str)
 }
 
 
-
-int
-get_output_format(const char *name)
+static char *
+toupper_string(char *str)
 {
-	struct { const char *key; int value; } tab[] = {
-		{ "UR4",  GT3_FMT_UR4  },
-		{ "URC",  GT3_FMT_URC  },
-		{ "URC2", GT3_FMT_URC  },
-		{ "URC1", GT3_FMT_URC1 }, /* deprecated */
-		{ "UR8",  GT3_FMT_UR8  }
-	};
-	int i;
-	int rval = -1;
-	char buf[8];
+	char *p = str;
 
-	for (i = 0; i < sizeof buf - 1 && name[i] != '\0'; i++)
-		buf[i] = toupper(name[i]);
-	buf[i] = '\0';
-
-	for (i = 0; i < sizeof tab / sizeof tab[0]; i++)
-		if (strcmp(buf, tab[i].key) == 0) {
-			rval = tab[i].value;
-			break;
-		}
-	return rval;
+	while ((*p = toupper(*p)))
+		p++;
+	return str;
 }
 
 
@@ -771,6 +740,8 @@ main(int argc, char **argv)
 	enum { SEQUENCE_MODE, EACH_TIMESTEP_MODE, CYCLIC_MODE };
 	int avrmode = SEQUENCE_MODE;
 	char *endptr;
+	char dummy[17];
+
 
 	open_logging(stderr, PROGNAME);
 	GT3_setProgname(PROGNAME);
@@ -786,12 +757,12 @@ main(int argc, char **argv)
 			break;
 
 		case 'f':
-			if ((g_format = get_output_format(optarg)) < 0) {
+			toupper_string(optarg);
+			if (GT3_output_format(dummy, optarg) < 0) {
 				logging(LOG_ERR, "%s: Unknown format name", optarg);
 				exit(1);
 			}
-			if (g_format == GT3_FMT_URC1)
-				logging(LOG_WARN, "URC1 is deprecated");
+			strncpy(g_format, optarg, 16);
 			break;
 
 		case 'l':
