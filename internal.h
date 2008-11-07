@@ -27,7 +27,7 @@ typedef unsigned uint32_t;
 #endif
 
 #ifndef IO_BUF_SIZE
-#  define IO_BUF_SIZE  (16*1024)
+#  define IO_BUF_SIZE  (64*1024)
 #endif
 
 /*

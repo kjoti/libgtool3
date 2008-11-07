@@ -201,6 +201,7 @@ enum {
 int GT3_readHeader(GT3_HEADER *header, GT3_File *fp);
 int GT3_isHistfile(GT3_File *fp);
 int GT3_format(const char *str);
+int GT3_format_string(char *str, int fmt);
 int GT3_countChunk(const char *path);
 int GT3_getNumChunk(const GT3_File *fp);
 GT3_File *GT3_open(const char *path);
@@ -269,9 +270,8 @@ void GT3_mergeHeader(GT3_HEADER *dest, const GT3_HEADER *src);
 void GT3_copyHeader(GT3_HEADER *dest, const GT3_HEADER *src);
 int GT3_getHeaderItemID(const char *name);
 
-
-
 /* write.c */
+int GT3_output_format(char *dfmt, const char *str);
 int GT3_write(const void *ptr, int type,
               int nx, int ny, int nz,
               const GT3_HEADER *headin, const char *dfmt, FILE *fp);

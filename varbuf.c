@@ -65,21 +65,6 @@ typedef void (*UNPACK_FUNC)(const unsigned *packed, int packed_len,
 							double miss, float *data);
 
 
-#ifndef IS_LITTLE_ENDIAN
-/*
- *  run-time endian check.
- */
-#define IS_LITTLE_ENDIAN is_little_endian()
-static int
-is_little_endian(void)
-{
-	unsigned a = 1;
-
-	return *((char *)&a) == 1;
-}
-#endif
-
-
 #define clip(v, l, h) ((v) < (l) ? (l) : ((v) > (h) ? (h) : v))
 
 

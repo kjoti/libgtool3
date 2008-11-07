@@ -37,6 +37,7 @@ OBJS		= \
 		int_pack.o \
 		mask.o \
 		reverse.o \
+		scaling.o \
 		talloc.o \
 		timedim.o \
 		urc_pack.o \
