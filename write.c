@@ -1226,7 +1226,6 @@ main(int argc, char **argv)
 	assert((fmt >> GT3_FMT_MBIT) == 12);
 	assert(strcmp(dfmt, "URX12") == 0);
 
-	test();
 	test2();
 	return 0;
 }
