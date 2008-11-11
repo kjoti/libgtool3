@@ -106,6 +106,37 @@ idx_max_float(const float *data, size_t nelem, const float *maskval)
 
 
 size_t
+masked_scalingf(unsigned *dest,
+				const float *src,
+				size_t nelem,
+				double offset, double scale,
+				unsigned imiss, double miss)
+{
+	int i;
+	double v;
+	double iscale;
+	size_t cnt;
+
+	iscale = (scale == 0.) ? 0. : 1. / scale;
+	for (cnt = 0, i = 0; i < nelem; i++)
+		if (src[i] != miss) {
+			v = ((src[i] - offset) * iscale + 0.5);
+
+			if (v < 0.)
+				dest[cnt] = 0;
+			else if (v > (double)(imiss - 1))
+				dest[cnt] = imiss - 1;
+			else
+				dest[cnt] = (unsigned)v;
+
+			cnt++;
+		}
+	return cnt;
+}
+
+
+
+size_t
 masked_scaling(unsigned *dest,
 			   const double *src,
 			   size_t nelem,
