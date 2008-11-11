@@ -377,30 +377,88 @@ read_URC2(GT3_Varbuf *var, int zpos, size_t skip, size_t nelem, FILE *fp)
 
 
 /*
+ *  read packed data in URX-format and decode them.
+ */
+static int
+read_urx_packed(float *outp,
+				size_t nelems,
+				int nbits,
+				const double *dma,
+				double miss,
+				FILE *fp)
+{
+#define URXBUFSIZ 1024
+	uint32_t packed[32 * URXBUFSIZ];
+	unsigned idata[32 * URXBUFSIZ];
+	uint32_t imiss;
+	double scale;
+	size_t npack_per_read, ndata_per_read;
+	size_t npack, ndata, nrest, nrest_packed;
+	int i;
+
+
+	imiss = (1U << nbits) - 1;
+	scale = (imiss == 1) ? 0. : dma[1] / (imiss - 1);
+
+	npack_per_read = URXBUFSIZ * nbits;
+	ndata_per_read = 32 * URXBUFSIZ;
+
+	nrest = nelems;
+	nrest_packed = pack32_len(nelems, nbits);
+
+	while (nrest > 0) {
+		npack = nrest_packed > npack_per_read
+			? npack_per_read
+			: nrest_packed;
+
+		ndata = nrest > ndata_per_read
+			? ndata_per_read
+			: nrest;
+
+		assert(npack == pack32_len(ndata, nbits));
+
+		if (fread(packed, 4, npack, fp) != npack)
+			return -1;
+
+		if (IS_LITTLE_ENDIAN)
+			reverse_words(packed, npack);
+
+		unpack_bits_from32(idata, ndata, packed, nbits);
+
+		for (i = 0; i < ndata; i++)
+			outp[i] = (idata[i] != imiss)
+				? dma[0] + idata[i] * scale
+				: miss;
+
+		outp += ndata;
+		nrest -= ndata;
+		nrest_packed -= npack;
+	}
+	assert(nrest == 0 && nrest_packed == 0);
+
+	return 0;
+}
+
+
+
+/*
  *  XXX: 'skip' and 'nelem' are ignored for now.
  *  read_URX() reads all data in a z-plane.
  */
 static int
 read_URX(GT3_Varbuf *var, int zpos, size_t skip, size_t nelem, FILE *fp)
 {
-#define URXBUFSIZ 1024
-	uint32_t packed[32 * URXBUFSIZ];
-	unsigned idata[32 * URXBUFSIZ];
 	off_t off;
-	double dma[2], scale;
-	unsigned nbits, imiss;
-	float *outp;
-	size_t npack_per_read, ndata_per_read;
-	size_t npack, ndata, nrest, nrest_packed;
-	int i;
+	double dma[2];
+	unsigned nbits;
+	size_t zelems;				/* # of elements in a z-level */
 
 	/*
-	 * XXX: read_URX() always reads all data in a z-plane.
+	 * XXX: read_URX() always reads all the data in a z-plane.
 	 * 'skip' and 'nelem' passed as an argument are ignored.
 	 */
-	nelem = (size_t)(var->dimlen[0] * var->dimlen[1]);
+	zelems = (size_t)(var->dimlen[0] * var->dimlen[1]);
 	nbits = (unsigned)var->fp->fmt >> GT3_FMT_MBIT;
-
 
 	/*
 	 *  read packing parameters for URX.
@@ -411,56 +469,19 @@ read_URX(GT3_Varbuf *var, int zpos, size_t skip, size_t nelem, FILE *fp)
 	if (read_dwords_from_record(dma, 2 * zpos, 2, fp) < 0)
 		return -1;
 
-	nrest = nelem;
-	nrest_packed = pack32_len(nrest, nbits);
-
 	/*
 	 *  skip to zpos.
 	 */
-	off = sizeof(fort_size_t) + 4 * zpos * nrest_packed;
+	off = sizeof(fort_size_t) + 4 * zpos * pack32_len(zelems, nbits);
 	if (fseeko(fp, off, SEEK_CUR) < 0)
 		return -1;
 
 	/*
 	 *  read packed DATA-BODY in zpos.
 	 */
-	imiss = (1U << nbits) - 1;
-	scale = (imiss == 1) ? 0. : dma[1] / (imiss - 1);
+	if (read_urx_packed(var->data, zelems, nbits, dma, var->miss, fp) < 0)
+		return -1;
 
-	npack_per_read = URXBUFSIZ * nbits;
-	ndata_per_read = 32 * URXBUFSIZ;
-
-	outp = (float *)var->data;
-	while (nrest > 0) {
-		npack = nrest_packed > npack_per_read
-			? npack_per_read
-			: nrest_packed;
-
-		if (fread(packed, 4, npack, fp) != npack)
-			return -1;
-
-		if (IS_LITTLE_ENDIAN)
-			reverse_words(packed, npack);
-
-		ndata = nrest > ndata_per_read
-			? ndata_per_read
-			: nrest;
-
-		assert(npack == pack32_len(ndata, nbits));
-
-		unpack_bits_from32(idata, ndata, packed, nbits);
-
-		for (i = 0; i < ndata; i++)
-			outp[i] = (idata[i] != imiss)
-				? dma[0] + idata[i] * scale
-				: var->miss;
-
-		outp += ndata;
-		nrest -= ndata;
-		nrest_packed -= npack;
-	}
-
-	assert(nrest == 0 && nrest_packed == 0);
 	return 0;
 }
 
@@ -506,7 +527,7 @@ read_MRN_pre(void *temp,
 		return -1;
 
 	/*
-	 *  nread: the # of MASK-ON elements.
+	 *  nread: the # of MASK-ON elements to read.
 	 */
 	nread = mask->index[idx0 + nelem] - mask->index[idx0];
 	assert(nread <= nelem);
@@ -521,40 +542,40 @@ read_MRN_pre(void *temp,
 static int
 read_MR4(GT3_Varbuf *var, int zpos, size_t skip, size_t nelem, FILE *fp)
 {
-	float temp_buf[RESERVE_SIZE];
-	float *outp, *temp = NULL;
+	float masked_buf[RESERVE_SIZE];
+	float *outp, *masked = NULL;
 	int nread;
 	int offnum;
 	int i, n;
 
-	temp = (float *)tiny_alloc(temp_buf,
-							   sizeof(temp_buf),
-							   sizeof(float) * nelem);
-	if (!temp)
+	masked = (float *)tiny_alloc(masked_buf,
+								 sizeof masked_buf,
+								 sizeof(float) * nelem);
+	if (!masked)
 		return -1;
 
-	if ((nread = read_MRN_pre(temp, var, sizeof(float),
+	if ((nread = read_MRN_pre(masked, var, sizeof(float),
 							  zpos, skip, nelem)) < 0) {
-		tiny_free(temp, temp_buf);
+		tiny_free(masked, masked_buf);
 		return -1;
 	}
 
 	if (IS_LITTLE_ENDIAN)
-		reverse_words(temp, nread);
+		reverse_words(masked, nread);
 
 	offnum = var->dimlen[0] * var->dimlen[1] * zpos + skip;
 	outp = (float *)var->data;
 	outp += skip;
 	for (i = 0, n = 0; i < nelem; i++) {
 		if (GT3_getMaskValue(var->fp->mask, offnum + i)) {
-			outp[i] = temp[n];
+			outp[i] = masked[n];
 			n++;
 		} else
 			outp[i] = (float)(var->miss);
 	}
 	assert(n == nread);
 
-	tiny_free(temp, temp_buf);
+	tiny_free(masked, masked_buf);
 
 	return 0;
 }
@@ -572,7 +593,7 @@ read_MR8(GT3_Varbuf *var, int zpos, size_t skip, size_t nelem, FILE *fp)
 	assert(var->type == GT3_TYPE_DOUBLE);
 
 	temp = (double *)tiny_alloc(temp_buf,
-							   sizeof(temp_buf),
+							   sizeof temp_buf,
 							   sizeof(double) * nelem);
 	if (!temp)
 		return -1;
@@ -608,34 +629,35 @@ static int
 read_MRX(GT3_Varbuf *var, int zpos, size_t skip, size_t nelem, FILE *fp)
 {
 	off_t off;
-	double dma[2], scale;
+	double dma[2];
 	GT3_Datamask *mask;
-	unsigned nbit;
-	size_t packed_len, skip2;
-	unsigned imiss;
+	unsigned nbits;
+	size_t skip2;
 	int i, n;
 	float *outp;
-	int *nnn = NULL, temp_buf[RESERVE_NZ];
-	uint32_t *packed = NULL, packed_buf[RESERVE_SIZE];
-	unsigned *idata = NULL, idata_buf[RESERVE_SIZE];
+	int nnn_buf[RESERVE_NZ];
+	float data_buf[RESERVE_SIZE];
+	int *nnn = nnn_buf;			/* the Number of Non-missing Number  */
+	float *data = data_buf;
 
-
+	/*
+	 *  read MASK.
+	 */
 	mask = var->fp->mask;
 	if (!mask && (mask = GT3_newMask()) == NULL)
 		return -1;
-
-	/* read MASK. */
 	if (GT3_loadMaskX(mask, zpos, var->fp) != 0)
 		return -1;
 	var->fp->mask = mask;
 
 
-	if ((nnn = (int *)tiny_alloc(temp_buf,
-								 sizeof(temp_buf),
+	if ((nnn = (int *)tiny_alloc(nnn_buf,
+								 sizeof nnn_buf,
 								 sizeof(int) * var->dimlen[2])) == NULL)
 		return -1;
 
 
+	/* skip to NNN */
 	off = var->fp->off
 		+ GT3_HEADER_SIZE + 2 * sizeof(fort_size_t)
 		+ 4 + 2 * sizeof(fort_size_t);
@@ -658,57 +680,47 @@ read_MRX(GT3_Varbuf *var, int zpos, size_t skip, size_t nelem, FILE *fp)
 	if (read_words_from_record(NULL, 0, 0, fp) < 0)
 		goto error;
 
-	/*
-	 *  read DATA BODY (masked & packed).
-	 */
-	nbit = var->fp->fmt >> GT3_FMT_MBIT;
-	for (skip2 = 0, i = 0; i < zpos; i++)
-		skip2 += pack32_len(nnn[i], nbit);
-	packed_len = pack32_len(nnn[zpos], nbit);
+	nbits = (unsigned)var->fp->fmt >> GT3_FMT_MBIT;
 
-	if ((packed = (uint32_t *)
-		 tiny_alloc(packed_buf,
-					sizeof(packed_buf),
-					sizeof(uint32_t) * packed_len)) == NULL
-		|| read_words_from_record(packed,
-								  skip2,
-								  packed_len,
-								  fp) < 0)
+	/*
+	 *  skip to zpos.
+	 */
+	for (skip2 = sizeof(fort_size_t), i = 0; i < zpos; i++)
+		skip2 += 4 * pack32_len(nnn[i], nbits);
+	if (fseeko(fp, skip2, SEEK_CUR) < 0)
 		goto error;
 
 	/*
-	 *  unpack masked & packed data.
+	 *  read packed data and decode them.
 	 */
-	if ((idata = (unsigned *)
-		 tiny_alloc(idata_buf,
-					sizeof(idata_buf),
-					sizeof(unsigned) * nnn[zpos])) == NULL)
+	if ((data = tiny_alloc(data_buf,
+						   sizeof data_buf,
+						   sizeof(float) * nnn[zpos])) == NULL
+		|| read_urx_packed(data, nnn[zpos], nbits, dma, var->miss, fp) < 0)
 		goto error;
 
-	unpack_bits_from32(idata, nnn[zpos], packed, nbit);
-
-	imiss = (1U << nbit) - 1;
-	scale = (imiss == 1) ? 0. : dma[1] / (imiss - 1);
-
-	outp = (float *)var->data;
+	/*
+	 *  unmask.
+	 */
+	assert(var->type == GT3_TYPE_FLOAT);
+	outp = var->data;
 	for (i = 0, n = 0; i < nelem; i++)
 		if (GT3_getMaskValue(mask, i)) {
-			outp[i] = (float)(dma[0] + idata[n] * scale);
+			outp[i] = data[n];
 			n++;
 		} else
 			outp[i] = (float)var->miss;
 
 	assert(n == nnn[zpos]);
 
-	tiny_free(idata, idata_buf);
-	tiny_free(packed, packed_buf);
-	tiny_free(nnn, temp_buf);
+	tiny_free(nnn, nnn_buf);
+	tiny_free(data, data_buf);
 	return 0;
 
 error:
-	tiny_free(idata, idata_buf);
-	tiny_free(packed, packed_buf);
-	tiny_free(nnn, temp_buf);
+	gt3_error(SYSERR, NULL);
+	tiny_free(nnn, nnn_buf);
+	tiny_free(data, data_buf);
 	return -1;
 }
 
