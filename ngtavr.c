@@ -54,7 +54,7 @@ static int g_zsliced = 0;
 static int calendar_type = GT3_CAL_GREGORIAN;
 static int ignore_tdur = 0;
 static double limit_factor = 0.;
-static char  g_format[] = "UR8             ";
+static char  g_format[] = "UR8\0\0\0\0\0\0\0\0\0\0\0\0\0";
 
 void
 clear_global()
