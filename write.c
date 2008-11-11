@@ -370,19 +370,19 @@ write_urx(const void *ptr,
 		  int nbits, double miss,
 		  FILE *fp)
 {
-	unsigned idata_buf[RESERVE_SIZE];
-	uint32_t packed_buf[RESERVE_SIZE];
 	double dma_buf[256];
-	unsigned *idata = idata_buf;
-	uint32_t *packed = packed_buf;
 	double *dma = dma_buf;
 	double scale0;
 	unsigned imiss;
-	size_t packed_len;
+	size_t nelems, len, plen, packed_len;
 	int i;
+	const char *ptr2;
+#define URXBUFSIZ (32 * 1024)
+	unsigned idata[URXBUFSIZ];
+	uint32_t packed[URXBUFSIZ];
 
-	assert(size == 4 || size == 8);
-	assert(nbits > 0 || nbits < 32);
+
+	assert(URXBUFSIZ % 32 == 0);
 
 	if ((dma = (double *)
 		 tiny_alloc(dma_buf,
@@ -419,16 +419,6 @@ write_urx(const void *ptr,
 	scale0 = (imiss == 1) ? 1. : 1. / (imiss - 1);
 	packed_len = pack32_len(zelem, nbits);
 
-	if ((idata = (unsigned *)
-		 tiny_alloc(idata_buf,
-					sizeof idata_buf,
-					zelem * sizeof(unsigned))) == NULL
-		|| (packed = (uint32_t *)
-			tiny_alloc(packed_buf,
-					   sizeof packed_buf,
-					   packed_len * sizeof(uint32_t))) == NULL)
-		goto error;
-
 	/*
 	 *  write a header of data-body.
 	 */
@@ -439,26 +429,36 @@ write_urx(const void *ptr,
 	 *  write data-body (packed)
 	 */
 	for (i = 0; i < nz; i++) {
-		if (size == 4)
-			scalingf(idata,
-					 (float *)((char *)ptr + i * zelem * size),
-					 zelem,
-					 dma[2*i], dma[1+2*i] * scale0,
-					 imiss, miss);
-		else
-			scaling(idata,
-					(double *)((char *)ptr + i * zelem * size),
-					zelem,
-					dma[2*i], dma[1+2*i] * scale0,
-					imiss, miss);
+		ptr2 = (const char *)ptr + i *zelem * size;
+		nelems = zelem;
 
-		pack_bits_into32(packed, idata, zelem, nbits);
+		while (nelems > 0) {
+			len = (nelems > URXBUFSIZ) ? URXBUFSIZ : nelems;
 
-		if (IS_LITTLE_ENDIAN)
-			reverse_words(packed, packed_len);
+			if (size == 4)
+				scalingf(idata,
+						 (float *)ptr2,
+						 len,
+						 dma[2*i], dma[1+2*i] * scale0,
+						 imiss, miss);
+			else
+				scaling(idata,
+						(double *)ptr2,
+						len,
+						dma[2*i], dma[1+2*i] * scale0,
+						imiss, miss);
 
-		if (fwrite(packed, 4, packed_len, fp) != packed_len)
-			goto error;
+			plen = pack_bits_into32(packed, idata, len, nbits);
+
+			if (IS_LITTLE_ENDIAN)
+				reverse_words(packed, plen);
+
+			if (fwrite(packed, 4, plen, fp) != plen)
+				goto error;
+
+			ptr2 += len * size;
+			nelems -= len;
+		}
 	}
 
 	/* write a trailer of data-body */
@@ -466,15 +466,11 @@ write_urx(const void *ptr,
 		goto error;
 
 
-	tiny_free(packed, packed_buf);
-	tiny_free(idata, idata_buf);
 	tiny_free(dma, dma_buf);
 	return 0;
 
 error:
 	gt3_error(SYSERR, NULL);
-	tiny_free(packed, packed_buf);
-	tiny_free(idata, idata_buf);
 	tiny_free(dma, dma_buf);
 	return -1;
 }
@@ -485,7 +481,7 @@ write_urx_via_double(const void *ptr,
 					 size_t zelem, size_t nz,
 					 int nbits, double miss, FILE *fp)
 {
-	return write_urx(ptr, 8, zelem, nz, nbits, miss, fp);
+	return write_urx(ptr, sizeof(double), zelem, nz, nbits, miss, fp);
 }
 
 static int
@@ -493,7 +489,129 @@ write_urx_via_float(const void *ptr,
 					size_t zelem, size_t nz,
 					int nbits, double miss, FILE *fp)
 {
-	return write_urx(ptr, 4, zelem, nz, nbits, miss, fp);
+	return write_urx(ptr, sizeof(float), zelem, nz, nbits, miss, fp);
+}
+
+
+/*
+ *  some tricky staff to support both 'double' and 'float'.
+ */
+
+
+static unsigned
+masked_count(const void *ptr, size_t size, size_t nelems, double miss)
+{
+	unsigned cnt;
+	int i;
+
+	if (size == 4) {
+		const float *data = ptr;
+		float missf = (float)miss;
+
+		for (cnt = 0, i = 0; i < nelems; i++)
+			if (data[i] != missf)
+				cnt++;
+	} else {
+		const double *data = ptr;
+
+		for (cnt = 0, i = 0; i < nelems; i++)
+			if (data[i] != miss)
+				cnt++;
+	}
+	return cnt;
+}
+
+
+static size_t
+masked_copyf(size_t *nread,
+			 float *dest,
+			 const void *srcptr,
+			 size_t size,		/* 4 or 8 */
+			 size_t destlen, size_t srclen,
+			 double miss)
+{
+	size_t cnt;
+	int i;
+
+	if (size == 4) {
+		const float *data = srcptr;
+		float missf = (float)miss;
+
+		for (cnt = 0, i = 0; i < srclen && cnt < destlen; i++)
+			if (data[i] != missf) {
+				dest[cnt] = data[i];
+				cnt++;
+			}
+	} else {
+		const double *data = srcptr;
+
+		for (cnt = 0, i = 0; i < srclen && cnt < destlen; i++)
+			if (data[i] != miss) {
+				dest[cnt] = (float)data[i];
+				cnt++;
+			}
+	}
+
+	*nread = i;
+	return cnt;
+}
+
+
+static size_t
+masked_copy(size_t *nread,
+			double *dest,
+			const void *srcptr,
+			size_t size,		/* 4 or 8 */
+			size_t destlen, size_t srclen,
+			double miss)
+{
+	size_t cnt;
+	int i;
+
+	if (size == 4) {
+		const float *data = srcptr;
+		float missf = (float)miss;
+
+		for (cnt = 0, i = 0; i < srclen && cnt < destlen; i++)
+			if (data[i] != missf) {
+				dest[cnt] = data[i];
+				cnt++;
+			}
+	} else {
+		const double *data = srcptr;
+
+		for (cnt = 0, i = 0; i < srclen && cnt < destlen; i++)
+			if (data[i] != miss) {
+				dest[cnt] = data[i];
+				cnt++;
+			}
+	}
+
+	*nread = i;
+	return cnt;
+}
+
+
+static void
+get_flag_for_mask(unsigned *flag,
+				  size_t len,
+				  const void *ptr,
+				  size_t size, double miss)
+{
+	int i;
+
+	if (size == 4) {
+		const float *data = ptr;
+		float missf = (float)miss;
+
+		for (i = 0; i < len; i++)
+			flag[i] = (data[i] != missf) ? 1 : 0;
+	} else {
+		const double *data = ptr;
+
+		for (i = 0; i < len; i++)
+			flag[i] = (data[i] != miss) ? 1 : 0;
+	}
 }
 
 
@@ -501,15 +619,16 @@ write_urx_via_float(const void *ptr,
  *  write MASK (common to MR4, MR8, MRX).
  */
 static int
-write_mask_via_double(const double *data,
-					  size_t nelems, size_t nsets,
-					  double miss, FILE *fp)
+write_mask(const void *ptr2,
+		   size_t size, /* 4(float) or 8(double) */
+		   size_t nelems, size_t nsets,
+		   double miss, FILE *fp)
 {
 	uint32_t mask[BUFLEN];
 	unsigned flag[32 * BUFLEN];
 	size_t num, masklen, len, mlen;
-	int n, i;
-
+	int n;
+	const char *ptr = ptr2;
 
 	masklen = pack32_len(nelems, 1);
 	if (write_record_sep(4 * masklen * nsets, fp) < 0)
@@ -521,8 +640,7 @@ write_mask_via_double(const double *data,
 		while (num > 0) {
 			len = num > 32 * BUFLEN ? 32 * BUFLEN : num;
 
-			for (i = 0; i < len; i++)
-				flag[i] = (data[i] != miss) ? 1 : 0;
+			get_flag_for_mask(flag, len, ptr, size, miss);
 
 			mlen = pack_bits_into32(mask, flag, len, 1);
 			assert(mlen > 0 && mlen <= BUFLEN);
@@ -535,7 +653,7 @@ write_mask_via_double(const double *data,
 				return -1;
 			}
 			num -= len;
-			data += len;
+			ptr += len * size;
 		}
 	}
 
@@ -547,25 +665,26 @@ write_mask_via_double(const double *data,
 
 
 static int
-write_mr4_via_double(const double *data, size_t nelems, double miss, FILE *fp)
+write_mr4(const void *ptr2,
+		  size_t size,			/* ptr2: 4(float) or 8(double) */
+		  size_t nelems, double miss, FILE *fp)
 {
-	unsigned cnt;
-	size_t n, i;
+	const char *ptr;
+	uint32_t cnt;
+	size_t ncopy, nread;
 	float copied[BUFLEN];
 
 	/*
 	 *  write the # of not-missing value.
 	 */
-	for (cnt = 0, i = 0; i < nelems; i++)
-		if (data[i] != miss)
-			cnt++;
+	cnt = (uint32_t)masked_count(ptr2, size, nelems, miss);
 	if (write_words_into_record(&cnt, 1, fp) < 0)
 		return -1;
 
 	/*
 	 *  write MASK.
 	 */
-	if (write_mask_via_double(data, nelems, 1, miss, fp) < 0)
+	if (write_mask(ptr2, size, nelems, 1, miss, fp) < 0)
 		return -1;
 
 	/*
@@ -574,24 +693,22 @@ write_mr4_via_double(const double *data, size_t nelems, double miss, FILE *fp)
 	if (write_record_sep(sizeof(float) * cnt, fp) < 0)
 		return -1;
 
+	ptr = ptr2;
 	while (nelems > 0) {
-		for (n = 0, i = 0; i < nelems && n < BUFLEN; i++)
-			if (data[i] != miss) {
-				copied[n] = (float)data[i];
-				n++;
-			}
+		ncopy = masked_copyf(&nread, copied, ptr, size, BUFLEN, nelems, miss);
 
 		if (IS_LITTLE_ENDIAN)
-			reverse_words(copied, n);
+			reverse_words(copied, ncopy);
 
-		if (fwrite(copied, sizeof(float), n, fp) != n) {
+		if (fwrite(copied, sizeof(float), ncopy, fp) != ncopy) {
 			gt3_error(SYSERR, NULL);
 			return -1;
 		}
 
-		nelems -= i;
-		data += i;
+		nelems -= nread;
+		ptr += nread * size;
 	}
+
 	if (write_record_sep(sizeof(float) * cnt, fp) < 0)
 		return -1;
 	return 0;
@@ -599,25 +716,27 @@ write_mr4_via_double(const double *data, size_t nelems, double miss, FILE *fp)
 
 
 static int
-write_mr8_via_double(const double *data, size_t nelems, double miss, FILE *fp)
+write_mr8(const void *ptr2,
+		  size_t size,			/* ptr2: 4(float) or 8(double) */
+		  size_t nelems, double miss, FILE *fp)
 {
-	unsigned cnt;
-	size_t n, i;
+	const char *ptr;
+	uint32_t cnt;
+	size_t ncopy, nread;
 	double copied[BUFLEN];
+
 
 	/*
 	 *  write the # of not-missing value.
 	 */
-	for (cnt = 0, i = 0; i < nelems; i++)
-		if (data[i] != miss)
-			cnt++;
+	cnt = (uint32_t)masked_count(ptr2, size, nelems, miss);
 	if (write_words_into_record(&cnt, 1, fp) < 0)
 		return -1;
 
 	/*
 	 *  write MASK.
 	 */
-	if (write_mask_via_double(data, nelems, 1, miss, fp) < 0)
+	if (write_mask(ptr2, size, nelems, 1, miss, fp) < 0)
 		return -1;
 
 	/*
@@ -626,24 +745,22 @@ write_mr8_via_double(const double *data, size_t nelems, double miss, FILE *fp)
 	if (write_record_sep(sizeof(double) * cnt, fp) < 0)
 		return -1;
 
+	ptr = ptr2;
 	while (nelems > 0) {
-		for (n = 0, i = 0; i < nelems && n < BUFLEN; i++)
-			if (data[i] != miss) {
-				copied[n] = data[i];
-				n++;
-			}
+		ncopy = masked_copy(&nread, copied, ptr, size, BUFLEN, nelems, miss);
 
 		if (IS_LITTLE_ENDIAN)
-			reverse_dwords(copied, n);
+			reverse_dwords(copied, ncopy);
 
-		if (fwrite(copied, sizeof(double), n, fp) != n) {
+		if (fwrite(copied, sizeof(double), ncopy, fp) != ncopy) {
 			gt3_error(SYSERR, NULL);
 			return -1;
 		}
 
-		nelems -= i;
-		data += i;
+		nelems -= nread;
+		ptr += nread * size;
 	}
+
 	if (write_record_sep(sizeof(double) * cnt, fp) < 0)
 		return -1;
 	return 0;
@@ -651,52 +768,80 @@ write_mr8_via_double(const double *data, size_t nelems, double miss, FILE *fp)
 
 
 static int
-write_mrx_via_double(const double *data,
-					 size_t zelems, size_t nz,
-					 int nbits, double miss,
-					 FILE *fp)
+write_mr4_via_double(const double *data, size_t nelems, double miss, FILE *fp)
 {
-	unsigned cnt_buf[128];
-	size_t plen_buf[128];
+	return write_mr4(data, sizeof(double), nelems, miss, fp);
+}
+
+static int
+write_mr4_via_float(const float *data, size_t nelems, double miss, FILE *fp)
+{
+	return write_mr4(data, sizeof(float), nelems, miss, fp);
+}
+
+static int
+write_mr8_via_double(const double *data, size_t nelems, double miss, FILE *fp)
+{
+	return write_mr8(data, sizeof(double), nelems, miss, fp);
+}
+
+static int
+write_mr8_via_float(const float *data, size_t nelems, double miss, FILE *fp)
+{
+	return write_mr8(data, sizeof(float), nelems, miss, fp);
+}
+
+
+static int
+write_mrx(const void *ptr2,
+		  size_t size,			/* 4 or 8 */
+		  size_t zelems, size_t nz,
+		  int nbits, double miss,
+		  FILE *fp)
+{
+	const char *ptr = ptr2;
+	uint32_t cnt_buf[128];
+	uint32_t plen_buf[128];
 	double dma_buf[256];
 	unsigned idata_buf[RESERVE_SIZE];
 	uint32_t packed_buf[RESERVE_SIZE];
-	unsigned *cnt = cnt_buf;
-	size_t *plen = plen_buf;
+	uint32_t *cnt = cnt_buf;
+	uint32_t *plen = plen_buf;
 	double *dma = dma_buf;
 	unsigned *idata = idata_buf;
 	uint32_t *packed = packed_buf;
-	size_t plen_all, ncopy, len;
+	uint32_t plen_all;
+
+
+	size_t ncopy, len;
 	unsigned imiss;
 	double scale0;
-	unsigned i, c, n;
+	unsigned i;
 
 
-	if ((cnt = (unsigned *)
+	if ((cnt = (uint32_t *)
 		 tiny_alloc(cnt_buf,
 					sizeof cnt_buf,
-					sizeof(unsigned) * nz)) == NULL
-		|| (plen = (size_t *)
+					sizeof(uint32_t) * nz)) == NULL
+		|| (plen = (uint32_t *)
 			tiny_alloc(plen_buf,
 					   sizeof plen_buf,
-					   sizeof(size_t) * nz)) == NULL
+					   sizeof(uint32_t) * nz)) == NULL
 		|| (dma = (double *)
 			tiny_alloc(dma_buf,
 					   sizeof dma_buf,
 					   sizeof(double) * 2 * nz)) == NULL)
 		goto error;
 
-	for (i = 0; i < nz; i++) {
-		for (c = 0, n = 0; n < zelems; n++)
-			if (data[n + i * zelems] != miss)
-				c++;
+	for (ptr = ptr2, i = 0; i < nz; i++, ptr += zelems * size) {
+		cnt[i] = masked_count(ptr, size, zelems, miss);
 
-		cnt[i] = c;
-		plen[i] = pack32_len(c, nbits);
+		plen[i] = (uint32_t)pack32_len(cnt[i], nbits);
 
-		get_urx_parameter(dma + 2 * i,
-						  data + i * zelems,
-						  zelems, miss);
+		if (size == 4)
+			get_urx_parameterf(dma + 2 * i, (float *)ptr, zelems, miss);
+		else
+			get_urx_parameter(dma + 2 * i, (double *)ptr, zelems, miss);
 	}
 
 	for (plen_all = 0, i = 0; i < nz; i++)
@@ -706,7 +851,7 @@ write_mrx_via_double(const double *data,
 		|| write_words_into_record(cnt, nz, fp) < 0
 		|| write_words_into_record(plen, nz, fp) < 0
 		|| write_dwords_into_record(dma, 2 * nz, fp) < 0
-		|| write_mask_via_double(data, zelems, nz, miss, fp) < 0)
+		|| write_mask(ptr2, size, zelems, nz, miss, fp) < 0)
 		goto error;
 
 
@@ -731,12 +876,22 @@ write_mrx_via_double(const double *data,
 	if (write_record_sep(4 * plen_all, fp) < 0)
 		goto error;
 
-	for (i = 0; i < nz; i++) {
-		ncopy = masked_scaling(idata,
-							   data + i * zelems,
-							   zelems,
-							   dma[2*i], dma[1+2*i] * scale0,
-							   imiss, miss);
+	for (ptr = ptr2, i = 0; i < nz; i++, ptr += zelems * size) {
+		if (size == 4)
+			ncopy = masked_scalingf(idata,
+									(float *)ptr,
+									zelems,
+									dma[2*i], dma[1+2*i] * scale0,
+									imiss, miss);
+		else
+			ncopy = masked_scaling(idata,
+								   (double *)ptr,
+								   zelems,
+								   dma[2*i], dma[1+2*i] * scale0,
+								   imiss, miss);
+
+
+
 		assert(cnt[i] == ncopy);
 
 		len = pack_bits_into32(packed, idata, ncopy, nbits);
@@ -768,6 +923,29 @@ error:
 	tiny_free(cnt, cnt_buf);
 	return -1;
 }
+
+
+static int
+write_mrx_via_double(const void *ptr,
+					 size_t zelems, size_t nz,
+					 int nbits, double miss,
+					 FILE *fp)
+{
+	return write_mrx(ptr, sizeof(double), zelems, nz, nbits, miss, fp);
+}
+
+
+static int
+write_mrx_via_float(const void *ptr,
+					 size_t zelems, size_t nz,
+					 int nbits, double miss,
+					 FILE *fp)
+{
+	return write_mrx(ptr, sizeof(float), zelems, nz, nbits, miss, fp);
+}
+
+
+
 
 
 /*
@@ -938,12 +1116,14 @@ GT3_write(const void *ptr, int type,
 			rval = write_urx_via_float(ptr, zsize, nz, nbits, miss, fp);
 			break;
 		case GT3_FMT_MR4:
+			rval = write_mr4_via_float(ptr, asize, miss, fp);
 			break;
 		case GT3_FMT_MR8:
+			rval = write_mr8_via_float(ptr, asize, miss, fp);
 			break;
 		case GT3_FMT_MRX:
+			rval = write_mrx_via_float(ptr, zsize, nz, nbits, miss, fp);
 			break;
-
 		}
 
 	fflush(fp);
@@ -983,6 +1163,42 @@ test(void)
 }
 
 
+void
+test2(void)
+{
+#define SNUM 1000
+
+	double miss = 1e20;
+	double data[SNUM];
+	float dataf[SNUM];
+	int i;
+	float copied[16];
+	size_t ncopied, nread;
+
+	for (i = 0; i < SNUM; i++) {
+		data[i] = miss;
+		dataf[i] = (float)miss;
+	}
+
+	data[SNUM-1] = 100.;
+	dataf[SNUM-1] = 100.f;
+
+	assert(masked_count(data, sizeof(double), SNUM, miss) == 1);
+	assert(masked_count(dataf, sizeof(float), SNUM, miss) == 1);
+
+	ncopied = masked_copyf(&nread,
+						   copied,
+						   data, sizeof(double),
+						   16, SNUM,
+						   miss);
+
+	assert(ncopied == 1);
+	assert(nread == SNUM);
+	assert(copied[0] == 100.f);
+
+}
+
+
 int
 main(int argc, char **argv)
 {
@@ -1010,9 +1226,8 @@ main(int argc, char **argv)
 	assert((fmt >> GT3_FMT_MBIT) == 12);
 	assert(strcmp(dfmt, "URX12") == 0);
 
-#if 1
 	test();
-#endif
+	test2();
 	return 0;
 }
 #endif
