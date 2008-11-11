@@ -30,5 +30,11 @@ size_t masked_scaling(unsigned *dest,
 					  double offset, double scale,
 					  unsigned imiss, double miss);
 
+size_t masked_scalingf(unsigned *dest,
+					   const float *src,
+					   size_t nelem,
+					   double offset, double scale,
+					   unsigned imiss, double miss);
+
 
 #endif /* !MYUTILS__H */
