@@ -24,6 +24,7 @@
 #endif
 
 #define RESERVE_SIZE (640*320)
+#define RESERVE_NZ   256
 
 /*
  *  status staff for GT3_Varbuf.
@@ -382,17 +383,15 @@ read_URC2(GT3_Varbuf *var, int zpos, size_t skip, size_t nelem, FILE *fp)
 static int
 read_URX(GT3_Varbuf *var, int zpos, size_t skip, size_t nelem, FILE *fp)
 {
-	uint32_t packed_buf[RESERVE_SIZE];
-	unsigned idata_buf[RESERVE_SIZE];
-	uint32_t *packed;
-	unsigned *idata;
+#define URXBUFSIZ 1024
+	uint32_t packed[32 * URXBUFSIZ];
+	unsigned idata[32 * URXBUFSIZ];
 	off_t off;
-	double dma[2];
-	size_t packed_len;
-	unsigned nbit;
-	unsigned imiss;
-	double scale;
+	double dma[2], scale;
+	unsigned nbits, imiss;
 	float *outp;
+	size_t npack_per_read, ndata_per_read;
+	size_t npack, ndata, nrest, nrest_packed;
 	int i;
 
 	/*
@@ -400,9 +399,8 @@ read_URX(GT3_Varbuf *var, int zpos, size_t skip, size_t nelem, FILE *fp)
 	 * 'skip' and 'nelem' passed as an argument are ignored.
 	 */
 	nelem = (size_t)(var->dimlen[0] * var->dimlen[1]);
-	nbit = (unsigned)var->fp->fmt >> GT3_FMT_MBIT;
+	nbits = (unsigned)var->fp->fmt >> GT3_FMT_MBIT;
 
-	packed_len = pack32_len(nelem, nbit);
 
 	/*
 	 *  read packing parameters for URX.
@@ -413,40 +411,56 @@ read_URX(GT3_Varbuf *var, int zpos, size_t skip, size_t nelem, FILE *fp)
 	if (read_dwords_from_record(dma, 2 * zpos, 2, fp) < 0)
 		return -1;
 
+	nrest = nelem;
+	nrest_packed = pack32_len(nrest, nbits);
+
 	/*
-	 *  allocate bufs.
+	 *  skip to zpos.
 	 */
-	packed = (uint32_t *)tiny_alloc(packed_buf, sizeof(packed_buf),
-									sizeof(uint32_t) * packed_len);
-	idata  = (unsigned *)tiny_alloc(idata_buf, sizeof(idata_buf),
-									sizeof(unsigned) * nelem);
+	off = sizeof(fort_size_t) + 4 * zpos * nrest_packed;
+	if (fseeko(fp, off, SEEK_CUR) < 0)
+		return -1;
 
 	/*
 	 *  read packed DATA-BODY in zpos.
 	 */
-	if (packed == NULL
-		|| idata == NULL
-		|| read_words_from_record(packed,
-								  zpos * packed_len,
-								  packed_len,
-								  fp) < 0) {
-		tiny_free(packed, packed_buf);
-		tiny_free(idata, idata_buf);
-		return -1;
-	}
-	unpack_bits_from32(idata, nelem, packed, nbit);
-
-	imiss = (1U << nbit) - 1;
+	imiss = (1U << nbits) - 1;
 	scale = (imiss == 1) ? 0. : dma[1] / (imiss - 1);
 
-	outp = (float *)var->data;
-	for (i = 0; i < nelem; i++)
-		outp[i] = (idata[i] != imiss)
-			? dma[0] + idata[i] * scale
-			: var->miss;
+	npack_per_read = URXBUFSIZ * nbits;
+	ndata_per_read = 32 * URXBUFSIZ;
 
-	tiny_free(packed, packed_buf);
-	tiny_free(idata, idata_buf);
+	outp = (float *)var->data;
+	while (nrest > 0) {
+		npack = nrest_packed > npack_per_read
+			? npack_per_read
+			: nrest_packed;
+
+		if (fread(packed, 4, npack, fp) != npack)
+			return -1;
+
+		if (IS_LITTLE_ENDIAN)
+			reverse_words(packed, npack);
+
+		ndata = nrest > ndata_per_read
+			? ndata_per_read
+			: nrest;
+
+		assert(npack == pack32_len(ndata, nbits));
+
+		unpack_bits_from32(idata, ndata, packed, nbits);
+
+		for (i = 0; i < ndata; i++)
+			outp[i] = (idata[i] != imiss)
+				? dma[0] + idata[i] * scale
+				: var->miss;
+
+		outp += ndata;
+		nrest -= ndata;
+		nrest_packed -= npack;
+	}
+
+	assert(nrest == 0 && nrest_packed == 0);
 	return 0;
 }
 
@@ -601,7 +615,7 @@ read_MRX(GT3_Varbuf *var, int zpos, size_t skip, size_t nelem, FILE *fp)
 	unsigned imiss;
 	int i, n;
 	float *outp;
-	int *nnn = NULL, temp_buf[1024];
+	int *nnn = NULL, temp_buf[RESERVE_NZ];
 	uint32_t *packed = NULL, packed_buf[RESERVE_SIZE];
 	unsigned *idata = NULL, idata_buf[RESERVE_SIZE];
 
