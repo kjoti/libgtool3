@@ -72,8 +72,9 @@ am_libgtool3_a_OBJECTS = bits_set.$(OBJEXT) caltime.$(OBJEXT) \
 	error.$(OBJEXT) file.$(OBJEXT) gauss-legendre.$(OBJEXT) \
 	grid.$(OBJEXT) gtdim.$(OBJEXT) header.$(OBJEXT) \
 	int_pack.$(OBJEXT) mask.$(OBJEXT) reverse.$(OBJEXT) \
-	talloc.$(OBJEXT) timedim.$(OBJEXT) urc_pack.$(OBJEXT) \
-	varbuf.$(OBJEXT) version.$(OBJEXT) write.$(OBJEXT)
+	scaling.$(OBJEXT) talloc.$(OBJEXT) timedim.$(OBJEXT) \
+	urc_pack.$(OBJEXT) varbuf.$(OBJEXT) version.$(OBJEXT) \
+	write.$(OBJEXT)
 libgtool3_a_OBJECTS = $(am_libgtool3_a_OBJECTS)
 binPROGRAMS_INSTALL = $(INSTALL_PROGRAM)
 PROGRAMS = $(bin_PROGRAMS)
@@ -253,6 +254,7 @@ libgtool3_a_SOURCES = \
 		int_pack.c \
 		mask.c \
 		reverse.c \
+		scaling.c \
 		talloc.c \
 		timedim.c \
 		urc_pack.c \
@@ -451,6 +453,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ngtstat.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ngtsumm.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/reverse.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/scaling.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/seq.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/split.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/talloc.Po@am__quote@

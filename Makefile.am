@@ -15,6 +15,7 @@ libgtool3_a_SOURCES = \
 		int_pack.c \
 		mask.c \
 		reverse.c \
+		scaling.c \
 		talloc.c \
 		timedim.c \
 		urc_pack.c \
