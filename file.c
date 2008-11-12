@@ -550,7 +550,10 @@ GT3_next(GT3_File *fp)
 	}
 
 	nextoff = fp->off + fp->chsize;
-	assert(nextoff <= fp->size);
+	if (nextoff > fp->size) {
+		gt3_error(GT3_ERR_BROKEN, "%s", fp->path);
+		return -1;
+	}
 
 	if (fseeko(fp->fp, nextoff, SEEK_SET) < 0) {
 		gt3_error(SYSERR, NULL);

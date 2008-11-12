@@ -440,7 +440,6 @@ read_urx_packed(float *outp,
 }
 
 
-
 /*
  *  XXX: 'skip' and 'nelem' are ignored for now.
  *  read_URX() reads all data in a z-plane.
