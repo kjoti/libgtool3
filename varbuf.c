@@ -870,18 +870,30 @@ GT3_freeVarbuf(GT3_Varbuf *var)
 
 
 GT3_Varbuf *
-GT3_getVarbuf(GT3_File *fp)
+GT3_getVarbuf2(GT3_Varbuf *old, GT3_File *fp)
 {
-	GT3_Varbuf *temp;
+	int newed = 0;
 
-	if ((temp = new_varbuf()) == NULL)
-		return NULL;
+	if (old == NULL) {
+		if ((old = new_varbuf()) == NULL)
+			return NULL;
 
-	if (update_varbuf(temp, fp) < 0) {
-		GT3_freeVarbuf(temp);
+		newed = 1;
+	}
+
+	if (update_varbuf(old, fp) < 0) {
+		if (newed)
+			GT3_freeVarbuf(old);
 		return NULL;
 	}
-	return temp;
+	return old;
+}
+
+
+GT3_Varbuf *
+GT3_getVarbuf(GT3_File *fp)
+{
+	return GT3_getVarbuf2(NULL, fp);
 }
 
 

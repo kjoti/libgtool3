@@ -20,10 +20,11 @@ DEBUG		= -g
 
 DEFS		= -UHAVE_CONFIG_H -UWORDS_BIGENDIAN \
 		-DHAVE_FSEEKO -DHAVE_ILOGB -DHAVE_SCALBN \
-		-DHAVE_INTTYPES_H -DHAVE_UINT32_T
+		-DHAVE_INTTYPES_H -DHAVE_UINT32_T \
+		-DHAVE_GLOB
 
 LDFLAGS		+= $(DEBUG)
-CFLAGS		+= $(DEBUG) $(DEFS) -Wall -pedantic -O2
+CFLAGS		+= $(DEBUG) $(DEFS) -Wall -pedantic -O0
 
 OBJS		= \
 		bits_set.o \
@@ -42,6 +43,7 @@ OBJS		= \
 		timedim.o \
 		urc_pack.o \
 		varbuf.o \
+		vcat.o \
 		version.o \
 		write.o
 

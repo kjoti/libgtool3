@@ -174,6 +174,21 @@ struct GT3_Duration {
 };
 typedef struct GT3_Duration GT3_Duration;
 
+/*
+ *  Virtually concatenated file.
+ */
+struct GT3_VCatFile {
+    int num_files;              /* N: the number of files */
+    char **path;                /* [0] ... [N-1] */
+    int *index;                 /* [0] ... [N] */
+    int reserved;               /* >= N */
+
+    int opened_;                /* -1, 0 ... N-1 */
+    GT3_File *ofile_;
+};
+typedef struct GT3_VCatFile GT3_VCatFile;
+
+
 /* XXX calendar type */
 enum {
     GT3_CAL_GREGORIAN,
@@ -217,6 +232,7 @@ int GT3_skipZ(GT3_File *fp, int z);
 /* varbuf.c */
 void GT3_freeVarbuf(GT3_Varbuf *var);
 GT3_Varbuf *GT3_getVarbuf(GT3_File *fp);
+GT3_Varbuf *GT3_getVarbuf2(GT3_Varbuf *old, GT3_File *fp);
 int GT3_readVarZ(GT3_Varbuf *var, int zpos);
 int GT3_readVarZY(GT3_Varbuf *var, int zpos, int ypos);
 int GT3_readVar(double *rval, GT3_Varbuf *var, int x, int y, int z);
@@ -287,7 +303,7 @@ void GT3_setExitOnError(int onoff);
 void GT3_setPrintOnError(int onoff);
 void GT3_setProgname(const char *name);
 
-/* timedim */
+/* timedim.c */
 void GT3_setDate(GT3_Date *date, int, int, int, int, int, int);
 int GT3_cmpDate(const GT3_Date *date, int, int, int, int, int, int);
 int GT3_cmpDate2(const GT3_Date *date1, const GT3_Date *date2);
@@ -304,7 +320,15 @@ int GT3_calcDuration(GT3_Duration *dur,
 
 int GT3_getDuration(GT3_Duration *dur, GT3_File *fp, int calendar);
 
-/* version */
+/* vcat.c */
+GT3_VCatFile *GT3_newVCatFile(void);
+int GT3_vcatFile(GT3_VCatFile *vf, const char *path);
+void GT3_destroyVCatFile(GT3_VCatFile *vf);
+GT3_Varbuf *GT3_setVarbuf_VF(GT3_Varbuf *var, GT3_VCatFile *vf, int tpos);
+int GT3_numChunk_VF(const GT3_VCatFile *vf);
+int GT3_glob_VF(GT3_VCatFile *vf, const char *pattern);
+
+/* version.c */
 char *GT3_version(void);
 
 #ifdef __cplusplus
