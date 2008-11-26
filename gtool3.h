@@ -325,6 +325,7 @@ GT3_VCatFile *GT3_newVCatFile(void);
 int GT3_vcatFile(GT3_VCatFile *vf, const char *path);
 void GT3_destroyVCatFile(GT3_VCatFile *vf);
 GT3_Varbuf *GT3_setVarbuf_VF(GT3_Varbuf *var, GT3_VCatFile *vf, int tpos);
+int GT3_readHeader_VF(GT3_HEADER *header, GT3_VCatFile *vf, int tpos);
 int GT3_numChunk_VF(const GT3_VCatFile *vf);
 int GT3_glob_VF(GT3_VCatFile *vf, const char *pattern);
 
