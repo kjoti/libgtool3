@@ -30,6 +30,7 @@ alloc_file(GT3_VCatFile *vf, size_t num)
 	if ((path = realloc(vf->path, newsize * sizeof(char *))) == NULL
 		|| (idx = realloc(vf->index, (newsize + 1) * sizeof(int))) == NULL) {
 		free(path);
+		gt3_error(SYSERR, NULL);
 		return -1;
 	}
 
@@ -72,7 +73,9 @@ select_file(GT3_VCatFile *vf, int tpos)
 		vf->opened_ = i;
 		vf->ofile_ = fp;
 		debug2("select_file: %d %d", i, fp->curr);
-	}
+	} else
+		gt3_error(GT3_ERR_INDEX, "select_file() failed: t=%d", tpos);
+
 	return fp;
 }
 
@@ -85,7 +88,6 @@ GT3_newVCatFile(void)
 {
 	GT3_VCatFile *vf;
 	const int INITIAL_SIZE = 8;
-
 
 	vf = malloc(sizeof(GT3_VCatFile));
 	if (vf) {
@@ -101,7 +103,9 @@ GT3_newVCatFile(void)
 			return NULL;
 		}
 		vf->index[0] = 0;
-	}
+	} else
+		gt3_error(SYSERR, NULL);
+
 	return vf;
 }
 
@@ -120,8 +124,10 @@ GT3_vcatFile(GT3_VCatFile *vf, const char *path)
 		return -1;
 
 	curr = vf->num_files;
-	if ((vf->path[curr] = strdup(path)) == NULL)
+	if ((vf->path[curr] = strdup(path)) == NULL) {
+		gt3_error(SYSERR, NULL);
 		return -1;
+	}
 
 	vf->index[curr+1] = vf->index[curr] + nc;
 	vf->num_files++;
@@ -140,18 +146,27 @@ GT3_destroyVCatFile(GT3_VCatFile *vf)
 	free(vf->index);
 	for (i = 0; i < vf->num_files; i++)
 		free(vf->path[i]);
+	free(vf->path);
 }
 
 
 GT3_Varbuf *
 GT3_setVarbuf_VF(GT3_Varbuf *var, GT3_VCatFile *vf, int tpos)
 {
-	if (select_file(vf, tpos) == NULL) {
-		gt3_error(GT3_ERR_INDEX, "select_file() failed: t=%d", tpos);
+	if (select_file(vf, tpos) == NULL)
 		return NULL;
-	}
 
 	return GT3_getVarbuf2(var, vf->ofile_);
+}
+
+
+int
+GT3_readHeader_VF(GT3_HEADER *header, GT3_VCatFile *vf, int tpos)
+{
+	if (select_file(vf, tpos) == NULL)
+		return -1;
+
+	return GT3_readHeader(header, vf->ofile_);
 }
 
 
@@ -163,12 +178,15 @@ GT3_numChunk_VF(const GT3_VCatFile *vf)
 
 
 #ifdef HAVE_GLOB
-#include <glob.h>
+#ifdef HAVE_GLOB_H
+#  include <glob.h>
+#endif
+
 int
 GT3_glob_VF(GT3_VCatFile *vf, const char *pattern)
 {
 	glob_t g;
-	int i;
+	int i, rval = 0;
 
 	if (glob(pattern, 0, NULL, &g) < 0) {
 		gt3_error(SYSERR, "in glob pattern(%s)", pattern);
@@ -176,66 +194,18 @@ GT3_glob_VF(GT3_VCatFile *vf, const char *pattern)
 	}
 
 	for (i = 0; i < g.gl_pathc; i++)
-		if (GT3_vcatFile(vf, g.gl_pathv[i]) < 0)
+		if (GT3_vcatFile(vf, g.gl_pathv[i]) < 0) {
+			rval = -1;
 			break;
+		}
 
 	globfree(&g);
-	return 0;
+	return rval;
 }
 #else
 int
-GT3_globVCatFile(GT3_VCatFile *vf, const char *pattern)
+GT3_glob_VF(GT3_VCatFile *vf, const char *pattern)
 {
 	return GT3_vcatFile(vf, pattern);
 }
 #endif /* HAVE_GLOB */
-
-
-#ifdef TEST_MAIN
-void
-print_filelist(const GT3_VCatFile *vf)
-{
-	int i;
-
-	printf("# of files: %d\n", vf->num_files);
-	printf("# of chunks: %d\n", vf->index[vf->num_files]);
-
-	for (i = 0; i < vf->num_files; i++)
-		printf("(%s) %d %d\n", vf->path[i], vf->index[i], vf->index[i+1]);
-}
-
-
-void
-print_status(const GT3_VCatFile *vf)
-{
-	if (vf->opened_ >= 0) {
-		printf("opened file: (%s)\n", vf->path[vf->opened_]);
-	}
-}
-
-
-int
-main(int argc, char **argv)
-{
-	GT3_VCatFile *vf;
-	GT3_Varbuf *var = NULL;
-	int i, rval, nc;
-
-	vf = GT3_newVCatFile();
-	GT3_glob_VF(vf, "/tmp/kjo/T2.?");
-
-	print_filelist(vf);
-
-	nc = GT3_numChunk_VF(vf);
-	for (i = 0; i < nc; i++) {
-		var = GT3_setVarbuf_VF(var, vf, i);
-		assert(var);
-		rval = GT3_readVarZ(var, 0);
-		assert(rval == 0);
-		print_status(vf);
-	}
-
-
-	return 0;
-}
-#endif
