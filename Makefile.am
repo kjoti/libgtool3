@@ -20,6 +20,7 @@ libgtool3_a_SOURCES = \
 		timedim.c \
 		urc_pack.c \
 		varbuf.c \
+		vcat.c \
 		version.c \
 		write.c
 

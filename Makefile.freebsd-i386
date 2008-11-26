@@ -24,7 +24,7 @@ DEFS		= -UHAVE_CONFIG_H -UWORDS_BIGENDIAN \
 		-DHAVE_GLOB
 
 LDFLAGS		+= $(DEBUG)
-CFLAGS		+= $(DEBUG) $(DEFS) -Wall -pedantic -O0
+CFLAGS		+= $(DEBUG) $(DEFS) -Wall -pedantic -O2
 
 OBJS		= \
 		bits_set.o \

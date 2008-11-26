@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ(2.59)
-AC_INIT(libgtool3, 0.9)
+AC_INIT(libgtool3, 0.10)
 AC_CONFIG_SRCDIR([gtool3.h])
 AM_INIT_AUTOMAKE
 AM_MAINTAINER_MODE
@@ -23,6 +23,7 @@ AC_CHECK_LIB(m, sin)
 # Checks for header files.
 AC_HEADER_STDC
 AC_CHECK_HEADERS([stdlib.h string.h unistd.h])
+AC_CHECK_HEADERS([glob.h])
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_C_CONST
@@ -39,4 +40,5 @@ AC_FUNC_STAT
 AC_FUNC_STRTOD
 AC_CHECK_FUNCS([memset strchr strdup strerror strtol])
 AC_CHECK_FUNCS([pow sqrt ilogb scalbn])
+AC_CHECK_FUNCS([glob])
 AC_OUTPUT

@@ -73,8 +73,8 @@ am_libgtool3_a_OBJECTS = bits_set.$(OBJEXT) caltime.$(OBJEXT) \
 	grid.$(OBJEXT) gtdim.$(OBJEXT) header.$(OBJEXT) \
 	int_pack.$(OBJEXT) mask.$(OBJEXT) reverse.$(OBJEXT) \
 	scaling.$(OBJEXT) talloc.$(OBJEXT) timedim.$(OBJEXT) \
-	urc_pack.$(OBJEXT) varbuf.$(OBJEXT) version.$(OBJEXT) \
-	write.$(OBJEXT)
+	urc_pack.$(OBJEXT) varbuf.$(OBJEXT) vcat.$(OBJEXT) \
+	version.$(OBJEXT) write.$(OBJEXT)
 libgtool3_a_OBJECTS = $(am_libgtool3_a_OBJECTS)
 binPROGRAMS_INSTALL = $(INSTALL_PROGRAM)
 PROGRAMS = $(bin_PROGRAMS)
@@ -259,6 +259,7 @@ libgtool3_a_SOURCES = \
 		timedim.c \
 		urc_pack.c \
 		varbuf.c \
+		vcat.c \
 		version.c \
 		write.c
 
@@ -460,6 +461,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/timedim.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/urc_pack.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/varbuf.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/vcat.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/version.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/write.Po@am__quote@
 
