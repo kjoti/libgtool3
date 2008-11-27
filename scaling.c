@@ -61,7 +61,7 @@ int
 idx_min_float(const float *data, size_t nelem, const float *maskval)
 {
 	int i, idx;
-	float val = HUGE_VALF;
+	float val = HUGE_VAL;
 
 	idx = -1;
 	if (maskval) {
@@ -85,7 +85,7 @@ int
 idx_max_float(const float *data, size_t nelem, const float *maskval)
 {
 	int i, idx;
-	float val = -HUGE_VALF;
+	float val = -HUGE_VAL;
 
 	idx = -1;
 	if (maskval) {
