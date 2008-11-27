@@ -41,6 +41,31 @@ alloc_file(GT3_VCatFile *vf, size_t num)
 }
 
 
+static int
+find_range(int value, const int *bnd, size_t nrange)
+{
+	int low, high, mid;
+
+	if (value < bnd[0] || value >= bnd[nrange])
+		return -1;
+
+	low = 0;
+	high = nrange;
+	while (high - low > 1) {
+		mid = (low + high) / 2;
+
+		if (value >= bnd[mid] && value < bnd[mid+1])
+			return mid;
+
+		if (value < bnd[mid])
+			high = mid;
+		else
+			low = mid + 1;
+	}
+	return low;
+}
+
+
 /*
  *  select_file() pickup an appropriate file from files in GT3_VCatFile,
  *  and seek to an appropriate position(chunk) in the file.
@@ -51,31 +76,33 @@ select_file(GT3_VCatFile *vf, int tpos)
 	GT3_File *fp = NULL;
 	int i;
 
-	for (i = 0; i < vf->num_files; i++)
-		if (tpos >= vf->index[i] && tpos < vf->index[i+1]) {
-			if (i == vf->opened_)
-				fp = vf->ofile_;
-			else {
-				fp = GT3_open(vf->path[i]);
-				if (fp && vf->opened_ >= 0) {
-					GT3_close(vf->ofile_);
-					vf->ofile_ = NULL;
-				}
-			}
-			break;
+
+	i = find_range(tpos, vf->index, vf->num_files);
+	if (i < 0) {
+		gt3_error(GT3_ERR_INDEX, "t=%d", tpos);
+		return NULL;
+	}
+
+	if (i == vf->opened_) {
+		fp = vf->ofile_;
+		assert(fp != NULL);
+	} else {
+		if ((fp = GT3_open(vf->path[i])) == NULL)
+			return NULL;
+
+		if (fp && vf->opened_ >= 0) {
+			GT3_close(vf->ofile_);
+			vf->ofile_ = NULL;
 		}
+	}
 
-	if (fp) {
-		if (GT3_seek(fp, tpos - vf->index[i], SEEK_SET) < 0) {
-			assert("seek error in select_file");
-		}
+	if (GT3_seek(fp, tpos - vf->index[i], SEEK_SET) < 0) {
+		/* assert("Unbelievable"); */
+		return NULL;
+	}
 
-		vf->opened_ = i;
-		vf->ofile_ = fp;
-		debug2("select_file: %d %d", i, fp->curr);
-	} else
-		gt3_error(GT3_ERR_INDEX, "select_file() failed: t=%d", tpos);
-
+	vf->opened_ = i;
+	vf->ofile_ = fp;
 	return fp;
 }
 
