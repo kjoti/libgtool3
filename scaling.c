@@ -281,9 +281,11 @@ main(int argc, char **argv)
 	int i;
 	unsigned imiss;
 	double offset, scale, miss;
+	double rmsval;
+	unsigned nbits = 16;
 
 
-	imiss = (1U << 31) - 1U;
+	imiss = (1U << nbits) - 1U;
 
 	offset = 0.;
 	scale  = (imiss > 1) ? 1. / (imiss - 1) : 0.;
@@ -296,10 +298,9 @@ main(int argc, char **argv)
 	scalingf(scaled, orig, NN, offset, scale, imiss, miss);
 	scalingf_rev(restore, scaled, NN, offset, scale, imiss, miss);
 
-	printf("ave(orig):    %.16f\n", average(orig, NN));
-	printf("ave(restore): %.16f\n", average(restore, NN));
-
-	printf("RMS           %.10e\n", rms(orig, restore, NN));
+	rmsval = rms(orig, restore, NN);
+	printf("RMS(nbits = %u): %.10e\n", nbits, rmsval);
+	assert(rmsval < 8e-6);
 
 	return 0;
 }
