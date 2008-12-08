@@ -465,7 +465,6 @@ write_urx(const void *ptr,
 	if (write_record_sep(4 * packed_len * nz, fp) < 0)
 		goto error;
 
-
 	tiny_free(dma, dma_buf);
 	return 0;
 
@@ -803,21 +802,20 @@ write_mrx(const void *ptr2,
 	uint32_t cnt_buf[128];
 	uint32_t plen_buf[128];
 	double dma_buf[256];
-	unsigned idata_buf[RESERVE_SIZE];
-	uint32_t packed_buf[RESERVE_SIZE];
 	uint32_t *cnt = cnt_buf;
 	uint32_t *plen = plen_buf;
 	double *dma = dma_buf;
-	unsigned *idata = idata_buf;
-	uint32_t *packed = packed_buf;
 	uint32_t plen_all;
-
-
-	size_t ncopy, len;
+	size_t ncopied, len, nelems, nc;
 	unsigned imiss;
 	double scale0;
 	unsigned i;
+#define MRXBUFSIZ (32 * 1024)
+	unsigned idata[MRXBUFSIZ];
+	uint32_t packed[MRXBUFSIZ];
 
+
+	assert(MRXBUFSIZ % 32 == 0);
 
 	if ((cnt = (uint32_t *)
 		 tiny_alloc(cnt_buf,
@@ -855,20 +853,8 @@ write_mrx(const void *ptr2,
 		goto error;
 
 
-	if ((packed = (uint32_t *)
-		 tiny_alloc(packed_buf,
-					sizeof packed_buf,
-					4 * pack32_len(zelems, nbits))) == NULL
-		|| (idata = (unsigned *)
-			tiny_alloc(idata_buf,
-					   sizeof idata_buf,
-					   sizeof(unsigned) * zelems)) == NULL)
-		goto error;
-
-
 	imiss = (1U << nbits) - 1;
 	scale0 = (imiss == 1) ? 1. : 1. / (imiss - 1);
-
 
 	/*
 	 *  write packed array.
@@ -876,39 +862,40 @@ write_mrx(const void *ptr2,
 	if (write_record_sep(4 * plen_all, fp) < 0)
 		goto error;
 
-	for (ptr = ptr2, i = 0; i < nz; i++, ptr += zelems * size) {
-		if (size == 4)
-			ncopy = masked_scalingf(idata,
-									(float *)ptr,
-									zelems,
-									dma[2*i], dma[1+2*i] * scale0,
-									imiss, miss);
-		else
-			ncopy = masked_scaling(idata,
-								   (double *)ptr,
-								   zelems,
-								   dma[2*i], dma[1+2*i] * scale0,
-								   imiss, miss);
+	for (i = 0; i < nz; i++) {
+		ptr = (const char *)ptr2 + i * zelems * size;
+		nelems = zelems;
 
+		while (nelems > 0) {
+			nc = (nelems > MRXBUFSIZ) ? MRXBUFSIZ : nelems;
 
+			if (size == 4)
+				ncopied = masked_scalingf(idata,
+										  (float *)ptr,
+										  nc,
+										  dma[2*i], dma[1+2*i] * scale0,
+										  imiss, miss);
+			else
+				ncopied = masked_scaling(idata,
+										 (double *)ptr,
+										 nc,
+										 dma[2*i], dma[1+2*i] * scale0,
+										 imiss, miss);
 
-		assert(cnt[i] == ncopy);
+			len = pack_bits_into32(packed, idata, ncopied, nbits);
+			if (IS_LITTLE_ENDIAN)
+				reverse_words(packed, len);
 
-		len = pack_bits_into32(packed, idata, ncopy, nbits);
-		assert(len == plen[i]);
+			if (fwrite(packed, 4, len, fp) != len)
+				goto error;
 
-		if (IS_LITTLE_ENDIAN)
-			reverse_words(packed, len);
-
-		if (fwrite(packed, 4, len, fp) != len)
-			goto error;
+			ptr += nc * size;
+			nelems -= nc;
+		}
 	}
 	if (write_record_sep(4 * plen_all, fp) < 0)
 		goto error;
 
-
-	tiny_free(idata, idata_buf);
-	tiny_free(packed, packed_buf);
 	tiny_free(dma, dma_buf);
 	tiny_free(plen, plen_buf);
 	tiny_free(cnt, cnt_buf);
@@ -916,8 +903,6 @@ write_mrx(const void *ptr2,
 
 error:
 	gt3_error(SYSERR, NULL);
-	tiny_free(idata, idata_buf);
-	tiny_free(packed, packed_buf);
 	tiny_free(dma, dma_buf);
 	tiny_free(plen, plen_buf);
 	tiny_free(cnt, cnt_buf);
@@ -943,9 +928,6 @@ write_mrx_via_float(const void *ptr,
 {
 	return write_mrx(ptr, sizeof(float), zelems, nz, nbits, miss, fp);
 }
-
-
-
 
 
 /*
@@ -1134,68 +1116,73 @@ GT3_write(const void *ptr, int type,
 #ifdef TEST_MAIN
 
 void
-test(void)
-{
-#define NH 1031
-#define NZ 19
-
-	double data[NH * NZ];
-	size_t nelem = NH;
-	size_t nz = NZ;
-	double miss = -999.0;
-	int i;
-
-	for (i = 0; i < nelem * nz; i++)
-		data[i] = (double)i;
-
-	write_ur4_via_double(data, nelem * nz, stdout);
-	write_urc_via_double(data, nelem, nz, miss,
-						 urc1_packing, stdout);
-	write_urc_via_double(data, nelem, nz, miss,
-						 urc2_packing, stdout);
-
-	write_ur8_via_double(data, nelem * nz, stdout);
-	write_urx_via_double(data, nelem, nz,
-						 12, miss, stdout);
-	write_mr4_via_double(data, nelem * nz, miss, stdout);
-	write_mr8_via_double(data, nelem * nz, miss, stdout);
-	write_mrx_via_double(data, nelem, nz, 16, miss, stdout);
-}
-
-
-void
 test2(void)
 {
-#define SNUM 1000
-
 	double miss = 1e20;
-	double data[SNUM];
-	float dataf[SNUM];
+	float dest[4];
+	double src1[8];
+	float src2[8];
+	size_t nread, ncopied;
+	size_t srclen, destlen;
 	int i;
-	float copied[16];
-	size_t ncopied, nread;
 
-	for (i = 0; i < SNUM; i++) {
-		data[i] = miss;
-		dataf[i] = (float)miss;
+	srclen = sizeof src1 / sizeof src1[0];
+	destlen = sizeof dest / sizeof dest[0];
+
+	/*
+	 *  part 1
+	 */
+	for (i = 0; i < srclen; i++) {
+		src1[i] = miss;
+		src2[i] = (float)miss;
 	}
 
-	data[SNUM-1] = 100.;
-	dataf[SNUM-1] = 100.f;
-
-	assert(masked_count(data, sizeof(double), SNUM, miss) == 1);
-	assert(masked_count(dataf, sizeof(float), SNUM, miss) == 1);
+	assert(masked_count(src1, sizeof(double), srclen, miss) == 0);
+	assert(masked_count(src2, sizeof(float), srclen, miss) == 0);
 
 	ncopied = masked_copyf(&nread,
-						   copied,
-						   data, sizeof(double),
-						   16, SNUM,
-						   miss);
+						   dest,
+						   src1, sizeof(double),
+						   destlen, srclen, miss);
+	assert(ncopied == 0 && nread == srclen);
 
-	assert(ncopied == 1);
-	assert(nread == SNUM);
-	assert(copied[0] == 100.f);
+	ncopied = masked_copyf(&nread,
+						   dest,
+						   src2, sizeof(float),
+						   destlen, srclen, miss);
+	assert(ncopied == 0 && nread == srclen);
 
+
+	/*
+	 *  part 2
+	 */
+	for (i = 0; i < srclen; i++) {
+		src1[i] = (double)i;
+		src2[i] = (float)i;
+	}
+
+	assert(masked_count(src1, sizeof(double), srclen, miss) == srclen);
+	assert(masked_count(src2, sizeof(float), srclen, miss) == srclen);
+
+	ncopied = masked_copyf(&nread,
+						   dest,
+						   src1, sizeof(double),
+						   destlen, srclen, miss);
+
+	assert(ncopied == nread);
+	assert(ncopied <= destlen);
+	assert(nread   <= srclen);
+	assert(dest[0] == 0.f && dest[1] == 1.f && dest[2] == 2.f);
+
+	ncopied = masked_copyf(&nread,
+						   dest,
+						   src2, sizeof(float),
+						   destlen, srclen, miss);
+
+	assert(ncopied == nread);
+	assert(ncopied <= destlen);
+	assert(nread   <= srclen);
+	assert(dest[0] == 0.f && dest[1] == 1.f && dest[2] == 2.f);
 }
 
 
