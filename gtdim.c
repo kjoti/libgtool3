@@ -20,7 +20,7 @@
 #include "debug.h"
 
 /*
- *  'GTAX_PATH' is newly introduced.
+ *  'GTAX_PATH' is introduced.
  *
  *  It is a set of directories where GTAXLOC.* files are searched.
  *  Directories are separated with ':'.
@@ -67,8 +67,10 @@ parse_axisname(const char *name, char *base,
 	if (isdigit(*p)) {
 		*len = (int)strtol(p, &endptr, 10);
 		p = endptr;
-	} else
+	} else if (cnt == 0)
 		*len = 1;
+	else
+		*len = 0;
 
 	if (*len < 1)
 		rval = -1;
@@ -624,6 +626,30 @@ GT3_getBuiltinDim(const char *name)
 }
 
 
+int
+GT3_getDimlen(const char *name)
+{
+	char base[16 + 1];
+	int rval;
+	int len, idiv;
+	unsigned flag;
+	GT3_Dim *dim;
+
+	if (name == NULL)
+		return -1;
+
+	rval = parse_axisname(name, base, &len, &idiv, &flag);
+	if (rval == 0)
+		return len * idiv;
+
+	dim = GT3_loadDim(name);
+	rval = dim ? dim->len - dim->cyclic : -1;
+
+	GT3_freeDim(dim);
+	return rval;
+}
+
+
 /*
  *  GT3_getDim() constructs GT3_Dim by its name.
  *  If the name is well-known, built-in generator is called.
@@ -1062,6 +1088,9 @@ GT3_getDimBound(const char *name)
 	unsigned flag;
 	GT3_DimBound *dimbnd = NULL;
 
+	if (name == NULL)
+		return NULL;
+
 	rval = parse_axisname(name, base, &len, &idiv, &flag);
 	if (rval < 0)
 		return NULL;
@@ -1344,10 +1373,14 @@ main(int argc, char **argv)
 	assert(rval == -1 && strcmp(buf, "GLAT") == 0
 		   && len == 45 && idiv == 1 && flag == 1);
 
+	rval = parse_axisname("CSIG20.M", buf, &len, &idiv, &flag);
+	assert(rval == -1 && strcmp(buf, "CSIG") == 0
+		   && len == 20 && idiv == 1);
+
 	rval = parse_axisname("   abcdefghijklmnopq",
 						  buf, &len, &idiv, &flag);
 	assert(rval == -1 && strcmp(buf, "abcdefghijklmnop") == 0
-		   && len == 1 && idiv == 1 && flag == 0);
+		   && len == 0 && idiv == 1 && flag == 0);
 
 	test_glon();
 	test_glat();
@@ -1444,6 +1477,13 @@ main(int argc, char **argv)
 	bound_test("GLAT160");
 	bound_test("GLAT161");
 	bound_test("GLAT161M");
+
+	/* GT3_getDimlen() */
+	assert(GT3_getDimlen("") == 1);
+	assert(GT3_getDimlen("SFC1") == 1);
+	assert(GT3_getDimlen("GLON320") == 320);
+	assert(GT3_getDimlen("GGLA160x2") == 320);
+	assert(GT3_getDimlen("OCLONT1280") == 1280);
 
 	return 0;
 }
