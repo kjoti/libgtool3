@@ -2,6 +2,11 @@
 #
 #  Makefile for FreeBSD/i386
 #
+.SUFFIXES:
+.SUFFIXES: .c .o .So
+
+MAJOR_VERSION	= 1
+
 SHELL		?= /bin/sh
 
 prefix		= /usr/local
@@ -15,8 +20,8 @@ RANLIB		?= ranlib
 #MKDIR		= ./install-sh -d
 INSTALL		?= /usr/bin/install
 MKDIR		= /usr/bin/install -d
-
-DEBUG		= -g
+LN_S		= ln -sf
+DEBUG		=
 
 DEFS		= -UHAVE_CONFIG_H -UWORDS_BIGENDIAN \
 		-DHAVE_FSEEKO -DHAVE_ILOGB -DHAVE_SCALBN \
@@ -47,24 +52,35 @@ OBJS		= \
 		version.o \
 		write.o
 
-LDADD		= -lgtool3 -lm
+SHLIB		= libgtool3.so.$(MAJOR_VERSION)
+STLIB		= libgtool3.a
 
+LDADD		= $(SHLIB) -lm
 
-LIBS		= libgtool3.a
+UTILS		= logging.o seq.o fileiter.o split.o get_ints.o
+
+PICFLAG		= -fpic
+SONAME		= $(SHLIB)
+SOBJS		= $(OBJS:.o=.So)
+
+#
+#  targets
+#
+LIBS		= $(SHLIB) $(STLIB)
 HEADERS		= gtool3.h
 BINS		= ngtcat ngtls ngtsumm ngtstat ngtick \
 		ngthead ngted ngtmkax ngtdiff ngtdump ngtavr
 
-UTILS		= logging.o seq.o fileiter.o split.o get_ints.o
+all: $(LIBS) $(BINS) $(HEADERS)
 
-TARGETS		= $(LIBS) $(BINS)
-
-
-all: $(LIBS) $(BINS)
-
-libgtool3.a: $(OBJS)
+$(STLIB): $(OBJS)
 	$(AR) $(ARFLAGS) $@ $(OBJS)
 	$(RANLIB) $@
+
+$(SHLIB): $(SOBJS)
+	$(CC) $(LDFLAGS) -shared -Wl,-x \
+	    -o $@ -Wl,-soname,$(SONAME) \
+	    `lorder $(SOBJS) | tsort -q`
 
 ngtcat: libgtool3.a ngtcat.o $(UTILS)
 	$(CC) $(LDFLAGS) -L. -o $@ ngtcat.o $(UTILS) $(LDADD)
@@ -106,11 +122,15 @@ install: all
 	$(INSTALL) $(BINS) $(bindir)
 	$(INSTALL) -m 644 $(LIBS) $(libdir)
 	$(INSTALL) -m 644 $(HEADERS) $(includedir)
+	( cd $(libdir) && $(LN_S) $(SHLIB) libgtool3.so )
 
 tags: TAGS
 
 TAGS:
 	etags *.[ch]
+
+.c.So:
+	$(CC) $(PICFLAG) -DPIC $(CFLAGS) -c -o $@ $<
 
 #
 TESTCC	= $(CC) -DTEST_MAIN $(LDFLAGS) $(CFLAGS)
@@ -138,7 +158,7 @@ test: $(LIBS)
 	echo "**** All tests passed."
 
 clean:
-	@rm -f $(TARGETS) a.out *.o
+	@rm -f $(LIBS) $(BINS) a.out *.o $(OBJS) $(SOBJS)
 
 ##
 MAIN_HEADERS	= gtool3.h internal.h
