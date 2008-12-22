@@ -43,12 +43,12 @@ ngtavr_SOURCES = ngtavr.c dateiter.c $(utils)
 LDADD = -lgtool3 -lm
 
 
-test: $(lib_LIBRARIES)
-	@for f in $(libgtool3_a_SOURCES); do \
+test: $(lib_LTLIBRARIES)
+	@for f in $(libgtool3_la_SOURCES); do \
 	    grep "ifdef  *TEST_MAIN" $$f > /dev/null; \
 	    if [ $$? -eq 0 ]; then \
 	        echo "**** TESTING $$f ****"; \
-		$(COMPILE) -DTEST_MAIN $$f $(LDADD); \
+		$(COMPILE) -L.libs -DTEST_MAIN $$f $(LDADD); \
 	        if [ $$? -ne 0 ]; then \
 		    echo "**** $$f: ERROR IN COMPILE-TIME."; \
 		    exit; \
