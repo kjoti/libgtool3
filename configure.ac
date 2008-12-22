@@ -12,6 +12,7 @@ AC_CONFIG_FILES([Makefile])
 # Checks for programs.
 AC_PROG_CC
 AC_PROG_RANLIB
+AC_PROG_LIBTOOL
 
 #
 AC_C_BIGENDIAN

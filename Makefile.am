@@ -1,9 +1,11 @@
-lib_LIBRARIES = libgtool3.a
+lib_LTLIBRARIES = libgtool3.la
+libgtool3_la_LDFLAGS = -version-info 1
+
 bin_PROGRAMS = ngtcat ngtls ngtsumm ngtstat ngtick ngthead \
 		ngted ngtmkax ngtdiff ngtdump ngtavr
 include_HEADERS = gtool3.h
 
-libgtool3_a_SOURCES = \
+libgtool3_la_SOURCES = \
 		bits_set.c \
 		caltime.c \
 		error.c \
@@ -38,7 +40,7 @@ ngtdiff_SOURCES = ngtdiff.c $(utils)
 ngtdump_SOURCES = ngtdump.c $(utils)
 ngtavr_SOURCES = ngtavr.c dateiter.c $(utils)
 
-LDADD = libgtool3.a -lm
+LDADD = -lgtool3 -lm
 
 
 test: $(lib_LIBRARIES)
