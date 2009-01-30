@@ -677,6 +677,121 @@ GT3_freeDim(GT3_Dim *dim)
 }
 
 
+/*
+ *  for GT3_DimBound ...
+ */
+static int
+cellbnd_glon(double *bnd, int len, int idiv, unsigned flag)
+{
+	double bnd0, bnd1;
+	double delta;
+
+	if (flag & C_FLAG) {
+		bnd0 = -180.;
+		bnd1 =  180.;
+	} else {
+		bnd0 = 0.;
+		bnd1 = 360.;
+	}
+
+	if (idiv > 1) {
+		delta = (1. - 1. / idiv) * 180. / len;
+		bnd0 -= delta;
+		bnd1 -= delta;
+	}
+
+	delta = 180. / (len * idiv);
+	if ((flag & MID_FLAG) == 0) {
+		bnd0 -= delta;
+		bnd1 -= delta;
+	}
+	uniform_bnd(bnd, bnd0, bnd1, len * idiv + 1);
+	return 0;
+}
+
+
+/*
+ *  bnd must have the space of (len * idiv + 1).
+ */
+static int
+cellbnd_ggla(double *bnd, int len, int idiv, unsigned flag)
+{
+	double grid_[1024], wght_[1024];
+	double *grid, *wght;
+	double coef, b0, b1;
+	int i, m, mlen;
+
+	grid = (double *)tiny_alloc(grid_, sizeof grid_, sizeof(double) * len);
+	wght = (double *)tiny_alloc(wght_, sizeof wght_, sizeof(double) * len);
+	if (grid == NULL || wght == NULL)
+		return -1;
+
+	/*
+	 *  \mu = cos \theta: [-1, +1]  from South to North.
+	 */
+	gauss_legendre(grid, wght, len);
+
+	bnd[0] = -1.;
+	for (i = 1; i <= (len + 1) / 2; i++)
+		bnd[i*idiv] = bnd[(i-1)*idiv] + wght[i-1];
+
+	/*
+	 *  \mu -> latitude (in degree)
+	 */
+	bnd[0] = -90.0;				/* south pole */
+	for (i = 1; i <= (len + 1) / 2; i++)
+		bnd[i*idiv] = 90. * (1. - acos(bnd[i*idiv]) * M_2_PI);
+
+	/*
+	 *  mosaic (if idiv > 1)
+	 */
+	for (m = 1; m < idiv; m++)
+		for (i = 0; i < (len + 1) / 2; i++) {
+			b0 = bnd[i*idiv];
+			b1 = bnd[(i+1)*idiv];
+			coef = (1. * m) / idiv;
+			bnd[i*idiv + m] = (1. - coef) * b0 + coef * b1;
+		}
+
+	/* north hemispehre */
+	mlen = len * idiv + 1;
+	for (i = 0; i < mlen / 2; i++)
+		bnd[mlen - 1 - i] = -bnd[i];
+
+	if (mlen % 2)
+		bnd[mlen / 2] = 0.;		/* EQ */
+
+	if ((flag & INVERT_FLAG) == 0)
+		invert(bnd, mlen);
+
+	tiny_free(grid, grid_);
+	tiny_free(wght, wght_);
+	return 0;
+}
+
+
+static int
+cellbnd_glat(double *bnd, int len, int idiv, unsigned flag)
+{
+	len *= idiv;
+
+	if ((flag & MID_FLAG) || len % 2 == 0)
+		uniform_bnd(bnd, 90.0, -90., len + 1);
+	else {
+		if (len > 1) {
+			double delta;
+			delta = 90. / (len - 1);
+			uniform_bnd(bnd, 90. + delta, -90. - delta, len + 1);
+		}
+		bnd[0] = 90.;
+		bnd[len] = -90.;
+	}
+	if (flag & INVERT_FLAG)
+		invert(bnd, len + 1);
+	return 0;
+}
+
+
 static double *
 weight_glon(double *temp, int len, int idiv, unsigned flag)
 {
@@ -698,6 +813,12 @@ weight_glon(double *temp, int len, int idiv, unsigned flag)
 	return temp;
 }
 
+inline double
+degsin(double deg)
+{
+	return sin(M_PI * deg / 180.);
+}
+
 
 /*
  *  get GGLA*'s weight.
@@ -707,25 +828,50 @@ weight_glon(double *temp, int len, int idiv, unsigned flag)
 static double *
 weight_ggla(double *weight, int len, int idiv, unsigned flag)
 {
-	double grid_[1024], wght_[1024];
-	double *grid, *wght;
-	double fact;
-	int i;
-
-	grid = (double *)tiny_alloc(grid_, sizeof grid_, sizeof(double) * len);
-	wght = (double *)tiny_alloc(wght_, sizeof wght_, sizeof(double) * len);
 	if (!weight)
 		weight = (double *)malloc(sizeof(double) * len * idiv);
 
-	if (grid && wght && weight) {
-		gauss_legendre(grid, wght, len);
+	if (!weight)
+		return NULL;
 
-		fact = 0.5 / idiv;
-		for (i = 0; i < len * idiv; i++)
-			weight[i] = fact * wght[i / idiv];
+	if (idiv == 1) {
+		double grid_[1024], wght_[1024];
+		double *grid, *wght;
+		int i;
+
+		grid = tiny_alloc(grid_, sizeof grid_, sizeof(double) * len);
+		wght = tiny_alloc(wght_, sizeof wght_, sizeof(double) * len);
+
+		if (!grid || !wght) {
+			tiny_free(wght, wght_);
+			tiny_free(grid, grid_);
+			return NULL;
+		}
+
+		gauss_legendre(grid, wght, len);
+		for (i = 0; i < len; i++)
+				weight[i] = 0.5 * wght[i];
+
+		tiny_free(wght, wght_);
+		tiny_free(grid, grid_);
+	} else {
+		double bnd_[1024];
+		double *bnd;
+		int i;
+		int mlen = len * idiv;
+
+		bnd = tiny_alloc(bnd_, sizeof bnd_, sizeof(double) * (mlen + 1));
+		if (!bnd || cellbnd_ggla(bnd, len, idiv, flag) < 0)
+			return NULL;
+
+		for (i = 0; i < (mlen + 1) / 2; i++)
+			weight[i] = 0.5 * fabs((degsin(bnd[i+1]) - degsin(bnd[i])));
+
+		for (i = (mlen + 1) / 2; i < mlen; i++)
+			weight[i] = weight[mlen - 1 - i];
+
+		tiny_free(bnd, bnd_);
 	}
-	tiny_free(wght, wght_);
-	tiny_free(grid, grid_);
 	return weight;
 }
 
@@ -930,111 +1076,6 @@ GT3_writeWeightFile(FILE *fp, const GT3_Dim *dim, const char *fmt)
 }
 
 
-/*
- *  for GT3_DimBound ...
- */
-static int
-cellbnd_glon(double *bnd, int len, int idiv, unsigned flag)
-{
-	double bnd0, bnd1;
-	double delta;
-
-	if (flag & C_FLAG) {
-		bnd0 = -180.;
-		bnd1 =  180.;
-	} else {
-		bnd0 = 0.;
-		bnd1 = 360.;
-	}
-
-	if (idiv > 1) {
-		delta = (1. - 1. / idiv) * 180. / len;
-		bnd0 -= delta;
-		bnd1 -= delta;
-	}
-
-	delta = 180. / (len * idiv);
-	if ((flag & MID_FLAG) == 0) {
-		bnd0 -= delta;
-		bnd1 -= delta;
-	}
-	uniform_bnd(bnd, bnd0, bnd1, len * idiv + 1);
-	return 0;
-}
-
-
-/*
- *  bnd must have the space of (len * idiv + 1).
- */
-static int
-cellbnd_ggla(double *bnd, int len, int idiv, unsigned flag)
-{
-	double grid_[1024], wght_[1024];
-	double *grid, *wght;
-	double fact;
-	int i, mlen;
-
-	grid = (double *)tiny_alloc(grid_, sizeof grid_, sizeof(double) * len);
-	wght = (double *)tiny_alloc(wght_, sizeof wght_, sizeof(double) * len);
-	if (grid == NULL || wght == NULL)
-		return -1;
-
-	/*
-	 *  \mu = cos \theta: [-1, +1]  from South to North.
-	 */
-	gauss_legendre(grid, wght, len);
-
-	mlen = len * idiv + 1;
-	fact = 1. / idiv;
-	bnd[0] = -1.;
-	for (i = 1; i < mlen / 2; i++)
-		bnd[i] = bnd[i-1] + fact * wght[(i-1) / idiv];
-
-	/*
-	 *  \mu -> latitude (in degree)
-	 */
-	bnd[0] = -90.0;				/* south pole */
-	for (i = 1; i < mlen / 2; i++)
-		bnd[i] = 90. * (1. - acos(bnd[i]) * M_2_PI);
-
-	/* north hemispehre */
-	for (i = 0; i < mlen / 2; i++)
-		bnd[mlen - 1 - i] = -bnd[i];
-
-	if (mlen % 2)
-		bnd[mlen / 2] = 0.;		/* EQ */
-
-	if ((flag & INVERT_FLAG) == 0)
-		invert(bnd, mlen);
-
-	tiny_free(grid, grid_);
-	tiny_free(wght, wght_);
-	return 0;
-}
-
-
-static int
-cellbnd_glat(double *bnd, int len, int idiv, unsigned flag)
-{
-	len *= idiv;
-
-	if ((flag & MID_FLAG) || len % 2 == 0)
-		uniform_bnd(bnd, 90.0, -90., len + 1);
-	else {
-		if (len > 1) {
-			double delta;
-			delta = 90. / (len - 1);
-			uniform_bnd(bnd, 90. + delta, -90. - delta, len + 1);
-		}
-		bnd[0] = 90.;
-		bnd[len] = -90.;
-	}
-	if (flag & INVERT_FLAG)
-		invert(bnd, len + 1);
-	return 0;
-}
-
-
 static GT3_DimBound *
 new_dimbound(const char *name, int len_orig, int len)
 {
@@ -1042,7 +1083,7 @@ new_dimbound(const char *name, int len_orig, int len)
 	double *bnd = NULL;
 
 	if ((dimbnd = (GT3_DimBound *)malloc(sizeof(GT3_DimBound))) == NULL
-		|| (bnd = (double *)malloc(sizeof(double) * (len))) == NULL) {
+		|| (bnd = (double *)malloc(sizeof(double) * len)) == NULL) {
 
 		gt3_error(SYSERR, NULL);
 		free(bnd);
@@ -1458,6 +1499,13 @@ main(int argc, char **argv)
 
 		cellbnd_glat(bnd, 2, 1, 0);
 		assert(bnd[0] == 90. && bnd[1] == 0. && bnd[2] == -90.);
+
+		cellbnd_ggla(bnd, 1, 1, 0);
+		assert(bnd[0] == 90. && bnd[1] == -90);
+
+		cellbnd_ggla(bnd, 1, 4, 0);
+		assert(bnd[0] == 90. && bnd[1] == 45.
+			   && bnd[2] == 0. && bnd[3] == -45. && bnd[4] == -90.);
 	}
 
 	bound_test("GLON320");
