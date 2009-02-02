@@ -813,12 +813,7 @@ weight_glon(double *temp, int len, int idiv, unsigned flag)
 	return temp;
 }
 
-inline double
-degsin(double deg)
-{
-	return sin(M_PI * deg / 180.);
-}
-
+#define sindeg(x) sin(M_PI * x  / 180.)
 
 /*
  *  get GGLA*'s weight.
@@ -865,7 +860,7 @@ weight_ggla(double *weight, int len, int idiv, unsigned flag)
 			return NULL;
 
 		for (i = 0; i < (mlen + 1) / 2; i++)
-			weight[i] = 0.5 * fabs((degsin(bnd[i+1]) - degsin(bnd[i])));
+			weight[i] = 0.5 * fabs((sindeg(bnd[i+1]) - sindeg(bnd[i])));
 
 		for (i = (mlen + 1) / 2; i < mlen; i++)
 			weight[i] = weight[mlen - 1 - i];
