@@ -19,11 +19,22 @@
 #define BUFLEN  (IO_BUF_SIZE / 4)
 #define BUFLEN8 (IO_BUF_SIZE / 8)
 
-#define RESERVE_SIZE (640*320)
-
 /* a pointer to urc1_packing or urc2_packing */
 typedef void (*PACKING_FUNC)(uint32_t *, const float *, int, double,
 							 double, double, double);
+
+
+static uint32_t
+maxval_uint32(const uint32_t *vals, size_t num)
+{
+	uint32_t mv = 0;
+	size_t i;
+
+	for (i = 0; i < num; i++)
+		if (vals[i] > mv)
+			mv = vals[i];
+	return mv;
+}
 
 
 static int
@@ -806,16 +817,10 @@ write_mrx(const void *ptr2,
 	uint32_t *plen = plen_buf;
 	double *dma = dma_buf;
 	uint32_t plen_all;
-	size_t ncopied, len, nelems, nc;
 	unsigned imiss;
 	double scale0;
 	unsigned i;
-#define MRXBUFSIZ (32 * 1024)
-	unsigned idata[MRXBUFSIZ];
-	uint32_t packed[MRXBUFSIZ];
 
-
-	assert(MRXBUFSIZ % 32 == 0);
 
 	if ((cnt = (uint32_t *)
 		 tiny_alloc(cnt_buf,
@@ -861,37 +866,54 @@ write_mrx(const void *ptr2,
 	 */
 	if (write_record_sep(4 * plen_all, fp) < 0)
 		goto error;
+	{
+		size_t ncopied, len;
+		unsigned idata_buf[32 * 1024];
+		uint32_t packed_buf[32 * 1024];
+		unsigned *idata = idata_buf;
+		uint32_t *packed = packed_buf;
 
-	for (i = 0; i < nz; i++) {
-		ptr = (const char *)ptr2 + i * zelems * size;
-		nelems = zelems;
+		if ((idata = tiny_alloc(
+				 idata_buf,
+				 sizeof idata_buf,
+				 sizeof(unsigned) * maxval_uint32(cnt, nz))) == NULL
+			|| (packed = tiny_alloc(
+					packed_buf,
+					sizeof packed_buf,
+					sizeof(uint32_t) * maxval_uint32(plen, nz))) == NULL) {
 
-		while (nelems > 0) {
-			nc = (nelems > MRXBUFSIZ) ? MRXBUFSIZ : nelems;
+			tiny_free(idata, idata_buf);
+			tiny_free(packed, packed_buf);
+			goto error;
+		}
+
+		for (i = 0; i < nz; i++) {
+			ptr = (const char *)ptr2 + i * zelems * size;
 
 			if (size == 4)
 				ncopied = masked_scalingf(idata,
 										  (float *)ptr,
-										  nc,
+										  zelems,
 										  dma[2*i], dma[1+2*i] * scale0,
 										  imiss, miss);
 			else
 				ncopied = masked_scaling(idata,
 										 (double *)ptr,
-										 nc,
+										 zelems,
 										 dma[2*i], dma[1+2*i] * scale0,
 										 imiss, miss);
 
+			assert(ncopied == cnt[i]);
 			len = pack_bits_into32(packed, idata, ncopied, nbits);
 			if (IS_LITTLE_ENDIAN)
 				reverse_words(packed, len);
 
 			if (fwrite(packed, 4, len, fp) != len)
 				goto error;
-
-			ptr += nc * size;
-			nelems -= nc;
 		}
+
+		tiny_free(idata, idata_buf);
+		tiny_free(packed, packed_buf);
 	}
 	if (write_record_sep(4 * plen_all, fp) < 0)
 		goto error;
