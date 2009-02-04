@@ -21,7 +21,7 @@ RANLIB		?= ranlib
 INSTALL		?= /usr/bin/install
 MKDIR		= /usr/bin/install -d
 LN_S		= ln -sf
-DEBUG		=
+DEBUG		= -g
 
 DEFS		= -UHAVE_CONFIG_H -UWORDS_BIGENDIAN \
 		-DHAVE_FSEEKO -DHAVE_ILOGB -DHAVE_SCALBN \
@@ -55,6 +55,7 @@ OBJS		= \
 SHLIB		= libgtool3.so.$(MAJOR_VERSION)
 STLIB		= libgtool3.a
 
+#LDADD		= $(STLIB) -lm   # use static library for bin
 LDADD		= $(SHLIB) -lm
 
 UTILS		= logging.o seq.o fileiter.o split.o get_ints.o
