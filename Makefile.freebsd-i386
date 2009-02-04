@@ -52,11 +52,12 @@ OBJS		= \
 		version.o \
 		write.o
 
+SHLIBNAME	= libgtool3.so
 SHLIB		= libgtool3.so.$(MAJOR_VERSION)
 STLIB		= libgtool3.a
 
-#LDADD		= $(STLIB) -lm   # use static library for bin
-LDADD		= $(SHLIB) -lm
+LDADD		= $(STLIB) -lm   # use static library for bin
+#LDADD		= $(SHLIB) -lm
 
 UTILS		= logging.o seq.o fileiter.o split.o get_ints.o
 
@@ -123,7 +124,7 @@ install: all
 	$(INSTALL) $(BINS) $(bindir)
 	$(INSTALL) -m 644 $(LIBS) $(libdir)
 	$(INSTALL) -m 644 $(HEADERS) $(includedir)
-	( cd $(libdir) && $(LN_S) $(SHLIB) libgtool3.so )
+	( cd $(libdir) && $(LN_S) $(SHLIB) $(SHLIBNAME) )
 
 tags: TAGS
 
