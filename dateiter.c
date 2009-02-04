@@ -48,11 +48,10 @@ nextDateIterator(DateIterator *it)
 	it->count++;
 }
 
+
 /*
  *  return value:
- *    0: just next stop.
- *   -1: not next stop yet.
- *    1: passed next stop.
+ *     date - it->next
  */
 int
 cmpDateIterator(const DateIterator *it, const GT3_Date *date)
@@ -80,6 +79,8 @@ cmpDateIterator(const DateIterator *it, const GT3_Date *date)
 
 
 #ifdef TEST_MAIN
+#include <assert.h>
+
 void
 print(const DateIterator *it)
 {
@@ -99,41 +100,50 @@ print(const DateIterator *it)
 }
 
 
-
-int
-main(int argc, char **argv)
+void
+test1(void)
 {
 	DateIterator it;
 	GT3_Date initial, step;
 	GT3_Date last;
+	int cnt;
 
-	initial.year = 1900;
-	initial.mon  = 1;
-	initial.day  = 1;
-	initial.hour = 0;
-	initial.min  = 0;
-	initial.sec  = 0;
 
-	last.year = 1901;
-	last.mon  = 1;
-	last.day  = 1;
-	last.hour = 0;
-	last.min  = 0;
-	last.sec  = 0;
+	GT3_setDate(&initial, 2000, 1, 1, 0, 0, 0);
+	GT3_setDate(&last,    2001, 1, 1, 0, 0, 0);
 
-	step.year = 0;
-	step.mon  = 0;
-	step.day  = 1;
-	step.hour = 0;
-	step.min  = 0;
-	step.sec  = 0;
-
+	GT3_setDate(&step, 1, 0, 0, 0, 0, 0);
 	setDateIterator(&it, &initial, &step, CALTIME_GREGORIAN);
-
-	while (cmpDateIterator(&it, &last) >= 0) {
-		print(&it);
+	while (cmpDateIterator(&it, &last) >= 0)
 		nextDateIterator(&it);
-	}
+	assert(it.count == 1);
+
+
+	GT3_setDate(&step, 0, 2, 0, 0, 0, 0);
+	setDateIterator(&it, &initial, &step, CALTIME_GREGORIAN);
+	while (cmpDateIterator(&it, &last) >= 0)
+		nextDateIterator(&it);
+	assert(it.count == 6);
+
+
+	GT3_setDate(&step, 0, 0, 1, 0, 0, 0);
+	setDateIterator(&it, &initial, &step, CALTIME_GREGORIAN);
+	while (cmpDateIterator(&it, &last) >= 0)
+		nextDateIterator(&it);
+	assert(it.count == 366);
+
+	GT3_setDate(&step, 0, 0, 0, 0, 0, 1);
+	setDateIterator(&it, &initial, &step, CALTIME_GREGORIAN);
+	while (cmpDateIterator(&it, &last) >= 0)
+		nextDateIterator(&it);
+	assert(it.count == 366 * 24 * 3600);
+}
+
+
+int
+main(int argc, char **argv)
+{
+	test1();
 	return 0;
 }
 #endif /* TEST_MAIN */
