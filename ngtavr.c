@@ -34,7 +34,7 @@
  *  globals data
  */
 static double  *g_vardata;
-static double  *g_timedur;
+static double  *g_weight;
 static size_t g_dimlen[3];		/* dimension length */
 static GT3_HEADER g_head;		/* gt3-header of the 1st chunk */
 static GT3_Date g_date1;
@@ -48,13 +48,13 @@ static int g_snapshot_done;
 /*
  *  global options
  */
-static const char *default_ofile = "gtool.avr";
+static const char *default_ofile = "gtool.out";
 static int g_zrange[] = { 0, 0x7ffffff };
 static int g_zsliced = 0;
 static int calendar_type = GT3_CAL_GREGORIAN;
 static int ignore_tdur = 0;
 static double limit_factor = 0.;
-static char  g_format[] = "UR8\0\0\0\0\0\0\0\0\0\0\0\0\0";
+static char *g_format = "UR8";
 
 void
 clear_global()
@@ -64,11 +64,10 @@ clear_global()
 	len = g_dimlen[0] * g_dimlen[1] * g_dimlen[2];
 	for (i = 0; i < len; i++) {
 		g_vardata[i] = 0.;
-		g_timedur[i] = 0.;
+		g_weight[i] = 0.;
 	}
 	g_counter = 0;
 	g_totaltdur = 0.;
-	/* g_default_format = GT3_FMT_UR8; */
 	g_snapshot_done = 0;
 
 	GT3_setDate(&g_date1, 0, 1, 1, 0, 0, 0);
@@ -114,7 +113,7 @@ init_global(GT3_Varbuf *var)
 		free(g_vardata);
 
 		g_vardata = tempptr;
-		g_timedur = tempptr + len;
+		g_weight = tempptr + len;
 	}
 	g_dimlen[0] = var->dimlen[0];
 	g_dimlen[1] = var->dimlen[1];
@@ -156,8 +155,8 @@ get_calendar_type(const char *path)
  *  'tsum':  sum of delta-t for each grid point.
  */
 int
-time_integral(double *vsum, double *tsum, double *dtsum,
-			  GT3_Varbuf *var, double dt, int z0, int z1)
+time_integral(double *vsum, double *tsum,
+			  GT3_Varbuf *var, double weight, int z0, int z1)
 {
     int len = var->dimlen[0] * var->dimlen[1];
     int rval = 0;
@@ -176,8 +175,8 @@ time_integral(double *vsum, double *tsum, double *dtsum,
 
 			for (i = 0; i < len; i++)
 				if (data[i] != miss) {
-					vsum[i] += data[i] * dt;
-					tsum[i] += dt;
+					vsum[i] += data[i] * weight;
+					tsum[i] += weight;
 				}
 		} else {
 			float miss = var->miss;
@@ -185,15 +184,13 @@ time_integral(double *vsum, double *tsum, double *dtsum,
 
 			for (i = 0; i < len; i++)
 				if (data[i] != miss) {
-					vsum[i] += data[i] * dt;
-					tsum[i] += dt;
+					vsum[i] += data[i] * weight;
+					tsum[i] += weight;
 				}
 		}
         vsum += len;
         tsum += len;
     }
-    *dtsum += dt;
-
     return rval;
 }
 
@@ -244,41 +241,38 @@ set_zrange(int *z0, int *z1, int zend)
  *  return time-duration value in HOUR.
  */
 double
-get_tstepsize(const GT3_HEADER *head)
+get_tstepsize(const GT3_HEADER *head,
+			  const GT3_Date *date1, const GT3_Date *date2,
+			  int date_missing)
 {
-	int temp = 0;
-	int tunit;
-	double fact, dt;
+	int tdur = 0, unit;
+	double dt;
 
+	if (GT3_decodeHeaderInt(&tdur, head, "TDUR") < 0
+		|| (unit = GT3_decodeHeaderTunit(head)) < 0)
+		GT3_printErrorMessages(stderr);
 
-	tunit = GT3_decodeHeaderTunit(head);
-	switch (tunit) {
-	case GT3_UNIT_DAY:
-		fact = 24.;
-		break;
-	case GT3_UNIT_HOUR:
-		fact = 1.;
-		break;
-	case GT3_UNIT_MIN:
-		fact = 1. / 60.;
-		break;
-	case GT3_UNIT_SEC:
-		fact = 1. / 3600.;
-		break;
-	default:
-		fact = 1.;
-		break;
-	}
+	if ((tdur > 0 && unit >= 0) || date_missing) {
+		/*
+		 *  XXX: Wrong DATA1/DATE2 fields often happen.
+		 *  So we use TDUR rather than DATE[12] if TDUR > 0.
+		 */
+		dt = tdur;
+		switch (unit) {
+		case GT3_UNIT_DAY:
+			dt *= 24.;
+			break;
 
-	GT3_decodeHeaderInt(&temp, head, "TDUR");
-	dt = (temp > 0) ? fact * temp : 1.;
+		case GT3_UNIT_MIN:
+			dt *= 1. / 60;
+			break;
 
-	if (!g_snapshot_done && temp == 0) {
-		logging(LOG_NOTICE, "Processing snapshot data...");
-		g_snapshot_done = 1;
-	}
-	if (temp < 0)
-		logging(LOG_WARN, "Negative time-duration: %d", temp);
+		case GT3_UNIT_SEC:
+			dt *= 1. / 3600;
+			break;
+		}
+	} else
+		dt = GT3_getTime(date2, date1, GT3_UNIT_HOUR, calendar_type);
 
 	return dt;
 }
@@ -300,7 +294,7 @@ write_average(FILE *fp)
 	 */
 	GT3_setHeaderDate(&head, "DATE1", &g_date1);
 	GT3_setHeaderDate(&head, "DATE2", &g_date2);
-	GT3_setHeaderInt(&head, "TDUR", g_totaltdur);
+	GT3_setHeaderInt(&head, "TDUR", (int)(g_totaltdur + 0.5));
 
 	/*
 	 *  set DATE
@@ -327,8 +321,8 @@ write_average(FILE *fp)
 				time, (int)time);
 
 	if (g_zsliced) {
-		GT3_setHeaderInt(&head, "ASTR1", g_zrange[0] + 1);
-		GT3_setHeaderInt(&head, "AEND1", g_zrange[1]    );
+		GT3_setHeaderInt(&head, "ASTR3", g_zrange[0] + 1);
+		GT3_setHeaderInt(&head, "AEND3", g_zrange[1]    );
 	}
 
 	/*
@@ -378,10 +372,10 @@ average()
 	tdur_lowlim = limit_factor * g_totaltdur;
 
 	for (i = 0; i < len; i++) {
-		if (g_timedur[i] < tdur_lowlim || g_timedur[i] == 0.)
+		if (g_weight[i] < tdur_lowlim || g_weight[i] == 0.)
 			g_vardata[i] = g_miss_value;
 		else
-			g_vardata[i] /= g_timedur[i];
+			g_vardata[i] /= g_weight[i];
 	}
 }
 
@@ -394,10 +388,13 @@ average()
 int
 integrate_chunk(GT3_Varbuf *var)
 {
-	double dt = 1.;
+	double dt;
 	int z0, z1;
-	GT3_HEADER head;
 	char item[17];
+	GT3_HEADER head;
+	GT3_Date date1, date2;
+	int date_missing = 0;
+
 
 	if (GT3_readHeader(&head, var->fp) < 0) {
 		GT3_printErrorMessages(stderr);
@@ -407,31 +404,55 @@ integrate_chunk(GT3_Varbuf *var)
 	if (g_counter > 0 && check_input(var, &head) < 0)
 		return -1;
 
-	GT3_copyHeader(&g_head, &head);
+	if (   GT3_decodeHeaderDate(&date1, &head, "DATE1") < 0
+		|| GT3_decodeHeaderDate(&date2, &head, "DATE2") < 0) {
 
-	if (g_counter == 0) {
-		/* update DATE1 (start of integration)  */
-		if (GT3_decodeHeaderDate(&g_date1, &g_head, "DATE1")  < 0)
-			logging(LOG_WARN, "DATE1 is missing");
+		logging(LOG_WARN, "DATE1 or DATE2 is missing (%s: %d)",
+				var->fp->path, var->fp->curr + 1);
+
+		date_missing = 1;
+		if (GT3_decodeHeaderDate(&date1, &head, "DATE") < 0)
+			GT3_setDate(&date1, 0, 1, 1, 0, 0, 0);
+
+		date2 = date1;
 	}
 
-	/* update DATE2 (last date) */
-	if (GT3_decodeHeaderDate(&g_date2, &g_head, "DATE2")  < 0)
-		logging(LOG_WARN, "DATE2 is missing");
-
-	g_counter++;
-
-	if (!ignore_tdur)
-		dt = get_tstepsize(&g_head);
+	/*
+	 *  get time-stepsize in HOUR.
+	 */
+	dt = get_tstepsize(&head, &date1, &date2, date_missing);
+#if 0
+	if (!g_snapshot_done && dt == 0.) {
+		logging(LOG_NOTICE, "Processing snapshot data...");
+		g_snapshot_done = 1;
+	}
+#endif
+	if (dt < 0.) {
+		logging(LOG_WARN, "Negative time-duration: %f (hour)", dt);
+		dt = 0.;
+	}
 
 	set_zrange(&z0, &z1, var->fp->dimlen[2]);
 
-	GT3_copyHeaderItem(item, sizeof item, &g_head, "ITEM");
+	GT3_copyHeaderItem(item, sizeof item, &head, "ITEM");
 	logging(LOG_INFO, "Read %s (No. %d)", item, var->fp->curr + 1);
 
-	return time_integral(g_vardata, g_timedur,
-						 &g_totaltdur, var,
-						 dt, z0, z1);
+	if (time_integral(g_vardata, g_weight, var,
+					  ignore_tdur || dt == 0. ? 1. : dt,
+					  z0, z1) < 0)
+		return -1;
+
+	/*
+	 *  update global data.
+	 */
+	if (g_counter == 0) {
+		GT3_copyHeader(&g_head, &head);
+		g_date1 = date1;
+	}
+	g_totaltdur += dt;
+	g_date2 = date2;
+	g_counter++;
+	return 0;
 }
 
 
@@ -457,6 +478,7 @@ ngtavr_seq(const char *path, struct sequence *seq)
 
 		if ((var = GT3_getVarbuf(fp)) == NULL) {
 			GT3_printErrorMessages(stderr);
+			GT3_close(fp);
 			return -1;
 		}
 		init_global(var);
@@ -497,7 +519,6 @@ ngtavr_seq(const char *path, struct sequence *seq)
 	GT3_close(fp);
 	return rval;
 }
-
 
 
 /*
@@ -601,16 +622,18 @@ ngtavr_cyc(char **ppath, int nfile, struct sequence *seq, FILE *ofp)
 
 	while (nextSeq(seq)) {
 		for (n = 0; n < nfile; n++) {
+			fp = NULL;
 			if ((fp = GT3_open(ppath[n])) == NULL
 				|| GT3_seek(fp, seq->curr - 1, SEEK_SET) < 0) {
 				GT3_printErrorMessages(stderr);
+				GT3_close(fp);
 				return -1;
 			}
 
 			if (var == NULL) {
 				if ((var = GT3_getVarbuf(fp)) == NULL) {
-					GT3_close(fp);
 					GT3_printErrorMessages(stderr);
+					GT3_close(fp);
 					return -1;
 				}
 			} else
@@ -625,7 +648,6 @@ ngtavr_cyc(char **ppath, int nfile, struct sequence *seq, FILE *ofp)
 			GT3_close(fp);
 		}
 
-		/* average */
 		average();
 		if (write_average(ofp) < 0) {
 			logging(LOG_ERR, "failed to output");
@@ -762,7 +784,7 @@ main(int argc, char **argv)
 				logging(LOG_ERR, "%s: Unknown format name", optarg);
 				exit(1);
 			}
-			strncpy(g_format, optarg, 16);
+			g_format = strdup(optarg);
 			break;
 
 		case 'l':
@@ -849,7 +871,10 @@ main(int argc, char **argv)
 			seq = initSeq(":", 1, chmax);
 
 		reinitSeq(seq, 1, chmax);
-		ngtavr_cyc(argv, argc, seq, ofp);
+		if (ngtavr_cyc(argv, argc, seq, ofp) < 0) {
+			logging(LOG_ERR, "failed to process in cyclic mode.");
+			rval = 1;
+		}
 	} else {
 		for (;argc > 0 && *argv; argc--, argv++) {
 			if (ngtavr_seq(*argv, seq) < 0) {
