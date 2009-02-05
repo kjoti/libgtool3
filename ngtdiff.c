@@ -208,7 +208,7 @@ diff_var(GT3_Varbuf *var1, GT3_Varbuf *var2)
 	int nrms = 0;
 	int ioff = 1, joff = 1, koff = 1;
 	int numA = 0, numB = 0;
-	double sumA = 0., sumB = 0.;
+	double sumA = 0., sumB = 0., sumA2 = 0.;
 	int sameshape;
 
 	if (   GT3_readHeader(&head1, var1->fp) < 0
@@ -299,6 +299,7 @@ diff_var(GT3_Varbuf *var1, GT3_Varbuf *var2)
 			if (miss1 == 0) {
 				numA++;
 				sumA += v1;
+				sumA2 += v1 * v1;
 			}
 			if (miss2 == 0) {
 				numB++;
@@ -325,6 +326,7 @@ diff_var(GT3_Varbuf *var1, GT3_Varbuf *var2)
 		printf("%18s: %d / %d grids\n", "differ.", cnt, total);
 		if (numA > 0) {
 			sumA /= numA;
+			sumA2 = sqrt(sumA2 / numA);
 			printf("%18s: %.7g\n", "ave(A)", sumA);
 		}
 		if (numB > 0) {
@@ -338,9 +340,9 @@ diff_var(GT3_Varbuf *var1, GT3_Varbuf *var2)
 		if (nrms > 0) {
 			rms = sqrt(rms / nrms);
 			printf("%18s: %.7g\n", "RMS", rms);
-			if (sumA != 0.)
-				printf("%18s: %.4g%%\n", "RMS/|ave(A)|",
-					   100. * (rms / fabs(sumA)));
+			if (sumA2 > 0.)
+				printf("%18s: %.4g\n", "RMS/ave2(A)", rms / sumA2);
+
 		}
 	}
 	return flag ? 1 : 0;
