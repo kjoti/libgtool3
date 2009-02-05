@@ -94,7 +94,7 @@ main(int argc, char **argv)
 {
 	int ch, rval;
 	const char *outdir = ".";
-	const char *fmt = "UR4";
+	const char *fmt = "UR8";
 
 	open_logging(stderr, PROGNAME);
 	GT3_setProgname(PROGNAME);
