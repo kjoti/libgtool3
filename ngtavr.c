@@ -245,7 +245,7 @@ get_tstepsize(const GT3_HEADER *head,
 			  const GT3_Date *date1, const GT3_Date *date2,
 			  int date_missing)
 {
-	int tdur = 0, unit;
+	int tdur = 0, unit = -1;
 	double dt;
 
 	if (GT3_decodeHeaderInt(&tdur, head, "TDUR") < 0

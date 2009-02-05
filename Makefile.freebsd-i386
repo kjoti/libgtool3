@@ -56,8 +56,8 @@ SHLIBNAME	= libgtool3.so
 SHLIB		= libgtool3.so.$(MAJOR_VERSION)
 STLIB		= libgtool3.a
 
-LDADD		= $(STLIB) -lm   # use static library for bin
-#LDADD		= $(SHLIB) -lm
+#LDADD		= $(STLIB) -lm   # use static library for bin
+LDADD		= $(SHLIB) -lm
 
 UTILS		= logging.o seq.o fileiter.o split.o get_ints.o
 
@@ -65,13 +65,18 @@ PICFLAG		= -fpic
 SONAME		= $(SHLIB)
 SOBJS		= $(OBJS:.o=.So)
 
+LIBSOURCES	= $(OBJS:.o=.c)
+UTILSOURCES	= $(OBJS:.o=.c)
+SOURCES		= $(LIBSOURCES) $(UTILSOURCES)
+
 #
 #  targets
 #
 LIBS		= $(SHLIB) $(STLIB)
 HEADERS		= gtool3.h
 BINS		= ngtcat ngtls ngtsumm ngtstat ngtick \
-		ngthead ngted ngtmkax ngtdiff ngtdump ngtavr
+		ngthead ngted ngtmkax ngtdiff ngtdump ngtavr \
+		ngtconv
 
 all: $(LIBS) $(BINS) $(HEADERS)
 
@@ -84,38 +89,41 @@ $(SHLIB): $(SOBJS)
 	    -o $@ -Wl,-soname,$(SONAME) \
 	    `lorder $(SOBJS) | tsort -q`
 
-ngtcat: libgtool3.a ngtcat.o $(UTILS)
+ngtcat: $(STLIB) ngtcat.o $(UTILS)
 	$(CC) $(LDFLAGS) -L. -o $@ ngtcat.o $(UTILS) $(LDADD)
 
-ngtls: libgtool3.a ngtls.o  $(UTILS)
+ngtls: $(STLIB) ngtls.o  $(UTILS)
 	$(CC) $(LDFLAGS) -L. -o $@ ngtls.o $(UTILS)  $(LDADD)
 
-ngtsumm: libgtool3.a ngtsumm.o $(UTILS)
+ngtsumm: $(STLIB) ngtsumm.o $(UTILS)
 	$(CC) $(LDFLAGS) -L. -o $@ ngtsumm.o $(UTILS) $(LDADD)
 
-ngtstat: libgtool3.a ngtstat.o $(UTILS)
+ngtstat: $(STLIB) ngtstat.o $(UTILS)
 	$(CC) $(LDFLAGS) -L. -o $@ ngtstat.o $(UTILS) $(LDADD)
 
-ngtick: libgtool3.a ngtick.o $(UTILS)
+ngtick: $(STLIB) ngtick.o $(UTILS)
 	$(CC) $(LDFLAGS) -L. -o $@ ngtick.o $(UTILS) $(LDADD)
 
-ngted: libgtool3.a ngted.o $(UTILS)  copysubst.o
+ngted: $(STLIB) ngted.o $(UTILS)  copysubst.o
 	$(CC) $(LDFLAGS) -L. -o $@ ngted.o $(UTILS) copysubst.o $(LDADD)
 
-ngtmkax:  libgtool3.a ngtmkax.o $(UTILS)
+ngtmkax:  $(STLIB) ngtmkax.o $(UTILS)
 	$(CC) $(LDFLAGS) -L. -o $@ ngtmkax.o $(UTILS) $(LDADD)
 
-ngtdiff:  libgtool3.a ngtdiff.o $(UTILS)
+ngtdiff:  $(STLIB) ngtdiff.o $(UTILS)
 	$(CC) $(LDFLAGS) -L. -o $@ ngtdiff.o $(UTILS) $(LDADD)
 
-ngtdump:  libgtool3.a ngtdump.o $(UTILS)
+ngtdump:  $(STLIB) ngtdump.o $(UTILS)
 	$(CC) $(LDFLAGS) -L. -o $@ ngtdump.o $(UTILS) $(LDADD)
 
 ngthead: ngthead.o
 	$(CC) $(LDFLAGS) -o $@ ngthead.o
 
-ngtavr:  libgtool3.a ngtavr.o dateiter.o $(UTILS)
+ngtavr:  $(STLIB) ngtavr.o dateiter.o $(UTILS)
 	$(CC) $(LDFLAGS) -L. -o $@ ngtavr.o $(UTILS) dateiter.o $(LDADD)
+
+ngtconv:  $(STLIB) ngtconv.o $(UTILS)
+	$(CC) $(LDFLAGS) -L. -o $@ ngtconv.o $(UTILS) $(LDADD)
 
 install: all
 	$(MKDIR) $(bindir)
@@ -128,8 +136,8 @@ install: all
 
 tags: TAGS
 
-TAGS:
-	etags *.[ch]
+TAGS: $(SOURCES)
+	etags $(SOURCES)
 
 .c.So:
 	$(CC) $(PICFLAG) -DPIC $(CFLAGS) -c -o $@ $<
