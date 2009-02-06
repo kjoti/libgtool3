@@ -451,12 +451,13 @@ usage(void)
 	const char *usage_message =
 		"Usage: " PROGNAME " [options] FileA FileB\n"
 		"\n"
-		"Compare files.\n"
-		"\n"
+		"Compare files.\n";
+	const char *usage_message2 =
 		"Options:\n"
 		"    -h        print help message\n"
 		"    -A LIST   specify data No. for FileA\n"
 		"    -B LIST   specify data No. for FileB\n"
+		"    -I LIST   specify header field No. to be ignored\n"
 		"    -S        ignore CDATE, CSIGN, MDATE, MSIGN\n"
 		"    -T        ignore TIME, DATE, TDUR, DATE1, DATE2\n"
 		"    -a value  specify tolerance (absolute error)\n"
@@ -467,6 +468,7 @@ usage(void)
 
 	fprintf(stderr, "%s\n", GT3_version());
 	fprintf(stderr, "%s\n", usage_message);
+	fprintf(stderr, "%s\n", usage_message2);
 }
 
 
@@ -475,13 +477,14 @@ main(int argc, char **argv)
 {
 	struct sequence *seq1 = NULL;
 	struct sequence *seq2 = NULL;
+	struct sequence *iseq = NULL;
 	int ch;
 	int rval;
 	char *endptr;
 
 	open_logging(stderr, PROGNAME);
 	GT3_setProgname(PROGNAME);
-	while ((ch = getopt(argc, argv, "A:B:STa:hr:st:z:")) != -1)
+	while ((ch = getopt(argc, argv, "A:B:I:STa:hr:st:z:")) != -1)
 		switch (ch) {
 		case 'A':
 			if ((seq1 = initSeq(optarg, 1, 0x7fffffff)) == NULL) {
@@ -494,6 +497,16 @@ main(int argc, char **argv)
 				logging(LOG_SYSERR, NULL);
 				exit(1);
 			}
+			break;
+		case 'I':
+			if ((iseq = initSeq(optarg, 1, 64)) == NULL) {
+				logging(LOG_SYSERR, NULL);
+				exit(1);
+			}
+			while (nextSeq(iseq) > 0)
+				ignored_item[iseq->curr - 1] = 1;
+
+			freeSeq(iseq);
 			break;
 		case 'S':
 			/* CDATE, CSIGN, MDATE, MSIGN */
