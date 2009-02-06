@@ -232,12 +232,16 @@ static struct range *
 set_range(struct range *range, const char *str)
 {
 	int vals[] = { 1, RANGE_MAX };
+	int num;
 
-	if (str == NULL || get_ints(vals, 2, str, ':') < 0)
+	if (str == NULL || (num = get_ints(vals, 2, str, ':')) < 0)
 		return NULL;
 
 	range->str = vals[0] - 1;
 	range->end = vals[1];
+
+	if (num == 1)
+		range->end = range->str + 1;
 	return range;
 }
 
