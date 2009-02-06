@@ -7,8 +7,6 @@
 
 #include <assert.h>
 #include <ctype.h>
-#include <errno.h>
-#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -57,7 +55,6 @@ copy_to_buffer(struct buffer* buff, GT3_Varbuf *var, size_t off, size_t num)
 	ncopied = GT3_copyVarDouble(buff->ptr + buff->curr, num, var, off, 1);
 	buff->curr += ncopied;
 }
-
 
 
 static int
@@ -123,7 +120,7 @@ conv_chunk(FILE *output, const char *dfmt, GT3_Varbuf *var, GT3_File *fp)
 	}
 
 	if (allocate_buffer(&g_buffer, nx * ny * nz) < 0) {
-		logging(LOG_SYSERR, "");
+		logging(LOG_SYSERR, NULL);
 		return -1;
 	}
 
@@ -289,6 +286,7 @@ main(int argc, char **argv)
 	char *outpath = "gtool.out";
 	FILE *output;
 	struct range xr, yr;
+	char dummy[17];
 
 	open_logging(stderr, PROGNAME);
 	GT3_setProgname(PROGNAME);
@@ -299,11 +297,15 @@ main(int argc, char **argv)
 			break;
 		case 'f':
 			toupper_string(optarg);
+			if (GT3_output_format(dummy, optarg) < 0) {
+				logging(LOG_ERR, "%s: Unknown format name", optarg);
+				exit(1);
+			}
 			fmt = strdup(optarg);
 			break;
 		case 't':
 			if ((tseq = initSeq(optarg, 0, RANGE_MAX)) == NULL) {
-				logging(LOG_SYSERR, "");
+				logging(LOG_SYSERR, NULL);
 				exit(1);
 			}
 			break;
@@ -322,7 +324,10 @@ main(int argc, char **argv)
 			}
 			break;
 		case 'z':
-			zseq = initSeq(optarg, 1, RANGE_MAX);
+			if ((zseq = initSeq(optarg, 1, RANGE_MAX)) == NULL) {
+				logging(LOG_SYSERR, NULL);
+				exit(1);
+			}
 			break;
 
 		case 'h':
@@ -346,8 +351,10 @@ main(int argc, char **argv)
 		exit(1);
 	}
 
-	if (!zseq)
-		zseq = initSeq(":", 1, RANGE_MAX);
+	if (!zseq && (zseq = initSeq(":", 1, RANGE_MAX)) == NULL) {
+		logging(LOG_SYSERR, NULL);
+		exit(1);
+	}
 
 	rval = conv_file(argv[0], fmt, output, tseq);
 	return (rval < 0) ? 1 : 0;
