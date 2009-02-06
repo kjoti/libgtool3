@@ -2,7 +2,7 @@ lib_LTLIBRARIES = libgtool3.la
 libgtool3_la_LDFLAGS = -version-info 1
 
 bin_PROGRAMS = ngtcat ngtls ngtsumm ngtstat ngtick ngthead \
-		ngted ngtmkax ngtdiff ngtdump ngtavr
+		ngted ngtmkax ngtdiff ngtdump ngtavr ngtconv
 include_HEADERS = gtool3.h
 
 libgtool3_la_SOURCES = \
@@ -39,6 +39,7 @@ ngtmkax_SOURCES = ngtmkax.c $(utils)
 ngtdiff_SOURCES = ngtdiff.c $(utils)
 ngtdump_SOURCES = ngtdump.c $(utils)
 ngtavr_SOURCES = ngtavr.c dateiter.c $(utils)
+ngtconv_SOURCES = ngtconv.c $(utils)
 
 LDADD = -lgtool3 -lm
 

@@ -41,7 +41,7 @@ host_triplet = @host@
 bin_PROGRAMS = ngtcat$(EXEEXT) ngtls$(EXEEXT) ngtsumm$(EXEEXT) \
 	ngtstat$(EXEEXT) ngtick$(EXEEXT) ngthead$(EXEEXT) \
 	ngted$(EXEEXT) ngtmkax$(EXEEXT) ngtdiff$(EXEEXT) \
-	ngtdump$(EXEEXT) ngtavr$(EXEEXT)
+	ngtdump$(EXEEXT) ngtavr$(EXEEXT) ngtconv$(EXEEXT)
 DIST_COMMON = README $(am__configure_deps) $(include_HEADERS) \
 	$(srcdir)/Makefile.am $(srcdir)/Makefile.in \
 	$(srcdir)/config.h.in $(top_srcdir)/configure INSTALL \
@@ -85,6 +85,10 @@ am_ngtcat_OBJECTS = ngtcat.$(OBJEXT) $(am__objects_1)
 ngtcat_OBJECTS = $(am_ngtcat_OBJECTS)
 ngtcat_LDADD = $(LDADD)
 ngtcat_DEPENDENCIES =
+am_ngtconv_OBJECTS = ngtconv.$(OBJEXT) $(am__objects_1)
+ngtconv_OBJECTS = $(am_ngtconv_OBJECTS)
+ngtconv_LDADD = $(LDADD)
+ngtconv_DEPENDENCIES =
 am_ngtdiff_OBJECTS = ngtdiff.$(OBJEXT) $(am__objects_1)
 ngtdiff_OBJECTS = $(am_ngtdiff_OBJECTS)
 ngtdiff_LDADD = $(LDADD)
@@ -134,14 +138,15 @@ CCLD = $(CC)
 LINK = $(LIBTOOL) --tag=CC --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) \
 	$(AM_LDFLAGS) $(LDFLAGS) -o $@
 SOURCES = $(libgtool3_la_SOURCES) $(ngtavr_SOURCES) $(ngtcat_SOURCES) \
-	$(ngtdiff_SOURCES) $(ngtdump_SOURCES) $(ngted_SOURCES) \
-	$(ngthead_SOURCES) $(ngtick_SOURCES) $(ngtls_SOURCES) \
-	$(ngtmkax_SOURCES) $(ngtstat_SOURCES) $(ngtsumm_SOURCES)
-DIST_SOURCES = $(libgtool3_la_SOURCES) $(ngtavr_SOURCES) \
-	$(ngtcat_SOURCES) $(ngtdiff_SOURCES) $(ngtdump_SOURCES) \
+	$(ngtconv_SOURCES) $(ngtdiff_SOURCES) $(ngtdump_SOURCES) \
 	$(ngted_SOURCES) $(ngthead_SOURCES) $(ngtick_SOURCES) \
 	$(ngtls_SOURCES) $(ngtmkax_SOURCES) $(ngtstat_SOURCES) \
 	$(ngtsumm_SOURCES)
+DIST_SOURCES = $(libgtool3_la_SOURCES) $(ngtavr_SOURCES) \
+	$(ngtcat_SOURCES) $(ngtconv_SOURCES) $(ngtdiff_SOURCES) \
+	$(ngtdump_SOURCES) $(ngted_SOURCES) $(ngthead_SOURCES) \
+	$(ngtick_SOURCES) $(ngtls_SOURCES) $(ngtmkax_SOURCES) \
+	$(ngtstat_SOURCES) $(ngtsumm_SOURCES)
 includeHEADERS_INSTALL = $(INSTALL_HEADER)
 HEADERS = $(include_HEADERS)
 ETAGS = etags
@@ -299,6 +304,7 @@ ngtmkax_SOURCES = ngtmkax.c $(utils)
 ngtdiff_SOURCES = ngtdiff.c $(utils)
 ngtdump_SOURCES = ngtdump.c $(utils)
 ngtavr_SOURCES = ngtavr.c dateiter.c $(utils)
+ngtconv_SOURCES = ngtconv.c $(utils)
 LDADD = -lgtool3 -lm
 all: config.h
 	$(MAKE) $(AM_MAKEFLAGS) all-am
@@ -418,6 +424,9 @@ ngtavr$(EXEEXT): $(ngtavr_OBJECTS) $(ngtavr_DEPENDENCIES)
 ngtcat$(EXEEXT): $(ngtcat_OBJECTS) $(ngtcat_DEPENDENCIES) 
 	@rm -f ngtcat$(EXEEXT)
 	$(LINK) $(ngtcat_LDFLAGS) $(ngtcat_OBJECTS) $(ngtcat_LDADD) $(LIBS)
+ngtconv$(EXEEXT): $(ngtconv_OBJECTS) $(ngtconv_DEPENDENCIES) 
+	@rm -f ngtconv$(EXEEXT)
+	$(LINK) $(ngtconv_LDFLAGS) $(ngtconv_OBJECTS) $(ngtconv_LDADD) $(LIBS)
 ngtdiff$(EXEEXT): $(ngtdiff_OBJECTS) $(ngtdiff_DEPENDENCIES) 
 	@rm -f ngtdiff$(EXEEXT)
 	$(LINK) $(ngtdiff_LDFLAGS) $(ngtdiff_OBJECTS) $(ngtdiff_LDADD) $(LIBS)
@@ -469,6 +478,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mask.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ngtavr.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ngtcat.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ngtconv.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ngtdiff.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ngtdump.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ngted.Po@am__quote@
