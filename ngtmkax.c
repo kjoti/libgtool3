@@ -5,6 +5,7 @@
  */
 #include "internal.h"
 
+#include <ctype.h>
 #include <errno.h>
 #include <limits.h>
 #include <stdarg.h>
@@ -68,6 +69,17 @@ make_axisfile(const char *name, const char *outdir, const char *fmt)
 }
 
 
+static char *
+toupper_string(char *str)
+{
+	char *p = str;
+
+	while ((*p = toupper(*p)))
+		p++;
+	return str;
+}
+
+
 void
 usage(void)
 {
@@ -101,6 +113,7 @@ main(int argc, char **argv)
 	while ((ch = getopt(argc, argv, "f:ho:")) != -1)
 		switch (ch) {
 		case 'f':
+			toupper_string(optarg);
 			fmt = strdup(optarg);
 			break;
 
