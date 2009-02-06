@@ -65,9 +65,14 @@ typedef void (*UNPACK_FUNC)(const unsigned *packed, int packed_len,
 							double ref, int ne, int nd,
 							double miss, float *data);
 
-
 #define clip(v, l, h) ((v) < (l) ? (l) : ((v) > (h) ? (h) : v))
 
+/*
+ * Macros for performance.
+ * These are identical to functions defined in mask.c.
+ */
+#define getbit(m,i) (((m)[(i) >> 5U] >> (31U - ((i) & 0x1fU))) & 1U)
+#define GT3_getMaskValue(m, i) getbit((m)->mask, i)
 
 /*
  *  To distinguish I/O error and file-format error (unexpected EOF).
