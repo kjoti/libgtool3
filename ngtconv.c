@@ -93,22 +93,42 @@ conv_chunk(FILE *output, const char *dfmt, GT3_Varbuf *var, GT3_File *fp)
 	int nx, ny, nz, zcnt;
 	int y, z;
 	size_t offset, nelems;
+	int astr1, astr2, astr3;
 
 
 	if (GT3_readHeader(&head, fp) < 0) {
 		GT3_printErrorMessages(stderr);
 		return -1;
 	}
+	if (GT3_decodeHeaderInt(&astr1, &head, "ASTR1") < 0
+		|| GT3_decodeHeaderInt(&astr2, &head, "ASTR2") < 0
+		|| GT3_decodeHeaderInt(&astr3, &head, "ASTR3") < 0) {
+		GT3_printLastErrorMessage(stderr);
+		astr1 = astr2 = astr3 = 1;
+	}
+	xrange.str = astr1 - 1;
+	xrange.end = xrange.str + fp->dimlen[0];
+	yrange.str = astr2 - 1;
+	yrange.end = yrange.str + fp->dimlen[1];
 
-	xrange.str = yrange.str = 0;
-	xrange.end = fp->dimlen[0];
-	yrange.end = fp->dimlen[1];
+#ifdef USE_ZLEVEL
+	reinitSeq(zseq, astr3, astr3 + fp->dimlen[2] - 1);
+#else
 	reinitSeq(zseq, 1, fp->dimlen[2]);
+#endif
 
 	if (g_xrange)
 		clip_range(&xrange, g_xrange);
 	if (g_yrange)
 		clip_range(&yrange, g_yrange);
+
+	/*
+	 * into 0-offset.
+	 */
+	xrange.str -= astr1 - 1;
+	xrange.end -= astr1 - 1;
+	yrange.str -= astr2 - 1;
+	yrange.end -= astr2 - 1;
 
 	nx = xrange.end - xrange.str;
 	ny = yrange.end - yrange.str;
@@ -126,7 +146,11 @@ conv_chunk(FILE *output, const char *dfmt, GT3_Varbuf *var, GT3_File *fp)
 
 	zcnt = 0;
 	while (nextSeq(zseq) > 0) {
+#ifdef USE_ZLEVEL
+		z = zseq->curr - astr3;
+#else
 		z = zseq->curr - 1;
+#endif
 		if (z < 0 || z >= fp->dimlen[2])
 			continue;
 
@@ -161,14 +185,14 @@ conv_chunk(FILE *output, const char *dfmt, GT3_Varbuf *var, GT3_File *fp)
 		return 0;
 	}
 
-	GT3_setHeaderInt(&head, "ASTR1", xrange.str + 1);
-	GT3_setHeaderInt(&head, "ASTR2", yrange.str + 1);
+	GT3_setHeaderInt(&head, "ASTR1", astr1 + xrange.str);
+	GT3_setHeaderInt(&head, "ASTR2", astr2 + yrange.str);
 	if (out_of_order) {
 		logging(LOG_INFO, "zlevel: out of order");
 		GT3_setHeaderString(&head, "AITM3", "NUMBER1000");
 		GT3_setHeaderInt(&head, "ASTR3", 1);
 	} else
-		GT3_setHeaderInt(&head, "ASTR3", zstr + 1);
+		GT3_setHeaderInt(&head, "ASTR3", zstr + astr3);
 
 	if (GT3_write(g_buffer.ptr, GT3_TYPE_DOUBLE,
 				  nx, ny, zcnt,
