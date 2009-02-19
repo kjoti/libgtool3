@@ -339,7 +339,7 @@ ct_verify_date(int type, int yr, int mo, int dy)
 int
 ct_init_caltime(caltime *date, int type, int yr, int mo, int dy)
 {
-	if (date == NULL || ct_verify_date(type, yr, mo, dy) < 0)
+	if (date == NULL)
 		return -1;
 
 	date->caltype = type;
@@ -347,7 +347,7 @@ ct_init_caltime(caltime *date, int type, int yr, int mo, int dy)
 	date->month   = mo - 1;
 	date->day     = dy - 1;
 	date->sec     = 0;
-	return 0;
+	return ct_verify_date(type, yr, mo, dy);
 }
 
 

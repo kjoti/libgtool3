@@ -19,11 +19,14 @@
 /*
  *  convert data-type from 'GT3_Date' to 'caltime'.
  */
-static void
+static int
 conv_date_to_ct(struct caltime *p, const GT3_Date *date, int ctype)
 {
-	ct_init_caltime(p, ctype, date->year, date->mon, date->day);
+	int rval;
+
+	rval = ct_init_caltime(p, ctype, date->year, date->mon, date->day);
 	ct_add_seconds(p, date->sec + 60 * (date->min + 60 * date->hour));
+	return rval;
 }
 
 
@@ -221,7 +224,8 @@ guess_calendar(double sec, const GT3_Date *date)
 	 */
 	for (i = 0; i < sizeof ctab / sizeof ctab[0]; i++) {
 		ct_init_caltime(&orig, ctab[i], 0, 1, 1);
-		conv_date_to_ct(&curr, date, ctab[i]);
+		if (conv_date_to_ct(&curr, date, ctab[i]) < 0)
+			continue;
 
 		time = ct_diff_seconds(&curr, &orig);
 		/*
