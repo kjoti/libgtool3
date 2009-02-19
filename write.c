@@ -330,46 +330,50 @@ write_urc_via_double(const double *input, int len, int nz, double miss,
 
 static void
 get_urx_parameterf(double *dma,
-				   const float *data, size_t nelem, double miss)
+				   const float *data, size_t nelem,
+				   double miss, int nbits)
 {
-	int n, x;
-	float missf = (float)missf;
+	int in, ix;
+	float missf = (float)miss;
+	int num = (1U << nbits) - 2;
 
-	n = idx_min_float(data, nelem, &missf);
-
-	if (n < 0) {
+	in = idx_min_float(data, nelem, &missf);
+	if (in < 0) {
 		dma[0] = 0.;
 		dma[1] = 0.;
-	} else {
-		x = idx_max_float(data, nelem, &missf);
-
-		assert(x >= 0);
-
-		dma[0] = data[n];
-		dma[1] = data[x] - data[n];
+		return;
 	}
+	ix = idx_max_float(data, nelem, &missf);
+	assert(ix >= 0);
+
+	if (num < 1)
+		num = 1;
+	dma[0] = data[in];
+	dma[1] = step_size(data[in], data[ix], num) * num;
 }
 
 
 static void
 get_urx_parameter(double *dma,
-				  const double *data, size_t nelem, double miss)
+				  const double *data, size_t nelem,
+				  double miss, int nbits)
 {
-	int n, x;
+	int in, ix;
+	int num = (1U << nbits) - 2;
 
-	n = idx_min_double(data, nelem, &miss);
-
-	if (n < 0) {
+	in = idx_min_double(data, nelem, &miss);
+	if (in < 0) {
 		dma[0] = 0.;
 		dma[1] = 0.;
-	} else {
-		x = idx_max_double(data, nelem, &miss);
-
-		assert(x >= 0);
-
-		dma[0] = data[n];
-		dma[1] = data[x] - data[n];
+		return;
 	}
+	ix = idx_max_double(data, nelem, &miss);
+	assert(ix >= 0);
+
+	if (num < 1)
+		num = 1;
+	dma[0] = data[in];
+	dma[1] = step_size(data[in], data[ix], num) * num;
 }
 
 
@@ -410,14 +414,14 @@ write_urx(const void *ptr,
 		for (i = 0; i < nz; i++)
 			get_urx_parameterf(dma + 2 * i,
 							   data + i * zelem,
-							   zelem, miss);
+							   zelem, miss, nbits);
 	} else {
 		const double *data = ptr;
 
 		for (i = 0; i < nz; i++)
 			get_urx_parameter(dma + 2 * i,
 							  data + i * zelem,
-							  zelem, miss);
+							  zelem, miss, nbits);
 	}
 
 	/*
@@ -842,9 +846,11 @@ write_mrx(const void *ptr2,
 		plen[i] = (uint32_t)pack32_len(cnt[i], nbits);
 
 		if (size == 4)
-			get_urx_parameterf(dma + 2 * i, (float *)ptr, zelems, miss);
+			get_urx_parameterf(dma + 2 * i, (float *)ptr,
+							   zelems, miss, nbits);
 		else
-			get_urx_parameter(dma + 2 * i, (double *)ptr, zelems, miss);
+			get_urx_parameter(dma + 2 * i, (double *)ptr,
+							  zelems, miss, nbits);
 	}
 
 	for (plen_all = 0, i = 0; i < nz; i++)
