@@ -4,8 +4,20 @@
  *  scaling.c
  */
 #include <sys/types.h>
+
+#include <assert.h>
 #include <math.h>
 #include "myutils.h"
+
+#ifndef min
+#  define min(a, b) ((a) < (b) ? (a) : (b))
+#endif
+#ifndef max
+#  define max(a, b) ((a) > (b) ? (a) : (b))
+#endif
+
+#define SCALE_MAX 1.7e308
+#define SCALE_MIN 2.3e-308
 
 
 int
@@ -54,7 +66,6 @@ idx_max_double(const double *data, size_t nelem, const double *maskval)
 	}
 	return idx;
 }
-
 
 
 int
@@ -133,7 +144,6 @@ masked_scalingf(unsigned *dest,
 		}
 	return cnt;
 }
-
 
 
 size_t
@@ -221,8 +231,23 @@ scalingf(unsigned *dest,
 }
 
 
+double
+step_size(double minv, double maxv, int num)
+{
+	double dx0, step;
+
+	assert(num >= 1);
+	dx0 = 1. / num;
+	step = maxv * dx0 - minv * dx0;
+	step = max(step, SCALE_MIN);
+	step = min(step, SCALE_MAX * dx0);
+	return step;
+}
+
+
 #ifdef TEST_MAIN
 #include <assert.h>
+#include <float.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -273,8 +298,8 @@ rms(const float *a, const float *b, size_t nelem)
 }
 
 
-int
-main(int argc, char **argv)
+void
+test(void)
 {
 	float orig[NN], restore[NN];
 	unsigned scaled[NN];
@@ -301,7 +326,27 @@ main(int argc, char **argv)
 	rmsval = rms(orig, restore, NN);
 	printf("RMS(nbits = %u): %.10e\n", nbits, rmsval);
 	assert(rmsval < 8e-6);
+}
 
+
+void
+test2(void)
+{
+	int n, num = 100;
+	double step;
+
+	for (n = 2; n < 32; n++) {
+		num = (1U << n) - 2;
+		step = step_size(0., DBL_MIN, num);
+		printf("%30.15e %30.15e\n", step, num * step);
+	}
+}
+
+
+int
+main(int argc, char **argv)
+{
+	test2();
 	return 0;
 }
 #endif
