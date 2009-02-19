@@ -346,7 +346,6 @@ read_URCv(GT3_Varbuf *var, int zpos, size_t skip, size_t nelem, FILE *fp,
 	assert(var->type == GT3_TYPE_FLOAT);
 	outp = (float *)var->data + skip;
 
-
 	/*
 	 *  unpack data and store them into var->data.
 	 */
@@ -385,7 +384,7 @@ read_URC2(GT3_Varbuf *var, int zpos, size_t skip, size_t nelem, FILE *fp)
  *  read packed data in URX-format and decode them.
  */
 static int
-read_urx_packed(float *outp,
+read_urx_packed(double *outp,
 				size_t nelems,
 				int nbits,
 				const double *dma,
@@ -400,7 +399,6 @@ read_urx_packed(float *outp,
 	size_t npack_per_read, ndata_per_read;
 	size_t npack, ndata, nrest, nrest_packed;
 	int i;
-
 
 	imiss = (1U << nbits) - 1;
 	scale = (imiss == 1) ? 0. : dma[1] / (imiss - 1);
@@ -552,6 +550,7 @@ read_MR4(GT3_Varbuf *var, int zpos, size_t skip, size_t nelem, FILE *fp)
 	int offnum;
 	int i, n;
 
+	assert(var->type == GT3_TYPE_FLOAT);
 	masked = (float *)tiny_alloc(masked_buf,
 								 sizeof masked_buf,
 								 sizeof(float) * nelem);
@@ -638,11 +637,11 @@ read_MRX(GT3_Varbuf *var, int zpos, size_t skip, size_t nelem, FILE *fp)
 	unsigned nbits;
 	size_t skip2;
 	int i, n;
-	float *outp;
+	double *outp;
 	int nnn_buf[RESERVE_NZ];
-	float data_buf[RESERVE_SIZE];
+	double data_buf[RESERVE_SIZE];
 	int *nnn = nnn_buf;			/* the Number of Non-missing Number  */
-	float *data = data_buf;
+	double *data = data_buf;
 
 	/*
 	 *  read MASK.
@@ -659,7 +658,6 @@ read_MRX(GT3_Varbuf *var, int zpos, size_t skip, size_t nelem, FILE *fp)
 								 sizeof nnn_buf,
 								 sizeof(int) * var->dimlen[2])) == NULL)
 		return -1;
-
 
 	/* skip to NNN */
 	off = var->fp->off
@@ -699,21 +697,21 @@ read_MRX(GT3_Varbuf *var, int zpos, size_t skip, size_t nelem, FILE *fp)
 	 */
 	if ((data = tiny_alloc(data_buf,
 						   sizeof data_buf,
-						   sizeof(float) * nnn[zpos])) == NULL
+						   sizeof(double) * nnn[zpos])) == NULL
 		|| read_urx_packed(data, nnn[zpos], nbits, dma, var->miss, fp) < 0)
 		goto error;
 
 	/*
 	 *  unmask.
 	 */
-	assert(var->type == GT3_TYPE_FLOAT);
+	assert(var->type == GT3_TYPE_DOUBLE);
 	outp = var->data;
 	for (i = 0, n = 0; i < nelem; i++)
 		if (GT3_getMaskValue(mask, i)) {
 			outp[i] = data[n];
 			n++;
 		} else
-			outp[i] = (float)var->miss;
+			outp[i] = var->miss;
 
 	assert(n == nnn[zpos]);
 
@@ -744,14 +742,16 @@ update_varbuf(GT3_Varbuf *vbuf, GT3_File *fp)
 		return -1;
 
 	switch (fp->fmt) {
-	case GT3_FMT_UR8:
-	case GT3_FMT_MR8:
-		type = GT3_TYPE_DOUBLE;
-		elsize = sizeof(double);
-		break;
-	default:
+	case GT3_FMT_UR4:
+	case GT3_FMT_MR4:
+	case GT3_FMT_URC:
+	case GT3_FMT_URC1:
 		type = GT3_TYPE_FLOAT;
 		elsize = sizeof(float);
+		break;
+	default:
+		type = GT3_TYPE_DOUBLE;
+		elsize = sizeof(double);
 		break;
 	}
 
