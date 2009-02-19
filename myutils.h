@@ -36,5 +36,5 @@ size_t masked_scalingf(unsigned *dest,
 					   double offset, double scale,
 					   unsigned imiss, double miss);
 
-
+double step_size(double minv, double maxv, int nbits);
 #endif /* !MYUTILS__H */
