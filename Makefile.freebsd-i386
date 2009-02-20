@@ -42,22 +42,26 @@ OBJS		= \
 		header.o \
 		int_pack.o \
 		mask.o \
+		record.o \
 		reverse.o \
 		scaling.o \
 		talloc.o \
 		timedim.o \
 		urc_pack.o \
+		varbuf-urx.o \
 		varbuf.o \
 		vcat.o \
 		version.o \
+		write-mask.o \
+		write-urx.o \
 		write.o
 
 SHLIBNAME	= libgtool3.so
 SHLIB		= libgtool3.so.$(MAJOR_VERSION)
 STLIB		= libgtool3.a
 
-#LDADD		= $(STLIB) -lm   # use static library for bin
-LDADD		= $(SHLIB) -lm
+LDADD		= $(STLIB) -lm   # use static library for bin
+#LDADD		= $(SHLIB) -lm
 
 UTILS		= logging.o seq.o fileiter.o split.o get_ints.o
 

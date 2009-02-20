@@ -81,10 +81,52 @@ int uniform_bnd(double *grid, double x0, double x1, int len);
 /* gauss-legendre.c */
 void gauss_legendre(double sol[], double wght[], int nth);
 
-/*
- * error.c
- */
+/* error.c */
 #define SYSERR GT3_ERR_SYS
 void gt3_error(int code, const char *fmt, ...);
+
+/* scaling.c */
+int idx_min_double(const double *data, size_t nelem, const double *maskval);
+int idx_max_double(const double *data, size_t nelem, const double *maskval);
+int idx_min_float(const float *data, size_t nelem, const float *maskval);
+int idx_max_float(const float *data, size_t nelem, const float *maskval);
+void scaling(unsigned *dest,
+			 const double *src,
+			 size_t nelem,
+			 double offset, double scale,
+			 unsigned imax, double miss);
+
+void scalingf(unsigned *dest,
+			  const float *src,
+			  size_t nelem,
+			  double offset, double scale,
+			  unsigned imax, double miss);
+
+size_t masked_scaling(unsigned *dest,
+					  const double *src,
+					  size_t nelem,
+					  double offset, double scale,
+					  unsigned imiss, double miss);
+
+size_t masked_scalingf(unsigned *dest,
+					   const float *src,
+					   size_t nelem,
+					   double offset, double scale,
+					   unsigned imiss, double miss);
+
+double step_size(double minv, double maxv, int nbits);
+
+/* record.c */
+int read_words_from_record(void *ptr, size_t skip, size_t nelem, FILE *fp);
+int read_dwords_from_record(void *ptr, size_t skip, size_t nelem, FILE *fp);
+int write_record_sep(fort_size_t size, FILE *fp);
+int write_words_into_record(const void *ptr, size_t nelem, FILE *fp);
+int write_dwords_into_record(const void *ptr, size_t nelem, FILE *fp);
+int write_bytes_into_record(const void *ptr, size_t nelem, FILE *fp);
+
+
+/* varbuf-urx.c */
+int read_URX(GT3_Varbuf *var, int zpos, size_t skip, size_t nelem, FILE *fp);
+int read_MRX(GT3_Varbuf *var, int zpos, size_t skip, size_t nelem, FILE *fp);
 
 #endif /* GT3_INTERNAL__H */
