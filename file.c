@@ -157,6 +157,7 @@ chunk_size(GT3_File *fp)
 		break;
 
 	case GT3_FMT_URX:
+	case GT3_FMT_URY:
 		nelem = fp->dimlen[0] * fp->dimlen[1];
 		siz = chunk_size_urx(nelem, fp->dimlen[2], fp->fmt >> GT3_FMT_MBIT);
 		break;
@@ -172,6 +173,7 @@ chunk_size(GT3_File *fp)
 		break;
 
 	case GT3_FMT_MRX:
+	case GT3_FMT_MRY:
 		nelem = fp->dimlen[0] * fp->dimlen[1];
 		siz = chunk_size_maskx(nelem, fp->dimlen[2],
 							   fp->fmt >> GT3_FMT_MBIT, fp);
@@ -287,6 +289,7 @@ zslice_offset(GT3_File *fp, int zpos)
 		off += sizeof(fort_size_t) + 8 * nelem * zpos;
 		break;
 	case GT3_FMT_URX:
+	case GT3_FMT_URY:
 		off += 2 * sizeof(double) * fp->dimlen[2] + 2 * sizeof(fort_size_t);
 		off += sizeof(fort_size_t);
 		off += zpos * sizeof(uint32_t)
@@ -295,6 +298,7 @@ zslice_offset(GT3_File *fp, int zpos)
 	case GT3_FMT_MR4:
 	case GT3_FMT_MR8:
 	case GT3_FMT_MRX:
+	case GT3_FMT_MRY:
 		off += 4 + 2 * sizeof(fort_size_t);
 		off += 4 * pack32_len(nelem * fp->dimlen[2], 1)
 			+ 2 * sizeof(fort_size_t);
@@ -340,39 +344,33 @@ GT3_format(const char *str)
 		{ "MR4",  GT3_FMT_MR4   },
 		{ "MR8",  GT3_FMT_MR8   },
 	};
+	struct { const char *key; int val; } ftab2[] = {
+		{ "URX",  GT3_FMT_URX   },
+		{ "MRX",  GT3_FMT_MRX   },
+		{ "URY",  GT3_FMT_URY   },
+		{ "MRY",  GT3_FMT_MRY   },
+	};
+
 	int i;
 
 	for (i = 0; i < sizeof ftab / sizeof ftab[0]; i++)
 		if (strcmp(ftab[i].key, str) == 0)
 			return ftab[i].val;
 
-	/* URX */
-	if (strncmp(str, "URX", 3) == 0) {
-		unsigned nbits;
-		char *endptr;
+	for (i = 0; i < sizeof ftab2 / sizeof ftab2[0]; i++)
+		if (strncmp(ftab2[i].key, str, 3) == 0) {
 
-		nbits = (unsigned)strtol(str + 3, &endptr, 10);
-		if (endptr == str + 3
-			|| *endptr != '\0'
-			|| nbits > 31)
-			return -1;
+			unsigned nbits;
+			char *endptr;
 
-		return GT3_FMT_URX | nbits << GT3_FMT_MBIT;
-	}
+			nbits = (unsigned)strtol(str + 3, &endptr, 10);
+			if (endptr == str + 3
+				|| *endptr != '\0'
+				|| nbits > 31)
+				return -1;
 
-	/* MRX */
-	if (strncmp(str, "MRX", 3) == 0) {
-		unsigned nbits;
-		char *endptr;
-
-		nbits = (unsigned)strtol(str + 3, &endptr, 10);
-		if (endptr == str + 3
-			|| *endptr != '\0'
-			|| nbits > 31)
-			return -1;
-
-		return GT3_FMT_MRX | nbits << GT3_FMT_MBIT;
-	}
+			return ftab2[i].val | nbits << GT3_FMT_MBIT;
+		}
 
 	return -1;
 }
@@ -389,7 +387,9 @@ GT3_format_string(char *str, int fmt)
 		{ GT3_FMT_URX,  "URX"  },
 		{ GT3_FMT_MR4,  "MR4"  },
 		{ GT3_FMT_MR8,  "MR8"  },
-		{ GT3_FMT_MRX,  "MRX"  }
+		{ GT3_FMT_MRX,  "MRX"  },
+		{ GT3_FMT_URY,  "URY"  },
+		{ GT3_FMT_MRY,  "MRY"  }
 	};
 	int i;
 	unsigned nbits;
@@ -402,7 +402,8 @@ GT3_format_string(char *str, int fmt)
 		gt3_error(GT3_ERR_CALL, "%d: Invalid format id", fmt);
 		return -1;
 	}
-	if (dict[i].key == GT3_FMT_URX || dict[i].key == GT3_FMT_MRX) {
+	if (dict[i].key == GT3_FMT_URX || dict[i].key == GT3_FMT_MRX
+		|| dict[i].key == GT3_FMT_URY || dict[i].key == GT3_FMT_MRY) {
 		nbits = (unsigned)fmt >> GT3_FMT_MBIT;
 
 		if (nbits > 31) {
