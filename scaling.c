@@ -232,7 +232,7 @@ scalingf(unsigned *dest,
 
 
 double
-step_size(double minv, double maxv, int num)
+step_size(double minv, double maxv, unsigned num)
 {
 	double dx0, step;
 
@@ -270,75 +270,39 @@ scalingf_rev(float *dest, const unsigned *src,
 }
 
 
-double
-average(const float *data, size_t nelem)
-{
-	double sum;
-	int i;
-
-	for (sum = 0, i = 0; i < nelem; i++)
-		sum += data[i];
-
-	return sum / (nelem != 0 ? nelem : 1);
-}
-
-
-double
-rms(const float *a, const float *b, size_t nelem)
-{
-	double d;
-	double r = 0.;
-	int i;
-
-	for (i = 0; i < nelem; i++) {
-		d = a[i] - b[i];
-		r += d * d;
-	}
-	return sqrt(r) / (nelem != 0 ? nelem : 1);
-}
-
-
 void
-test(void)
+test1(unsigned nbits)
 {
 	float orig[NN], restore[NN];
-	unsigned scaled[NN];
+	unsigned scaled[NN], scaled2[NN];
 	int i;
 	unsigned imiss;
 	double offset, scale, miss;
-	double rmsval;
-	unsigned nbits = 16;
-
 
 	imiss = (1U << nbits) - 1U;
 
 	offset = 0.;
-	scale  = (imiss > 1) ? 1. / (imiss - 1) : 0.;
+	scale  = (imiss > 1) ? 1. / (imiss - 1) : 1.;
 	miss = -999.0;
 
 	srand(2);
 	for (i = 0; i < NN; i++)
 		orig[i] = (float)rand() / RAND_MAX;
+	orig[NN-1] = miss;
 
 	scalingf(scaled, orig, NN, offset, scale, imiss, miss);
 	scalingf_rev(restore, scaled, NN, offset, scale, imiss, miss);
+	scalingf(scaled2, restore, NN, offset, scale, imiss, miss);
 
-	rmsval = rms(orig, restore, NN);
-	printf("RMS(nbits = %u): %.10e\n", nbits, rmsval);
-	assert(rmsval < 8e-6);
-}
-
-
-void
-test2(void)
-{
-	int n, num = 100;
-	double step;
-
-	for (n = 2; n < 32; n++) {
-		num = (1U << n) - 2;
-		step = step_size(0., DBL_MIN, num);
-		printf("%30.15e %30.15e\n", step, num * step);
+	for (i = 0; i < NN; i++) {
+		if (fabs(restore[i] - orig[i]) > 0.5 * scale) {
+			printf("N=%d %.10f %.10f\n", nbits, orig[i], restore[i]);
+			assert(!"scaling error");
+		}
+		if (scaled[i] != scaled2[i]) {
+			printf("N=%d %d %d\n", nbits, scaled[i], scaled2[i]);
+			assert(!"scaling error");
+		}
 	}
 }
 
@@ -346,7 +310,10 @@ test2(void)
 int
 main(int argc, char **argv)
 {
-	test2();
+	unsigned n;
+
+	for (n = 2; n < 32; n++)
+		test1(n);
 	return 0;
 }
 #endif
