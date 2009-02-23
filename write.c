@@ -242,12 +242,6 @@ write_urc_via_double(const double *input, int len, int nz, double miss,
 }
 
 
-
-
-
-
-
-
 /*
  *  GT3_output_format() gives actual output format from user-specified name.
  */
@@ -394,7 +388,12 @@ GT3_write(const void *ptr, int type,
 		case GT3_FMT_MRX:
 			rval = write_mrx_via_double(ptr, zsize, nz, nbits, miss, fp);
 			break;
-
+		case GT3_FMT_URY:
+			rval = write_ury_via_double(ptr, zsize, nz, nbits, miss, fp);
+			break;
+		case GT3_FMT_MRY:
+			rval = write_mry_via_double(ptr, zsize, nz, nbits, miss, fp);
+			break;
 		}
 	else
 		switch (fmt & GT3_FMT_MASK) {
@@ -424,6 +423,12 @@ GT3_write(const void *ptr, int type,
 		case GT3_FMT_MRX:
 			rval = write_mrx_via_float(ptr, zsize, nz, nbits, miss, fp);
 			break;
+		case GT3_FMT_URY:
+			rval = write_ury_via_float(ptr, zsize, nz, nbits, miss, fp);
+			break;
+		case GT3_FMT_MRY:
+			rval = write_mry_via_float(ptr, zsize, nz, nbits, miss, fp);
+			break;
 		}
 
 	fflush(fp);
@@ -432,78 +437,6 @@ GT3_write(const void *ptr, int type,
 
 
 #ifdef TEST_MAIN
-
-void
-test2(void)
-{
-	double miss = 1e20;
-	float dest[4];
-	double src1[8];
-	float src2[8];
-	size_t nread, ncopied;
-	size_t srclen, destlen;
-	int i;
-
-	srclen = sizeof src1 / sizeof src1[0];
-	destlen = sizeof dest / sizeof dest[0];
-
-	/*
-	 *  part 1
-	 */
-	for (i = 0; i < srclen; i++) {
-		src1[i] = miss;
-		src2[i] = (float)miss;
-	}
-
-	assert(masked_count(src1, sizeof(double), srclen, miss) == 0);
-	assert(masked_count(src2, sizeof(float), srclen, miss) == 0);
-
-	ncopied = masked_copyf(&nread,
-						   dest,
-						   src1, sizeof(double),
-						   destlen, srclen, miss);
-	assert(ncopied == 0 && nread == srclen);
-
-	ncopied = masked_copyf(&nread,
-						   dest,
-						   src2, sizeof(float),
-						   destlen, srclen, miss);
-	assert(ncopied == 0 && nread == srclen);
-
-
-	/*
-	 *  part 2
-	 */
-	for (i = 0; i < srclen; i++) {
-		src1[i] = (double)i;
-		src2[i] = (float)i;
-	}
-
-	assert(masked_count(src1, sizeof(double), srclen, miss) == srclen);
-	assert(masked_count(src2, sizeof(float), srclen, miss) == srclen);
-
-	ncopied = masked_copyf(&nread,
-						   dest,
-						   src1, sizeof(double),
-						   destlen, srclen, miss);
-
-	assert(ncopied == nread);
-	assert(ncopied <= destlen);
-	assert(nread   <= srclen);
-	assert(dest[0] == 0.f && dest[1] == 1.f && dest[2] == 2.f);
-
-	ncopied = masked_copyf(&nread,
-						   dest,
-						   src2, sizeof(float),
-						   destlen, srclen, miss);
-
-	assert(ncopied == nread);
-	assert(ncopied <= destlen);
-	assert(nread   <= srclen);
-	assert(dest[0] == 0.f && dest[1] == 1.f && dest[2] == 2.f);
-}
-
-
 int
 main(int argc, char **argv)
 {
@@ -531,7 +464,6 @@ main(int argc, char **argv)
 	assert((fmt >> GT3_FMT_MBIT) == 12);
 	assert(strcmp(dfmt, "URX12") == 0);
 
-	test2();
 	return 0;
 }
 #endif
