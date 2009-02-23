@@ -52,6 +52,14 @@ typedef unsigned uint32_t;
 typedef uint32_t fort_size_t;
 
 /*
+ * Macros for performance.
+ * These are identical to functions defined in mask.c.
+ */
+#define getbit_m(m,i) (((m)[(i) >> 5U] >> (31U - ((i) & 0x1fU))) & 1U)
+#define getMaskValue(m, i) getbit_m((m)->mask, i)
+
+
+/*
  *  urc_pack.c
  */
 void calc_urc_param(const float *data, int len, double miss,
@@ -124,9 +132,19 @@ int write_words_into_record(const void *ptr, size_t nelem, FILE *fp);
 int write_dwords_into_record(const void *ptr, size_t nelem, FILE *fp);
 int write_bytes_into_record(const void *ptr, size_t nelem, FILE *fp);
 
+/* xfread.c */
+int xfread(void *ptr, size_t size, size_t nmemb, FILE *fp);
 
-/* varbuf-urx.c */
+/* read_urc */
+int read_URC1(GT3_Varbuf *var, int zpos, size_t skip, size_t nelem, FILE *fp);
+int read_URC2(GT3_Varbuf *var, int zpos, size_t skip, size_t nelem, FILE *fp);
+
+/* read_urx.c */
 int read_URX(GT3_Varbuf *var, int zpos, size_t skip, size_t nelem, FILE *fp);
 int read_MRX(GT3_Varbuf *var, int zpos, size_t skip, size_t nelem, FILE *fp);
+
+/* read_ury.c */
+int read_URY(GT3_Varbuf *var, int zpos, size_t skip, size_t nelem, FILE *fp);
+int read_MRY(GT3_Varbuf *var, int zpos, size_t skip, size_t nelem, FILE *fp);
 
 #endif /* GT3_INTERNAL__H */
