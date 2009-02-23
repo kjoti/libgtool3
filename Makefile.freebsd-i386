@@ -42,19 +42,23 @@ OBJS		= \
 		header.o \
 		int_pack.o \
 		mask.o \
+		read_urc.o \
+		read_urx.o \
+		read_ury.o \
 		record.o \
 		reverse.o \
 		scaling.o \
 		talloc.o \
 		timedim.o \
 		urc_pack.o \
-		varbuf-urx.o \
 		varbuf.o \
 		vcat.o \
 		version.o \
 		write-mask.o \
 		write-urx.o \
-		write.o
+		write-ury.o \
+		write.o \
+		xfread.o
 
 SHLIBNAME	= libgtool3.so
 SHLIB		= libgtool3.so.$(MAJOR_VERSION)
