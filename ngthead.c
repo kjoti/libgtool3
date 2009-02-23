@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #define PROGNAME "ngthead"
 #define ELEMLEN 16
@@ -114,13 +115,42 @@ display(FILE *fp)
 }
 
 
+void
+usage(void)
+{
+	const char *usage_message =
+		"Usage: " PROGNAME " file\n"
+		"Usage: ngtcat -t N file | " PROGNAME "\n"
+		"\n"
+		"print header fields.\n\n"
+		"Options:\n"
+		"    -h        print help message\n";
+
+	fprintf(stderr, "%s\n", usage_message);
+}
+
+
 int
 main(int argc, char **argv)
 {
 	FILE *fp = stdin;
+	int ch;
 
-	if (argc > 1 && (fp = fopen(argv[1], "rb")) == NULL) {
-		perror(argv[1]);
+	while ((ch = getopt(argc, argv, "h")) != -1)
+		switch (ch) {
+		case 'h':
+			usage();
+			exit(0);
+		default:
+			usage();
+			exit(1);
+		}
+
+	argc -= optind;
+	argv += optind;
+
+	if (argc > 0 && (fp = fopen(*argv, "rb")) == NULL) {
+		perror(*argv);
 		exit(1);
 	}
 	if (display(fp) < 0) {
