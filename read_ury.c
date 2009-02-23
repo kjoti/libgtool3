@@ -206,7 +206,7 @@ read_MRY(GT3_Varbuf *var, int zpos, size_t skip, size_t nelem, FILE *fp)
 	assert(var->type == GT3_TYPE_DOUBLE);
 	outp = var->data;
 	for (i = 0, n = 0; i < nelem; i++)
-		if (GT3_getMaskValue(mask, i)) {
+		if (getMaskValue(mask, i)) {
 			outp[i] = data[n];
 			n++;
 		} else
