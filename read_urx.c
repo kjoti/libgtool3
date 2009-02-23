@@ -13,7 +13,6 @@
 #include <string.h>
 
 #include "gtool3.h"
-#include "bits_set.h"
 #include "int_pack.h"
 #include "talloc.h"
 #include "debug.h"
@@ -21,7 +20,6 @@
 
 #define RESERVE_SIZE (640*320)
 #define RESERVE_NZ   256
-
 
 /*
  *  read packed data in URX-format and decode them.
@@ -63,7 +61,7 @@ read_urx_packed(double *outp,
 
 		assert(npack == pack32_len(ndata, nbits));
 
-		if (fread(packed, 4, npack, fp) != npack)
+		if (xfread(packed, 4, npack, fp) < 0)
 			return -1;
 
 		if (IS_LITTLE_ENDIAN)
