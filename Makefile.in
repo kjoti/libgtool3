@@ -69,8 +69,10 @@ LTLIBRARIES = $(lib_LTLIBRARIES)
 libgtool3_la_LIBADD =
 am_libgtool3_la_OBJECTS = bits_set.lo caltime.lo error.lo file.lo \
 	gauss-legendre.lo grid.lo gtdim.lo header.lo int_pack.lo \
-	mask.lo reverse.lo scaling.lo talloc.lo timedim.lo urc_pack.lo \
-	varbuf.lo vcat.lo version.lo write.lo
+	mask.lo read_urc.lo read_urx.lo read_ury.lo record.lo \
+	reverse.lo scaling.lo talloc.lo timedim.lo urc_pack.lo \
+	varbuf.lo vcat.lo version.lo write-mask.lo write-urx.lo \
+	write-ury.lo write.lo xfread.lo
 libgtool3_la_OBJECTS = $(am_libgtool3_la_OBJECTS)
 binPROGRAMS_INSTALL = $(INSTALL_PROGRAM)
 PROGRAMS = $(bin_PROGRAMS)
@@ -282,6 +284,10 @@ libgtool3_la_SOURCES = \
 		header.c \
 		int_pack.c \
 		mask.c \
+		read_urc.c \
+		read_urx.c \
+		read_ury.c \
+		record.c \
 		reverse.c \
 		scaling.c \
 		talloc.c \
@@ -290,7 +296,11 @@ libgtool3_la_SOURCES = \
 		varbuf.c \
 		vcat.c \
 		version.c \
-		write.c
+		write-mask.c \
+		write-urx.c \
+		write-ury.c \
+		write.c \
+		xfread.c
 
 utils = logging.c seq.c fileiter.c split.c get_ints.c
 ngtcat_SOURCES = ngtcat.c $(utils)
@@ -488,6 +498,10 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ngtmkax.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ngtstat.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ngtsumm.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/read_urc.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/read_urx.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/read_ury.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/record.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/reverse.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/scaling.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/seq.Po@am__quote@
@@ -498,7 +512,11 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/varbuf.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/vcat.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/version.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/write-mask.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/write-urx.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/write-ury.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/write.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/xfread.Plo@am__quote@
 
 .c.o:
 @am__fastdepCC_TRUE@	if $(COMPILE) -MT $@ -MD -MP -MF "$(DEPDIR)/$*.Tpo" -c -o $@ $<; \

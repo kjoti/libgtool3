@@ -16,6 +16,10 @@ libgtool3_la_SOURCES = \
 		header.c \
 		int_pack.c \
 		mask.c \
+		read_urc.c \
+		read_urx.c \
+		read_ury.c \
+		record.c \
 		reverse.c \
 		scaling.c \
 		talloc.c \
@@ -24,7 +28,11 @@ libgtool3_la_SOURCES = \
 		varbuf.c \
 		vcat.c \
 		version.c \
-		write.c
+		write-mask.c \
+		write-urx.c \
+		write-ury.c \
+		write.c \
+		xfread.c
 
 utils = logging.c seq.c fileiter.c split.c get_ints.c
 
