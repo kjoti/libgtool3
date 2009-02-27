@@ -272,7 +272,7 @@ scaling_parameters(double *dma, double dmin, double dmax, int num)
 		goto default_param;
 
 	i0 = (int)(num / (1. + amax / amin));
-	if (i0 == 0)
+	if (i0 == 0 || i0 == num)
 		goto default_param;
 
 	dx = amin / i0;
