@@ -54,8 +54,8 @@ get_urx_parameterf(double *dma,
 
 	if (num < 1)
 		num = 1;
-	dma[0] = data[in];
-	dma[1] = step_size(data[in], data[ix], num) * num;
+	scaling_parameters(dma, data[in], data[ix], num);
+	dma[1] *= num;
 }
 
 
@@ -78,8 +78,8 @@ get_urx_parameter(double *dma,
 
 	if (num < 1)
 		num = 1;
-	dma[0] = data[in];
-	dma[1] = step_size(data[in], data[ix], num) * num;
+	scaling_parameters(dma, data[in], data[ix], num);
+	dma[1] *= num;
 }
 
 
