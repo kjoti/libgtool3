@@ -52,8 +52,7 @@ get_ury_parameterf(double *dma,
 
 	if (num < 1)
 		num = 1;
-	dma[0] = data[in];
-	dma[1] = step_size(data[in], data[ix], num);
+	scaling_parameters(dma, data[in], data[ix], num);
 }
 
 
@@ -76,8 +75,7 @@ get_ury_parameter(double *dma,
 
 	if (num < 1)
 		num = 1;
-	dma[0] = data[in];
-	dma[1] = step_size(data[in], data[ix], num);
+	scaling_parameters(dma, data[in], data[ix], num);
 }
 
 

@@ -245,6 +245,48 @@ step_size(double minv, double maxv, unsigned num)
 }
 
 
+/*
+ *  offset & scale.
+ */
+void
+scaling_parameters(double *dma, double dmin, double dmax, int num)
+{
+	double amin, amax, xi, dx;
+	int i0;
+
+	if (dmin >= 0. || dmax < 0.)
+		goto default_param;
+
+	if (dmax == 0.) {
+		dma[0] = dmax;
+		dma[1] = -step_size(dmin, dmax, num);
+		return;
+	}
+
+	amin = fabs(dmin);
+	amax = fabs(dmax);
+
+	/* XXX: to avoid overflow */
+	xi = (amin < amax) ? amin / amax : amax / amin;
+	if (xi < 1e-10)
+		goto default_param;
+
+	i0 = (int)(num / (1. + amax / amin));
+	if (i0 == 0)
+		goto default_param;
+
+	dx = amin / i0;
+	dma[0] = -dx * i0;
+	dma[1] = dx;
+	return;
+
+default_param:
+	dma[0] = dmin;
+	dma[1] = step_size(dmin, dmax, num);
+}
+
+
+
 #ifdef TEST_MAIN
 #include <assert.h>
 #include <float.h>
@@ -307,6 +349,112 @@ test1(unsigned nbits)
 }
 
 
+void
+test2(unsigned nbits)
+{
+	double dmin;
+	double dmax;
+	double dma[2];
+	int num;
+
+	num = (1U << nbits) - 2;
+	if (num < 1)
+		num = 1;
+
+	dmin = -1.;
+	dmax = 1.;
+	scaling_parameters(dma, dmin, dmax, num);
+	assert(dma[0] + num * dma[1] >= dmax);
+
+	dmin = -60.036;
+	dmax = 310.42;
+	scaling_parameters(dma, dmin, dmax, num);
+	assert(dma[0] + num * dma[1] >= dmax);
+
+	dmin = -6.74e16;
+	dmax = 8.2687e16;
+	scaling_parameters(dma, dmin, dmax, num);
+	assert(dma[0] + num * dma[1] >= dmax);
+
+/* 	dmin = -1e-13; */
+/* 	dmax = 1.; */
+/* 	scaling_parameters(dma, dmin, dmax, num); */
+/* 	assert(dma[0] == -1e-13); */
+
+/* 	dmin = 1e-13; */
+/* 	dmax = 1.; */
+/* 	scaling_parameters(dma, dmin, dmax, num); */
+/* 	assert(dma[0] == 1e-13); */
+}
+
+
+void
+test3(unsigned nbits)
+{
+	double dmin;
+	double dmax;
+	double dma[2];
+	int num;
+	float orig[1], restore[1];
+	unsigned scaled[1];
+	unsigned imiss;
+	double miss = -999.0;
+
+	imiss = (1U << nbits) - 1;
+	num = imiss - 1;
+	if (num < 1)
+		num = 1;
+
+	dmin = -1.;
+	dmax = 1.;
+	orig[0] = 0.f;
+	scaling_parameters(dma, dmin, dmax, num);
+	scalingf(scaled, orig, 1, dma[0], dma[1], imiss, miss);
+	scalingf_rev(restore, scaled, 1, dma[0], dma[1], imiss, miss);
+	assert(restore[0] == 0.f);
+
+	dmin = -1.;
+	dmax = 100.;
+	orig[0] = 0.f;
+	scaling_parameters(dma, dmin, dmax, num);
+	scalingf(scaled, orig, 1, dma[0], dma[1], imiss, miss);
+	scalingf_rev(restore, scaled, 1, dma[0], dma[1], imiss, miss);
+	assert(restore[0] == 0.f);
+
+	dmin = -100.;
+	dmax = 1.;
+	orig[0] = 0.f;
+	scaling_parameters(dma, dmin, dmax, num);
+	scalingf(scaled, orig, 1, dma[0], dma[1], imiss, miss);
+	scalingf_rev(restore, scaled, 1, dma[0], dma[1], imiss, miss);
+	assert(restore[0] == 0.f);
+
+	dmin = 0.;
+	dmax = 1000.;
+	orig[0] = 0.f;
+	scaling_parameters(dma, dmin, dmax, num);
+	scalingf(scaled, orig, 1, dma[0], dma[1], imiss, miss);
+	scalingf_rev(restore, scaled, 1, dma[0], dma[1], imiss, miss);
+	assert(restore[0] == 0.f);
+
+	dmin = -1000.;
+	dmax = 0.;
+	orig[0] = 0.f;
+	scaling_parameters(dma, dmin, dmax, num);
+	scalingf(scaled, orig, 1, dma[0], dma[1], imiss, miss);
+	scalingf_rev(restore, scaled, 1, dma[0], dma[1], imiss, miss);
+	assert(restore[0] == 0.f);
+
+	dmin = 0.;
+	dmax = 0.;
+	orig[0] = 0.f;
+	scaling_parameters(dma, dmin, dmax, num);
+	scalingf(scaled, orig, 1, dma[0], dma[1], imiss, miss);
+	scalingf_rev(restore, scaled, 1, dma[0], dma[1], imiss, miss);
+	assert(restore[0] == 0.f);
+}
+
+
 int
 main(int argc, char **argv)
 {
@@ -314,6 +462,12 @@ main(int argc, char **argv)
 
 	for (n = 2; n < 32; n++)
 		test1(n);
+
+	for (n = 1; n < 32; n++)
+		test2(n);
+
+	for (n = 7; n < 32; n++)
+		test3(n);
 	return 0;
 }
 #endif

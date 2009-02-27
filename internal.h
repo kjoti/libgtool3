@@ -123,6 +123,7 @@ size_t masked_scalingf(unsigned *dest,
 					   unsigned imiss, double miss);
 
 double step_size(double minv, double maxv, int nbits);
+void scaling_parameters(double *dma, double dmin, double dmax, int num);
 
 /* record.c */
 int read_words_from_record(void *ptr, size_t skip, size_t nelem, FILE *fp);
