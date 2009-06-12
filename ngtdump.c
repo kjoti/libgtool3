@@ -46,6 +46,8 @@ static int xrange[] = { 0, 0x7fffffff };
 static int yrange[] = { 0, 0x7fffffff };
 static int zrange[] = { 0, 0x7fffffff };
 
+static int use_index_flag = 1;
+
 
 char *
 snprintf_date(char *buf, size_t len, const GT3_Date *date)
@@ -61,9 +63,9 @@ snprintf_date(char *buf, size_t len, const GT3_Date *date)
 int
 get_range_in_chunk(int x[], int y[], int z[], const GT3_File *fp)
 {
-	x[0] = xrange[0];
-	y[0] = yrange[0];
-	z[0] = zrange[0];
+	x[0] = max(0, xrange[0]);
+	y[0] = max(0, yrange[0]);
+	z[0] = max(0, zrange[0]);
 	x[1] = min(fp->dimlen[0], xrange[1]);
 	y[1] = min(fp->dimlen[1], yrange[1]);
 	z[1] = min(fp->dimlen[2], zrange[1]);
@@ -100,18 +102,21 @@ dump_info(GT3_File *fp)
 	return 0;
 }
 
+
 void
 set_dimvalue(char *hbuf, size_t len, GT3_Dim *dim, int idx)
 {
-	if (dim) {
-		if (idx == -1)
-			snprintf(hbuf, len, "%13s", "Averaged");
-		else if (idx < -1 || idx >= dim->len)
-			snprintf(hbuf, len, "%13s", "OutOfRange");
-		else
-			snprintf(hbuf, len, "%13.6g", dim->values[idx]);
-	} else
-		hbuf[0] = '\0';
+	if (use_index_flag || dim == NULL) {
+		snprintf(hbuf, len, "%13d", idx + 1);
+		return;
+	}
+
+	if (idx == -1)
+		snprintf(hbuf, len, "%13s", "Averaged");
+	else if (idx < -1 || idx >= dim->len)
+		snprintf(hbuf, len, "%13s", "OutOfRange");
+	else
+		snprintf(hbuf, len, "%13.6g", dim->values[idx]);
 }
 
 
@@ -133,24 +138,24 @@ dump_var(GT3_Varbuf *var)
 	char vfmt[16];
 	int nwidth, nprec;
 	int conti_z, conti_y;
+	int rval = 0;
 
-	GT3_readHeader(&head, var->fp);
+
+	if (GT3_readHeader(&head, var->fp) < 0) {
+		GT3_printErrorMessages(stderr);
+		return -1;
+	}
+
 	for (n = 0; n < 3; n++) {
-		items[n][0] = '\0';
 		GT3_copyHeaderItem(hbuf, sizeof hbuf, &head, dimname[n]);
-		if (hbuf[0] != '\0' && strcmp(hbuf, "SFC1") != 0) {
-			snprintf(items[n], sizeof items[n], "%13s", hbuf);
-			if ((dim[n] = GT3_getDim(hbuf)) == NULL) {
-				GT3_printErrorMessages(stderr);
-				logging(LOG_ERR, "%s: Unknown axis name.", hbuf);
+		snprintf(items[n], sizeof items[n], "%13s",
+				 hbuf[0] == '\0' ? "(No axis)" : hbuf);
 
-				snprintf(items[n], sizeof items[n], "%12s?", hbuf);
+		if (!use_index_flag && (dim[n] = GT3_getDim(hbuf)) == NULL) {
+			GT3_printErrorMessages(stderr);
+			logging(LOG_ERR, "%s: Unknown axis name.", hbuf);
 
-				/* use NUMBERXXX */
-				snprintf(hbuf, sizeof hbuf,
-						 "NUMBER%d", var->fp->dimlen[n]);
-				dim[n] = GT3_getDim(hbuf);
-			}
+			snprintf(items[n], sizeof items[n], "%12s?", hbuf);
 		}
 	}
 
@@ -184,7 +189,12 @@ dump_var(GT3_Varbuf *var)
 		conti_z = yr[1] - yr[0] <= 1 && xr[1] - xr[0] <= 1;
 		conti_y = xr[1] - xr[0] <= 1;
 		for (z = zr[0]; z < zr[1]; z++) {
-			GT3_readVarZ(var, z);
+			if (GT3_readVarZ(var, z) < 0) {
+				GT3_printErrorMessages(stderr);
+				rval = -1;
+				break;
+			}
+
 			if (z > zr[0] && !conti_z)
 				printf("\n");
 
@@ -215,7 +225,7 @@ dump_var(GT3_Varbuf *var)
 	GT3_freeDim(dim[0]);
 	GT3_freeDim(dim[1]);
 	GT3_freeDim(dim[2]);
-	return 0;
+	return rval;
 }
 
 
@@ -236,8 +246,10 @@ ngtdump(const char *path, struct sequence *seq)
 	printf("###\n# Filename: %s\n", path);
 	if (seq == NULL) {
 		while (!GT3_eof(fp)) {
-			dump_info(fp);
-			dump_var(var);
+			if (dump_info(fp) < 0 || dump_var(var) < 0) {
+				rval = -1;
+				break;
+			}
 			if (GT3_next(fp) < 0) {
 				GT3_printErrorMessages(stderr);
 				rval = -1;
@@ -246,14 +258,17 @@ ngtdump(const char *path, struct sequence *seq)
 		}
 	} else {
 		while ((stat = iterate_chunk(fp, seq)) != ITER_END) {
-			if (stat == ITER_ERROR || stat == ITER_ERRORCHUNK)
+			if (stat == ITER_ERROR || stat == ITER_ERRORCHUNK) {
+				rval = -1;
 				break;
-
+			}
 			if (stat == ITER_OUTRANGE)
 				continue;
 
-			dump_info(fp);
-			dump_var(var);
+			if (dump_info(fp) < 0 || dump_var(var) < 0) {
+				rval = -1;
+				break;
+			}
 		}
 	}
 	GT3_freeVarbuf(var);
@@ -295,6 +310,7 @@ usage(void)
 		"\n"
 		"Options:\n"
 		"    -h        print help message\n"
+		"    -a        print grid-value instead of grid-index\n"
 		"    -t LIST   specify data No.\n"
 		"    -x RANGE  specify X-range\n"
 		"    -y RANGE  specify Y-range\n"
@@ -317,8 +333,12 @@ main(int argc, char **argv)
 
 	open_logging(stderr, PROGNAME);
 	GT3_setProgname(PROGNAME);
-	while ((ch = getopt(argc, argv, "t:x:y:z:h")) != -1)
+	while ((ch = getopt(argc, argv, "at:x:y:z:h")) != -1)
 		switch (ch) {
+		case 'a':
+			use_index_flag = 0;
+			break;
+
 		case 't':
 			seq = initSeq(optarg, 1, 0x7fffffff);
 			break;
