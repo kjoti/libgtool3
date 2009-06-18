@@ -296,6 +296,10 @@ write_average(FILE *fp)
 	GT3_setHeaderDate(&head, "DATE2", &g_date2);
 	GT3_setHeaderInt(&head, "TDUR", (int)(g_totaltdur + 0.5));
 
+	if (   GT3_checkDate(&g_date1, calendar_type) < 0
+		|| GT3_checkDate(&g_date2, calendar_type) < 0)
+		date = g_date1;
+
 	/*
 	 *  set DATE
 	 */

@@ -321,6 +321,7 @@ int GT3_calcDuration(GT3_Duration *dur,
                      int calendar);
 
 int GT3_getDuration(GT3_Duration *dur, GT3_File *fp, int calendar);
+int GT3_checkDate(const GT3_Date *date, int calendar);
 
 /* vcat.c */
 GT3_VCatFile *GT3_newVCatFile(void);

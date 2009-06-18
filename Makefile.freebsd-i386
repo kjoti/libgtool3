@@ -21,7 +21,7 @@ RANLIB		?= ranlib
 INSTALL		?= /usr/bin/install
 MKDIR		= /usr/bin/install -d
 LN_S		= ln -sf
-DEBUG		= -g
+DEBUG		= #-g
 
 DEFS		= -UHAVE_CONFIG_H -UWORDS_BIGENDIAN \
 		-DHAVE_FSEEKO -DHAVE_ILOGB -DHAVE_SCALBN \
@@ -29,7 +29,7 @@ DEFS		= -UHAVE_CONFIG_H -UWORDS_BIGENDIAN \
 		-DHAVE_GLOB -DHAVE_GLOB_H
 
 LDFLAGS		+= $(DEBUG)
-CFLAGS		+= $(DEBUG) $(DEFS) -Wall -pedantic -O2
+CFLAGS		+= $(DEBUG) $(DEFS) -Wall -pedantic -O3
 
 OBJS		= \
 		bits_set.o \

@@ -105,8 +105,9 @@ GT3_midDate(GT3_Date *mid, const GT3_Date *date1, const GT3_Date *date2,
 	struct caltime from, to;
 	int days, secs;
 
-	conv_date_to_ct(&from, date1, calendar);
-	conv_date_to_ct(&to, date2, calendar);
+	if (conv_date_to_ct(&from, date1, calendar) < 0
+		|| conv_date_to_ct(&to, date2, calendar) < 0)
+		return;
 
 	days = ct_diff_days(&to, &from);
 	ct_add_days(&to, -days);
@@ -135,7 +136,9 @@ GT3_addDuration(GT3_Date *date, const GT3_Duration *dur, int calendar)
 {
 	struct caltime temp;
 
-	conv_date_to_ct(&temp, date, calendar);
+
+	if (conv_date_to_ct(&temp, date, calendar) < 0)
+		return;
 
 	switch (dur->unit) {
 	case GT3_UNIT_YEAR:
@@ -177,8 +180,9 @@ GT3_getTime(const GT3_Date *date, const GT3_Date *since,
 	caltime from, to;
 	double sec, fact;
 
-	conv_date_to_ct(&from, since, calendar);
-	conv_date_to_ct(&to,   date,  calendar);
+	if (conv_date_to_ct(&from, since, calendar) < 0
+		|| conv_date_to_ct(&to,   date,  calendar) < 0)
+		return 0.;
 
 	sec = ct_diff_seconds(&to, &from);
 
@@ -248,7 +252,8 @@ guess_calendar(double sec, const GT3_Date *date)
 		nsec  = (int)(sec - 24. * 3600. * ndays);
 
 		for (i = 0; i < sizeof ctab / sizeof ctab[0]; i++) {
-			conv_date_to_ct(&curr, date, ctab[i]);
+			if (conv_date_to_ct(&curr, date, ctab[i]) < 0)
+				continue;
 
 			ct_add_days(&curr, -ndays);
 			ct_add_seconds(&curr, -nsec);
@@ -362,8 +367,11 @@ GT3_calcDuration(GT3_Duration *dur,
 		 */
 		struct caltime ctdate1, ctdate2;
 
-		conv_date_to_ct(&ctdate1, date1, calendar);
-		conv_date_to_ct(&ctdate2, date2, calendar);
+		if (conv_date_to_ct(&ctdate1, date1, calendar) < 0
+			|| conv_date_to_ct(&ctdate2, date2, calendar) < 0) {
+			gt3_error(GT3_ERR_CALL, "Invalid date");
+			return -1;
+		}
 
 		if (dsec == 0) {
 			dur->value = ct_diff_days(&ctdate2, &ctdate1);
@@ -457,6 +465,20 @@ GT3_getDuration(GT3_Duration *dur, GT3_File *fp, int calendar)
 	}
 
 	return GT3_calcDuration(dur, &date1, &date2, calendar);
+}
+
+
+/*
+ *  Check GT3_Date
+ *
+ *  Return value:
+ *     0: valid date
+ *    -1: invalid date
+ */
+int
+GT3_checkDate(const GT3_Date *date, int calendar)
+{
+	return ct_verify_date(calendar, date->year, date->mon, date->day);
 }
 
 
@@ -684,6 +706,64 @@ main(int argc, char **argv)
 		assert(GT3_cmpDate(&date, 2006, 7, 9, 13, 1, 0) == 0);
 	}
 
+	/*
+	 *  test of GT3_checkDate().
+	 */
+	{
+		GT3_Date date;
+
+		GT3_setDate(&date, 1900, 2, 28, 0, 0, 0);
+		assert(GT3_checkDate(&date, GT3_CAL_GREGORIAN) == 0);
+
+		GT3_setDate(&date, 1900, 2, 29, 0, 0, 0);
+		assert(GT3_checkDate(&date, GT3_CAL_GREGORIAN) == -1);
+		assert(GT3_checkDate(&date, GT3_CAL_JULIAN) == 0);
+		assert(GT3_checkDate(&date, GT3_CAL_360_DAY) == 0);
+		assert(GT3_checkDate(&date, GT3_CAL_NOLEAP) == -1);
+		assert(GT3_checkDate(&date, GT3_CAL_ALL_LEAP) == 0);
+
+		GT3_setDate(&date, 1900, 2, 30, 0, 0, 0);
+		assert(GT3_checkDate(&date, GT3_CAL_GREGORIAN) == -1);
+		assert(GT3_checkDate(&date, GT3_CAL_JULIAN) == -1);
+		assert(GT3_checkDate(&date, GT3_CAL_360_DAY) == 0);
+		assert(GT3_checkDate(&date, GT3_CAL_NOLEAP) == -1);
+		assert(GT3_checkDate(&date, GT3_CAL_ALL_LEAP) == -1);
+
+		GT3_setDate(&date, 1900, 2, 31, 0, 0, 0);
+		assert(GT3_checkDate(&date, GT3_CAL_GREGORIAN) == -1);
+		assert(GT3_checkDate(&date, GT3_CAL_JULIAN) == -1);
+		assert(GT3_checkDate(&date, GT3_CAL_360_DAY) == -1);
+		assert(GT3_checkDate(&date, GT3_CAL_NOLEAP) == -1);
+		assert(GT3_checkDate(&date, GT3_CAL_ALL_LEAP) == -1);
+
+		GT3_setDate(&date, 1900, 3, 0, 0, 0, 0);
+		assert(GT3_checkDate(&date, GT3_CAL_GREGORIAN) == -1);
+		assert(GT3_checkDate(&date, GT3_CAL_JULIAN) == -1);
+		assert(GT3_checkDate(&date, GT3_CAL_360_DAY) == -1);
+		assert(GT3_checkDate(&date, GT3_CAL_NOLEAP) == -1);
+		assert(GT3_checkDate(&date, GT3_CAL_ALL_LEAP) == -1);
+
+		GT3_setDate(&date, 1900, 0, 0, 0, 0, 0);
+		assert(GT3_checkDate(&date, GT3_CAL_GREGORIAN) == -1);
+		assert(GT3_checkDate(&date, GT3_CAL_JULIAN) == -1);
+		assert(GT3_checkDate(&date, GT3_CAL_360_DAY) == -1);
+		assert(GT3_checkDate(&date, GT3_CAL_NOLEAP) == -1);
+		assert(GT3_checkDate(&date, GT3_CAL_ALL_LEAP) == -1);
+
+		GT3_setDate(&date, 1900, 13, 0, 0, 0, 0);
+		assert(GT3_checkDate(&date, GT3_CAL_GREGORIAN) == -1);
+		assert(GT3_checkDate(&date, GT3_CAL_JULIAN) == -1);
+		assert(GT3_checkDate(&date, GT3_CAL_360_DAY) == -1);
+		assert(GT3_checkDate(&date, GT3_CAL_NOLEAP) == -1);
+		assert(GT3_checkDate(&date, GT3_CAL_ALL_LEAP) == -1);
+
+		GT3_setDate(&date, 1900, 12, 31, 0, 0, 0);
+		assert(GT3_checkDate(&date, GT3_CAL_GREGORIAN) == 0);
+		assert(GT3_checkDate(&date, GT3_CAL_JULIAN) == 0);
+		assert(GT3_checkDate(&date, GT3_CAL_360_DAY) == -1);
+		assert(GT3_checkDate(&date, GT3_CAL_NOLEAP) == 0);
+		assert(GT3_checkDate(&date, GT3_CAL_ALL_LEAP) == 0);
+	}
 	return 0;
 }
 #endif /* TEST_MAIN */
