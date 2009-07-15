@@ -90,7 +90,7 @@ usage(void)
 		"\n"
 		"Options:\n"
 		"    -h        print help message\n"
-		"    -f        specify gtool3 format (default is UR4)\n"
+		"    -f        specify gtool3 format (default is UR8)\n"
 		"    -o        specify output directory (default is .)\n"
 		"\n"
 		"Example:\n"
