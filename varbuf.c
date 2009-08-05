@@ -400,13 +400,17 @@ GT3_freeVarbuf(GT3_Varbuf *var)
 
 		/* XXX GT_File is not closed.  */
 		free(var->data);
-		free_bits_set(&stat->y);
+		if (stat)
+			free_bits_set(&stat->y);
 		free(var->stat_);
 		free(var);
 	}
 }
 
 
+/*
+ *  Use GT3_reattachVarbuf() if possible.
+ */
 GT3_Varbuf *
 GT3_getVarbuf2(GT3_Varbuf *old, GT3_File *fp)
 {
@@ -726,11 +730,14 @@ GT3_getVarAttrDouble(double *attr, const GT3_Varbuf *var, const char *key)
 
 
 /*
- *  replace a file pointer in Varbuf.
+ *  replace an associated file in Varbuf.
  */
 int
 GT3_reattachVarbuf(GT3_Varbuf *var, GT3_File *fp)
 {
+	if (var == NULL)
+		return -1;
+
 	return update_varbuf(var, fp);
 }
 
