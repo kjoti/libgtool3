@@ -11,18 +11,16 @@
 int
 uniform_center(double *grid, double x0, double x1, int len)
 {
-	double bnd0, bnd1, dx;
-	int i;
+	double dxh;
+	int i, n;
 
 	if (len < 1)
 		return -1;
 
-	dx = .5 / len;
+	dxh = .5 / len;
 	for (i = 0; i < len; i++) {
-		bnd0 = (len - i)     * x0 + i       * x1;
-		bnd1 = (len - i - 1) * x0 + (i + 1) * x1;
-
-		grid[i] = (bnd0 + bnd1) * dx;
+		n = 2 * i + 1;
+		grid[i] = ((2 * len - n) * x0 + n * x1) * dxh;
 	}
 	return 0;
 }
