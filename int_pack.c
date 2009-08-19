@@ -95,6 +95,37 @@ unpack_bits_from32(unsigned *data,
 }
 
 
+/*
+ *  pack boolean flags (stored in an array of unsigned char)
+ *  into an 32-bit unsigned integer array.
+ */
+size_t
+pack_bools_into32(uint32_t *packed,
+				  const unsigned char *flags, size_t nelems)
+{
+	size_t packed_len;
+	unsigned i, m, num, extr;
+
+	num = nelems >> 5;
+	extr = nelems & 0x1f;
+	for (i = 0; i < num; i++) {
+		packed[i] = 0;
+		for (m = 0; m < 32; m++)
+			packed[i] |= (*flags++ & 1) << (31U - m);
+	}
+	packed_len = num;
+
+	if (extr) {
+		packed[num] = 0;
+		for (m = 0; m < extr; m++)
+			packed[num] |= (*flags++ & 1) << (31U - m);
+
+		packed_len++;
+	}
+	return packed_len;
+}
+
+
 #ifdef TEST_MAIN
 #include <stdio.h>
 
@@ -113,8 +144,6 @@ test0(void)
 			assert((len - 1) * 32 < nelem * nbit);
 		}
 }
-
-
 
 
 void
@@ -218,6 +247,66 @@ test2(unsigned nbit)
 }
 
 
+void
+test3(void)
+{
+	static unsigned char flags[100];
+	static uint32_t packed[4];
+	int i;
+	size_t len;
+
+	for (i = 0; i < 100; i++)
+		flags[i] = 1;
+
+	len = pack_bools_into32(packed, flags, 1);
+	assert(len == 1);
+	assert(packed[0] == 0x80000000);
+
+	len = pack_bools_into32(packed, flags, 2);
+	assert(len == 1);
+	assert(packed[0] == 0xc0000000);
+
+	len = pack_bools_into32(packed, flags, 3);
+	assert(len == 1);
+	assert(packed[0] == 0xe0000000);
+
+	len = pack_bools_into32(packed, flags, 4);
+	assert(len == 1);
+	assert(packed[0] == 0xf0000000);
+
+	len = pack_bools_into32(packed, flags, 31);
+	assert(len == 1);
+	assert(packed[0] == 0xfffffffe);
+
+	len = pack_bools_into32(packed, flags, 32);
+	assert(len == 1);
+	assert(packed[0] == 0xffffffff);
+
+	len = pack_bools_into32(packed, flags, 33);
+	assert(len == 2);
+	assert(packed[0] == 0xffffffff);
+	assert(packed[1] == 0x80000000);
+
+	for (i = 0; i < 4; i++)
+		packed[i] = 0;
+	len = pack_bools_into32(packed, flags, 100);
+	assert(len == 4);
+	assert(packed[0] == 0xffffffff);
+	assert(packed[1] == 0xffffffff);
+	assert(packed[2] == 0xffffffff);
+	assert(packed[3] == 0xf0000000);
+
+	for (i = 0; i < 100; i++)
+		flags[i] = i % 2;
+	len = pack_bools_into32(packed, flags, 100);
+	assert(len == 4);
+	assert(packed[0] == 0x55555555);
+	assert(packed[1] == 0x55555555);
+	assert(packed[2] == 0x55555555);
+	assert(packed[3] == 0x50000000);
+}
+
+
 int
 main(int argc, char **argv)
 {
@@ -228,6 +317,7 @@ main(int argc, char **argv)
 	for (nbit = 1; nbit < 32; nbit++) {
 		test2(nbit);
 	}
+	test3();
 	return 0;
 }
 #endif /* TEST_MAIN */
