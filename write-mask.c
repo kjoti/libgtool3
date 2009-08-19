@@ -23,7 +23,7 @@
 
 
 static void
-get_flag_for_mask(unsigned *flag,
+get_flag_for_mask(unsigned char *flag,
 				  size_t len,
 				  const void *ptr,
 				  size_t size, double miss)
@@ -149,7 +149,7 @@ write_mask(const void *ptr2,
 		   double miss, FILE *fp)
 {
 	uint32_t mask[BUFLEN];
-	unsigned flag[32 * BUFLEN];
+	unsigned char flag[32 * BUFLEN];
 	size_t num, masklen, len, mlen;
 	int n;
 	const char *ptr = ptr2;
@@ -166,7 +166,7 @@ write_mask(const void *ptr2,
 
 			get_flag_for_mask(flag, len, ptr, size, miss);
 
-			mlen = pack_bits_into32(mask, flag, len, 1);
+			mlen = pack_bools_into32(mask, flag, len);
 			assert(mlen > 0 && mlen <= BUFLEN);
 
 			if (IS_LITTLE_ENDIAN)
