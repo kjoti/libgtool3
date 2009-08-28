@@ -320,8 +320,11 @@ GT3_write(const void *ptr, int type,
 			strcpy(fmtstr, "UR8");
 		}
 	} else
-		if ((fmt = GT3_output_format(fmtstr, dfmt)) < 0)
+		if ((fmt = GT3_output_format(fmtstr, dfmt)) < 0) {
+			gt3_error(GT3_ERR_CALL,
+					  "GT3_write(): \"%s\" unknown format", dfmt);
 			return -1;
+		}
 
 	/*
 	 *  copy the gtool3-header and modify it.
