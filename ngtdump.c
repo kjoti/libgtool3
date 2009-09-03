@@ -209,7 +209,7 @@ dump_var(GT3_Varbuf *var)
 					val = DATA(var, ij);
 					missf = ISMISS(var, ij);
 
-					vstr[0] = '-';
+					vstr[0] = '_';
 					vstr[1] = '\0';
 					if (!missf)
 						snprintf(vstr, sizeof vstr, vfmt, val);
