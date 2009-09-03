@@ -155,7 +155,7 @@ step_size(double minv, double maxv, unsigned num)
 void
 scaling_parameters(double *dma, double dmin, double dmax, int num)
 {
-	double amin, amax, xi, dx;
+	double amin, amax, xi;
 	int i0;
 
 	if (dmin >= 0. || dmax < 0.)
@@ -179,9 +179,22 @@ scaling_parameters(double *dma, double dmin, double dmax, int num)
 	if (i0 == 0 || i0 == num)
 		goto default_param;
 
-	dx = amin / i0;
-	dma[0] = -dx * i0;
-	dma[1] = dx;
+	dma[1] = amin / i0;
+#if 0
+	{
+		/*
+		 *  XXX: To pass test3() in certain environments.
+		 */
+		float dx;
+
+		dx = (float)(amin / i0);
+		if (dx < 1e-38f || dx > 1e38f)
+			dma[1] = amin / i0;
+		else
+			dma[1] = dx;
+	}
+#endif
+	dma[0] = -dma[1]  * i0;
 	return;
 
 default_param:
@@ -259,6 +272,7 @@ test2(unsigned nbits)
 	double dmin;
 	double dmax;
 	double dma[2];
+	double f = 1. + 1e-7;
 	int num;
 
 	num = (1U << nbits) - 2;
@@ -268,17 +282,32 @@ test2(unsigned nbits)
 	dmin = -1.;
 	dmax = 1.;
 	scaling_parameters(dma, dmin, dmax, num);
-	assert(dma[0] + num * dma[1] >= dmax);
+	assert(dma[0] <= dmin / f);
+	assert(dma[0] + f * num * dma[1] >= dmax);
 
-	dmin = -60.036;
-	dmax = 310.42;
+	dmin = -1.;
+	dmax = 10.;
 	scaling_parameters(dma, dmin, dmax, num);
-	assert(dma[0] + num * dma[1] >= dmax);
+	assert(dma[0] <= dmin / f);
+	assert(dma[0] + f * num * dma[1] >= dmax);
 
-	dmin = -6.74e16;
-	dmax = 8.2687e16;
+	dmin = -1.;
+	dmax = 1000.;
 	scaling_parameters(dma, dmin, dmax, num);
-	assert(dma[0] + num * dma[1] >= dmax);
+	assert(dma[0] <= dmin / f);
+	assert(dma[0] + f * num * dma[1] >= dmax);
+
+	dmin = -1e-100;
+	dmax = 4e-50;
+	scaling_parameters(dma, dmin, dmax, num);
+	assert(dma[0] <= dmin / f);
+	assert(dma[0] + f * num * dma[1] >= dmax);
+
+	dmin = -1e-50;
+	dmax = 4e-100;
+	scaling_parameters(dma, dmin, dmax, num);
+	assert(dma[0] <= dmin / f);
+	assert(dma[0] + f * num * dma[1] >= dmax);
 
 /* 	dmin = -1e-13; */
 /* 	dmax = 1.; */
