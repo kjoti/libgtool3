@@ -729,7 +729,7 @@ usage(void)
 		"    -h        print help message\n"
 		"    -a        append to output file\n"
 		"    -c        cyclic mode\n"
-		"    -f fmt    specify output format {ur8|ur4|urc}\n"
+		"    -f fmt    specify output format\n"
 		"    -l dble   specify limit factor (by default 0.)\n"
 		"    -m tdur   specify time-duration\n"
 		"    -n        ignore TDUR (weight of integration)\n"
