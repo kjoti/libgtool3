@@ -36,6 +36,7 @@ OBJS		= \
 		caltime.o \
 		error.o \
 		file.o \
+		find_minmax.o \
 		gauss-legendre.o \
 		grid.o \
 		gtdim.o \

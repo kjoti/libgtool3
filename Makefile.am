@@ -10,6 +10,7 @@ libgtool3_la_SOURCES = \
 		caltime.c \
 		error.c \
 		file.c \
+		find_minmax.c \
 		gauss-legendre.c \
 		grid.c \
 		gtdim.c \

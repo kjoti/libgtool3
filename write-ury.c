@@ -41,13 +41,13 @@ get_ury_parameterf(double *dma,
 	float missf = (float)miss;
 	int num = (1U << nbits) - 2;
 
-	in = idx_min_float(data, nelem, &missf);
+	in = find_min_float(data, nelem, &missf);
 	if (in < 0) {
 		dma[0] = 0.;
 		dma[1] = 0.;
 		return;
 	}
-	ix = idx_max_float(data, nelem, &missf);
+	ix = find_max_float(data, nelem, &missf);
 	assert(ix >= 0);
 
 	if (num < 1)
@@ -64,13 +64,13 @@ get_ury_parameter(double *dma,
 	int in, ix;
 	int num = (1U << nbits) - 2;
 
-	in = idx_min_double(data, nelem, &miss);
+	in = find_min_double(data, nelem, &miss);
 	if (in < 0) {
 		dma[0] = 0.;
 		dma[1] = 0.;
 		return;
 	}
-	ix = idx_max_double(data, nelem, &miss);
+	ix = find_max_double(data, nelem, &miss);
 	assert(ix >= 0);
 
 	if (num < 1)

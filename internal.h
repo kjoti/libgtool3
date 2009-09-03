@@ -94,10 +94,6 @@ void gauss_legendre(double sol[], double wght[], int nth);
 void gt3_error(int code, const char *fmt, ...);
 
 /* scaling.c */
-int idx_min_double(const double *data, size_t nelem, const double *maskval);
-int idx_max_double(const double *data, size_t nelem, const double *maskval);
-int idx_min_float(const float *data, size_t nelem, const float *maskval);
-int idx_max_float(const float *data, size_t nelem, const float *maskval);
 void scaling(unsigned *dest,
 			 const double *src,
 			 size_t nelem,
@@ -147,5 +143,7 @@ int read_MRX(GT3_Varbuf *var, int zpos, size_t skip, size_t nelem, FILE *fp);
 /* read_ury.c */
 int read_URY(GT3_Varbuf *var, int zpos, size_t skip, size_t nelem, FILE *fp);
 int read_MRY(GT3_Varbuf *var, int zpos, size_t skip, size_t nelem, FILE *fp);
+
+#include "find_minmax.h"
 
 #endif /* GT3_INTERNAL__H */
