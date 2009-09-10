@@ -854,7 +854,7 @@ test: $(lib_LTLIBRARIES)
 	    grep "ifdef  *TEST_MAIN" $$f > /dev/null; \
 	    if [ $$? -eq 0 ]; then \
 	        echo "**** TESTING $$f ****"; \
-		$(COMPILE) -L.libs -DTEST_MAIN $$f $(LDADD); \
+		$(COMPILE) -DTEST_MAIN $$f .libs/libgtool3.a -lm; \
 	        if [ $$? -ne 0 ]; then \
 		    echo "**** $$f: ERROR IN COMPILE-TIME."; \
 		    exit; \
