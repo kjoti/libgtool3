@@ -128,11 +128,11 @@ latitude_mosaic(double *grid, const double *wght, int len, int idiv)
 	double *bnd;
 	double rdiv, coef, wsum;
 	int i, m, ii;
-	int mid;
+	int half;
 
-	mid = (len + 1) / 2;
+	half = (len + 1) / 2;
 	if ((bnd = (double *)tiny_alloc(
-			 bnd_, sizeof bnd_, sizeof(double) * (mid + 1))) == NULL) {
+			 bnd_, sizeof bnd_, sizeof(double) * (half + 1))) == NULL) {
 		gt3_error(SYSERR, NULL);
 		return -1;
 	}
@@ -145,7 +145,7 @@ latitude_mosaic(double *grid, const double *wght, int len, int idiv)
 	 *  cf. ${AGCM}/src/physics/pmisc.F (MKLATM1)
 	 */
 	wsum = wght[0];
-	for (i = 1; i < mid; i++) {
+	for (i = 1; i < half; i++) {
 		bnd[i] = wsum - 1.;
 		wsum += wght[i];
 	}
@@ -154,9 +154,9 @@ latitude_mosaic(double *grid, const double *wght, int len, int idiv)
 	 *  mu -> theta -> latitude(in radian) -> latitude(in degree)
 	 */
 	bnd[0] = -90.; /* south pole */
-	for (i = 1; i < mid; i++)
+	for (i = 1; i < half; i++)
 		bnd[i] = 90. * M_2_PI * asin(bnd[i]);
-	bnd[mid] = (len % 2 == 0) ? .0 : -bnd[len / 2];
+	bnd[half] = (len % 2 == 0) ? .0 : -bnd[half - 1];
 
 	/*
 	 *  interpolation
@@ -324,14 +324,19 @@ make_ggla(int len, int idiv, unsigned flag)
 		if (latitude_mosaic(grid, wght, len, idiv) < 0) {
 			goto final;
 		}
-	} else
+	} else {
 		/*
 		 *  convert from "mu = cos(theta)" to latitude (in degree).
 		 *
 		 *  -1.0 => -90.0, 1.0 => +90.0
 		 */
-		for (i = 0; i < len; i++)
+		for (i = 0; i < len / 2; i++) {
 			grid[i] = 90. * M_2_PI * asin(grid[i]);
+			grid[len-1-i] = -grid[i];
+		}
+		if (len % 2)
+			grid[len / 2] = 0.;
+	}
 
 	assert(grid[0]     > -90. && grid[0]     < 90.);
 	assert(grid[len-1] > -90. && grid[len-1] < 90.);
