@@ -126,11 +126,13 @@ latitude_mosaic(double *grid, const double *wght, int len, int idiv)
 {
 	double bnd_[1024];
 	double *bnd;
-	double rdiv, coef;
-	int i, m;
+	double rdiv, coef, wsum;
+	int i, m, ii;
+	int mid;
 
+	mid = (len + 1) / 2;
 	if ((bnd = (double *)tiny_alloc(
-			 bnd_, sizeof bnd_, sizeof(double) * (len + 1))) == NULL) {
+			 bnd_, sizeof bnd_, sizeof(double) * (mid + 1))) == NULL) {
 		gt3_error(SYSERR, NULL);
 		return -1;
 	}
@@ -142,31 +144,36 @@ latitude_mosaic(double *grid, const double *wght, int len, int idiv)
 	 *
 	 *  cf. ${AGCM}/src/physics/pmisc.F (MKLATM1)
 	 */
-	bnd[0]   = -1.; /* south pole */
-	bnd[len] =  1.; /* north pole */
-	for (i = 1; i < len / 2; i++) {
-		bnd[i] = bnd[i-1] + wght[i-1];
-		bnd[len-i] = -bnd[i];
+	wsum = wght[0];
+	for (i = 1; i < mid; i++) {
+		bnd[i] = wsum - 1.;
+		wsum += wght[i];
 	}
-	if (len % 2 == 0)
-		bnd[len / 2] = .0;
 
 	/*
 	 *  mu -> theta -> latitude(in radian) -> latitude(in degree)
 	 */
-	for (i = 0; i < len + 1; i++)
-		bnd[i] = 90. * (1. - acos(bnd[i]) * M_2_PI);
+	bnd[0] = -90.; /* south pole */
+	for (i = 1; i < mid; i++)
+		bnd[i] = 90. * M_2_PI * asin(bnd[i]);
+	bnd[mid] = (len % 2 == 0) ? .0 : -bnd[len / 2];
 
 	/*
 	 *  interpolation
 	 *  cf. ${AGCM}/src/physics/pmisc.F (SETLOM)
 	 */
 	rdiv = 1. / (2. * idiv);
-	for (m = 0; m < idiv; m++) {
+	for (i = 0; i < idiv * len / 2; i++) {
+		m = i % idiv;
+		ii = i / idiv;
+
 		coef = (2. * m + 1.) * rdiv;
-		for (i = 0; i < len; i++)
-			grid[i*idiv + m] = (1. - coef) * bnd[i] + coef * bnd[i+1];
+		grid[i] = (1. - coef) * bnd[ii] + coef * bnd[ii+1];
+		grid[idiv*len - 1 - i] = -grid[i];
 	}
+	if ((idiv * len) % 2)
+		grid[(idiv * len) / 2] = 0.;
+
 	tiny_free(bnd, bnd_);
 	return 0;
 }
@@ -324,7 +331,7 @@ make_ggla(int len, int idiv, unsigned flag)
 		 *  -1.0 => -90.0, 1.0 => +90.0
 		 */
 		for (i = 0; i < len; i++)
-			grid[i] = 90. * (1. - acos(grid[i]) * M_2_PI);
+			grid[i] = 90. * M_2_PI * asin(grid[i]);
 
 	assert(grid[0]     > -90. && grid[0]     < 90.);
 	assert(grid[len-1] > -90. && grid[len-1] < 90.);
@@ -717,52 +724,62 @@ static int
 cellbnd_ggla(double *bnd, int len, int idiv, unsigned flag)
 {
 	double grid_[1024], wght_[1024];
-	double *grid, *wght;
-	double coef, b0, b1;
-	int i, m, mlen;
+	double *grid, *wght, wsum;
+	int i, mid, bndlen;
 
 	grid = (double *)tiny_alloc(grid_, sizeof grid_, sizeof(double) * len);
 	wght = (double *)tiny_alloc(wght_, sizeof wght_, sizeof(double) * len);
 	if (grid == NULL || wght == NULL)
 		return -1;
 
+	mid = (len + 1) / 2;
+
 	/*
 	 *  \mu = cos \theta: [-1, +1]  from South to North.
 	 */
 	gauss_legendre(grid, wght, len);
 
-	bnd[0] = -1.;
-	for (i = 1; i <= (len + 1) / 2; i++)
-		bnd[i*idiv] = bnd[(i-1)*idiv] + wght[i-1];
+	bnd[0] = -1.;  /* south pole */
+	wsum = wght[0];
+	for (i = 1; i < mid; i++) {
+		bnd[i*idiv] = wsum - 1.;
+		wsum += wght[i];
+	}
 
 	/*
 	 *  \mu -> latitude (in degree)
 	 */
 	bnd[0] = -90.0;				/* south pole */
-	for (i = 1; i <= (len + 1) / 2; i++)
-		bnd[i*idiv] = 90. * (1. - acos(bnd[i*idiv]) * M_2_PI);
+	for (i = 1; i < mid; i++)
+		bnd[i*idiv] = 90. * M_2_PI * asin(bnd[i*idiv]);
+	bnd[mid * idiv] = (len % 2 == 0) ? 0. : -bnd[(mid-1) * idiv];
 
 	/*
-	 *  mosaic (if idiv > 1)
+	 *  mosaic
 	 */
-	for (m = 1; m < idiv; m++)
-		for (i = 0; i < (len + 1) / 2; i++) {
-			b0 = bnd[i*idiv];
-			b1 = bnd[(i+1)*idiv];
+	bndlen = len * idiv + 1;
+	if (idiv > 1) {
+		double coef, b0, b1;
+		int m, ii;
+
+		for (i = 0; i < bndlen / 2; i++) {
+			ii = i / idiv;
+			m = i % idiv;
+
+			b0 = bnd[ii * idiv];
+			b1 = bnd[(ii+1) * idiv];
 			coef = (1. * m) / idiv;
-			bnd[i*idiv + m] = (1. - coef) * b0 + coef * b1;
+			bnd[i] = (1. - coef) * b0 + coef * b1;
 		}
+		bnd[bndlen / 2] = bndlen % 2 ? 0. : -bnd[bndlen / 2 - 1];
+	}
 
 	/* north hemispehre */
-	mlen = len * idiv + 1;
-	for (i = 0; i < mlen / 2; i++)
-		bnd[mlen - 1 - i] = -bnd[i];
-
-	if (mlen % 2)
-		bnd[mlen / 2] = 0.;		/* EQ */
+	for (i = 0; i < bndlen / 2; i++)
+		bnd[bndlen - 1 - i] = -bnd[i];
 
 	if ((flag & INVERT_FLAG) == 0)
-		invert(bnd, mlen);
+		invert(bnd, bndlen);
 
 	tiny_free(grid, grid_);
 	tiny_free(wght, wght_);
@@ -845,7 +862,7 @@ weight_ggla(double *weight, int len, int idiv, unsigned flag)
 
 		gauss_legendre(grid, wght, len);
 		for (i = 0; i < len; i++)
-				weight[i] = 0.5 * wght[i];
+			weight[i] = 0.5 * wght[i];
 
 		tiny_free(wght, wght_);
 		tiny_free(grid, grid_);
