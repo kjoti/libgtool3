@@ -6,7 +6,7 @@
 
 
 #define proto_find(M,T) \
-	int find_##M##_##T(const T *values, int nelems, const T * miss)
+    int find_##M##_##T(const T *values, int nelems, const T * miss)
 
 proto_find(max, int);
 proto_find(min, int);

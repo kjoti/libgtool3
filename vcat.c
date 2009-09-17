@@ -1,6 +1,4 @@
-/*  -*- tab-width: 4; -*-
- *  vim: ts=4
- *
+/*
  *  vcat.c -- virtually concatenated file.
  */
 #include "internal.h"
@@ -19,50 +17,50 @@
 static int
 alloc_file(GT3_VCatFile *vf, size_t num)
 {
-	int newsize;
-	char **path = NULL;
-	int *idx = NULL;
+    int newsize;
+    char **path = NULL;
+    int *idx = NULL;
 
 
-	assert(vf);
-	newsize = vf->reserved + num;
+    assert(vf);
+    newsize = vf->reserved + num;
 
-	if ((path = realloc(vf->path, newsize * sizeof(char *))) == NULL
-		|| (idx = realloc(vf->index, (newsize + 1) * sizeof(int))) == NULL) {
-		free(path);
-		gt3_error(SYSERR, NULL);
-		return -1;
-	}
+    if ((path = realloc(vf->path, newsize * sizeof(char *))) == NULL
+        || (idx = realloc(vf->index, (newsize + 1) * sizeof(int))) == NULL) {
+        free(path);
+        gt3_error(SYSERR, NULL);
+        return -1;
+    }
 
-	vf->path = path;
-	vf->index = idx;
-	vf->reserved = newsize;
-	return 0;
+    vf->path = path;
+    vf->index = idx;
+    vf->reserved = newsize;
+    return 0;
 }
 
 
 static int
 find_range(int value, const int *bnd, size_t nrange)
 {
-	int low, high, mid;
+    int low, high, mid;
 
-	if (value < bnd[0] || value >= bnd[nrange])
-		return -1;
+    if (value < bnd[0] || value >= bnd[nrange])
+        return -1;
 
-	low = 0;
-	high = nrange;
-	while (high - low > 1) {
-		mid = (low + high) / 2;
+    low = 0;
+    high = nrange;
+    while (high - low > 1) {
+        mid = (low + high) / 2;
 
-		if (value >= bnd[mid] && value < bnd[mid+1])
-			return mid;
+        if (value >= bnd[mid] && value < bnd[mid+1])
+            return mid;
 
-		if (value < bnd[mid])
-			high = mid;
-		else
-			low = mid + 1;
-	}
-	return low;
+        if (value < bnd[mid])
+            high = mid;
+        else
+            low = mid + 1;
+    }
+    return low;
 }
 
 
@@ -73,37 +71,37 @@ find_range(int value, const int *bnd, size_t nrange)
 static GT3_File *
 select_file(GT3_VCatFile *vf, int tpos)
 {
-	GT3_File *fp = NULL;
-	int i;
+    GT3_File *fp = NULL;
+    int i;
 
 
-	i = find_range(tpos, vf->index, vf->num_files);
-	if (i < 0) {
-		gt3_error(GT3_ERR_INDEX, "t=%d", tpos);
-		return NULL;
-	}
+    i = find_range(tpos, vf->index, vf->num_files);
+    if (i < 0) {
+        gt3_error(GT3_ERR_INDEX, "t=%d", tpos);
+        return NULL;
+    }
 
-	if (i == vf->opened_) {
-		fp = vf->ofile_;
-		assert(fp != NULL);
-	} else {
-		if ((fp = GT3_open(vf->path[i])) == NULL)
-			return NULL;
+    if (i == vf->opened_) {
+        fp = vf->ofile_;
+        assert(fp != NULL);
+    } else {
+        if ((fp = GT3_open(vf->path[i])) == NULL)
+            return NULL;
 
-		if (fp && vf->opened_ >= 0) {
-			GT3_close(vf->ofile_);
-			vf->ofile_ = NULL;
-		}
-	}
+        if (fp && vf->opened_ >= 0) {
+            GT3_close(vf->ofile_);
+            vf->ofile_ = NULL;
+        }
+    }
 
-	if (GT3_seek(fp, tpos - vf->index[i], SEEK_SET) < 0) {
-		/* assert("Unbelievable"); */
-		return NULL;
-	}
+    if (GT3_seek(fp, tpos - vf->index[i], SEEK_SET) < 0) {
+        /* assert("Unbelievable"); */
+        return NULL;
+    }
 
-	vf->opened_ = i;
-	vf->ofile_ = fp;
-	return fp;
+    vf->opened_ = i;
+    vf->ofile_ = fp;
+    return fp;
 }
 
 
@@ -113,94 +111,94 @@ select_file(GT3_VCatFile *vf, int tpos)
 GT3_VCatFile *
 GT3_newVCatFile(void)
 {
-	GT3_VCatFile *vf;
-	const int INITIAL_SIZE = 8;
+    GT3_VCatFile *vf;
+    const int INITIAL_SIZE = 8;
 
-	vf = malloc(sizeof(GT3_VCatFile));
-	if (vf) {
-		vf->num_files = 0;
-		vf->path = NULL;
-		vf->index = NULL;
-		vf->reserved = 0;
-		vf->opened_ = -1;
-		vf->ofile_ = NULL;
+    vf = malloc(sizeof(GT3_VCatFile));
+    if (vf) {
+        vf->num_files = 0;
+        vf->path = NULL;
+        vf->index = NULL;
+        vf->reserved = 0;
+        vf->opened_ = -1;
+        vf->ofile_ = NULL;
 
-		if (alloc_file(vf, INITIAL_SIZE) < 0) {
-			free(vf);
-			return NULL;
-		}
-		vf->index[0] = 0;
-	} else
-		gt3_error(SYSERR, NULL);
+        if (alloc_file(vf, INITIAL_SIZE) < 0) {
+            free(vf);
+            return NULL;
+        }
+        vf->index[0] = 0;
+    } else
+        gt3_error(SYSERR, NULL);
 
-	return vf;
+    return vf;
 }
 
 
 int
 GT3_vcatFile(GT3_VCatFile *vf, const char *path)
 {
-	int curr, nc;
+    int curr, nc;
 
-	nc = GT3_countChunk(path);
-	if (nc < 0)
-		return -1;
+    nc = GT3_countChunk(path);
+    if (nc < 0)
+        return -1;
 
-	if (vf->num_files >= vf->reserved
-		&& alloc_file(vf, vf->reserved) < 0)
-		return -1;
+    if (vf->num_files >= vf->reserved
+        && alloc_file(vf, vf->reserved) < 0)
+        return -1;
 
-	curr = vf->num_files;
-	if ((vf->path[curr] = strdup(path)) == NULL) {
-		gt3_error(SYSERR, NULL);
-		return -1;
-	}
+    curr = vf->num_files;
+    if ((vf->path[curr] = strdup(path)) == NULL) {
+        gt3_error(SYSERR, NULL);
+        return -1;
+    }
 
-	vf->index[curr+1] = vf->index[curr] + nc;
-	vf->num_files++;
-	return 0;
+    vf->index[curr+1] = vf->index[curr] + nc;
+    vf->num_files++;
+    return 0;
 }
 
 
 void
 GT3_destroyVCatFile(GT3_VCatFile *vf)
 {
-	int i;
+    int i;
 
-	if (vf->opened_ >= 0)
-		GT3_close(vf->ofile_);
+    if (vf->opened_ >= 0)
+        GT3_close(vf->ofile_);
 
-	free(vf->index);
-	for (i = 0; i < vf->num_files; i++)
-		free(vf->path[i]);
-	free(vf->path);
+    free(vf->index);
+    for (i = 0; i < vf->num_files; i++)
+        free(vf->path[i]);
+    free(vf->path);
 }
 
 
 GT3_Varbuf *
 GT3_setVarbuf_VF(GT3_Varbuf *var, GT3_VCatFile *vf, int tpos)
 {
-	if (select_file(vf, tpos) == NULL)
-		return NULL;
+    if (select_file(vf, tpos) == NULL)
+        return NULL;
 
-	return GT3_getVarbuf2(var, vf->ofile_);
+    return GT3_getVarbuf2(var, vf->ofile_);
 }
 
 
 int
 GT3_readHeader_VF(GT3_HEADER *header, GT3_VCatFile *vf, int tpos)
 {
-	if (select_file(vf, tpos) == NULL)
-		return -1;
+    if (select_file(vf, tpos) == NULL)
+        return -1;
 
-	return GT3_readHeader(header, vf->ofile_);
+    return GT3_readHeader(header, vf->ofile_);
 }
 
 
 int
 GT3_numChunk_VF(const GT3_VCatFile *vf)
 {
-	return vf->index[vf->num_files];
+    return vf->index[vf->num_files];
 }
 
 
@@ -212,27 +210,27 @@ GT3_numChunk_VF(const GT3_VCatFile *vf)
 int
 GT3_glob_VF(GT3_VCatFile *vf, const char *pattern)
 {
-	glob_t g;
-	int i, rval = 0;
+    glob_t g;
+    int i, rval = 0;
 
-	if (glob(pattern, 0, NULL, &g) < 0) {
-		gt3_error(SYSERR, "in glob pattern(%s)", pattern);
-		return -1;
-	}
+    if (glob(pattern, 0, NULL, &g) < 0) {
+        gt3_error(SYSERR, "in glob pattern(%s)", pattern);
+        return -1;
+    }
 
-	for (i = 0; i < g.gl_pathc; i++)
-		if (GT3_vcatFile(vf, g.gl_pathv[i]) < 0) {
-			rval = -1;
-			break;
-		}
+    for (i = 0; i < g.gl_pathc; i++)
+        if (GT3_vcatFile(vf, g.gl_pathv[i]) < 0) {
+            rval = -1;
+            break;
+        }
 
-	globfree(&g);
-	return rval;
+    globfree(&g);
+    return rval;
 }
 #else
 int
 GT3_glob_VF(GT3_VCatFile *vf, const char *pattern)
 {
-	return GT3_vcatFile(vf, pattern);
+    return GT3_vcatFile(vf, pattern);
 }
 #endif /* HAVE_GLOB */

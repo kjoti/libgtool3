@@ -1,6 +1,4 @@
-/*  -*- tab-width: 4; -*-
- *  vim: ts=4
- *
+/*
  *  caltime.h
  */
 #ifndef CALTIME__H
@@ -11,11 +9,11 @@ extern "C" {
 #endif
 
 struct caltime {
-	int caltype;
+    int caltype;
 
-	int year;
-	int month, day;  /* starting with 0 */
-	int sec;         /* seconds since midnight [0-86399] */
+    int year;
+    int month, day;  /* starting with 0 */
+    int sec;         /* seconds since midnight [0-86399] */
 };
 
 typedef struct caltime caltime;
@@ -24,12 +22,12 @@ typedef struct caltime caltime;
  *  calendar type
  */
 enum {
-	CALTIME_GREGORIAN,  /* proleptic_gregorian */
-	CALTIME_NOLEAP,
-	CALTIME_ALLLEAP,
-	CALTIME_360_DAY,
-	CALTIME_JULIAN,
-	CALTIME_DUMMY
+    CALTIME_GREGORIAN,  /* proleptic_gregorian */
+    CALTIME_NOLEAP,
+    CALTIME_ALLLEAP,
+    CALTIME_360_DAY,
+    CALTIME_JULIAN,
+    CALTIME_DUMMY
 };
 
 /*

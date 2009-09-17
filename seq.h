@@ -2,14 +2,14 @@
 #define SEQ__H
 
 struct sequence {
-	int curr;
+    int curr;
 
-	char *spec;
-	char *spec_tail;
-	int first, last;
+    char *spec;
+    char *spec_tail;
+    int first, last;
 
-	char *it;
-	int head, tail, step;
+    char *it;
+    int head, tail, step;
 };
 
 void reinitSeq(struct sequence *seq, int first, int last);

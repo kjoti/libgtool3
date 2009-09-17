@@ -1,8 +1,6 @@
 /*
  *  gtool3.h -- a header file for libgtool3
- *
  */
-
 #ifndef GTOOL3__H
 #define GTOOL3__H
 

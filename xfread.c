@@ -1,6 +1,4 @@
-/*  -*- tab-width: 4; -*-
- *  vim: ts=4
- *
+/*
  *  xfread.c
  */
 #include "internal.h"
@@ -13,13 +11,13 @@
 int
 xfread(void *ptr, size_t size, size_t nmemb, FILE *fp)
 {
-	if (fread(ptr, size, nmemb, fp) != nmemb) {
-		if (feof(fp))
-			gt3_error(GT3_ERR_BROKEN, "Unexpected EOF");
-		else
-			gt3_error(SYSERR, "I/O Error");
+    if (fread(ptr, size, nmemb, fp) != nmemb) {
+        if (feof(fp))
+            gt3_error(GT3_ERR_BROKEN, "Unexpected EOF");
+        else
+            gt3_error(SYSERR, "I/O Error");
 
-		return -1;
-	}
-	return 0;
+        return -1;
+    }
+    return 0;
 }

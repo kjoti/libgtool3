@@ -1,9 +1,5 @@
-/*  -*- tab-width: 4; -*-
- *  vim: ts=4
- *
+/*
  *  internal.h -- a header file for using libgtool3
- *
- *  $Date: 2006/12/04 06:55:36 $
  */
 #ifndef GT3_INTERNAL__H
 #define GT3_INTERNAL__H
@@ -13,7 +9,7 @@
 #endif
 
 #ifdef HAVE_INTTYPES_H
-#  include <inttypes.h>			/* for uint32_t */
+#  include <inttypes.h>         /* for uint32_t */
 #endif
 
 #ifndef HAVE_UINT32_T
@@ -63,20 +59,20 @@ typedef uint32_t fort_size_t;
  *  urc_pack.c
  */
 void calc_urc_param(const float *data, int len, double miss,
-					double *prmin, double *pfac_e, double *pfac_d,
-					int *pne, int *pnd);
+                    double *prmin, double *pfac_e, double *pfac_d,
+                    int *pne, int *pnd);
 void urc1_packing(uint32_t *packed,
-				  const float *data, int len, double miss,
-				  double rmin, double fac_e, double fac_d);
+                  const float *data, int len, double miss,
+                  double rmin, double fac_e, double fac_d);
 void urc2_packing(uint32_t *packed,
-				  const float *data, int len, double miss,
-				  double rmin, double fac_e, double fac_d);
+                  const float *data, int len, double miss,
+                  double rmin, double fac_e, double fac_d);
 void urc1_unpack(const uint32_t *packed, int packed_len,
-				 double ref, int ne, int nd,
-				 double miss, float *data);
+                 double ref, int ne, int nd,
+                 double miss, float *data);
 void urc2_unpack(const uint32_t *packed, int packed_len,
-				 double ref, int ne, int nd,
-				 double miss, float *data);
+                 double ref, int ne, int nd,
+                 double miss, float *data);
 
 /* reverse.c */
 void *reverse_words(void *vptr, int nwords);
@@ -95,28 +91,28 @@ void gt3_error(int code, const char *fmt, ...);
 
 /* scaling.c */
 void scaling(unsigned *dest,
-			 const double *src,
-			 size_t nelem,
-			 double offset, double scale,
-			 unsigned imax, double miss);
+             const double *src,
+             size_t nelem,
+             double offset, double scale,
+             unsigned imax, double miss);
 
 void scalingf(unsigned *dest,
-			  const float *src,
-			  size_t nelem,
-			  double offset, double scale,
-			  unsigned imax, double miss);
+              const float *src,
+              size_t nelem,
+              double offset, double scale,
+              unsigned imax, double miss);
 
 size_t masked_scaling(unsigned *dest,
-					  const double *src,
-					  size_t nelem,
-					  double offset, double scale,
-					  unsigned imiss, double miss);
+                      const double *src,
+                      size_t nelem,
+                      double offset, double scale,
+                      unsigned imiss, double miss);
 
 size_t masked_scalingf(unsigned *dest,
-					   const float *src,
-					   size_t nelem,
-					   double offset, double scale,
-					   unsigned imiss, double miss);
+                       const float *src,
+                       size_t nelem,
+                       double offset, double scale,
+                       unsigned imiss, double miss);
 
 double step_size(double minv, double maxv, int nbits);
 void scaling_parameters(double *dma, double dmin, double dmax, int num);

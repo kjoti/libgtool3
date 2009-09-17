@@ -1,6 +1,4 @@
-/*  -*- tab-width: 4; -*-
- *  vim: ts=4
- *
+/*
  *  talloc.c
  */
 #include "talloc.h"
@@ -31,13 +29,13 @@
 void *
 tiny_alloc(void *tiny, size_t tiny_size, size_t size)
 {
-	return (tiny_size >= size) ? tiny : malloc(size);
+    return (tiny_size >= size) ? tiny : malloc(size);
 }
 
 
 void
 tiny_free(void *ptr, const void *ref)
 {
-	if (ptr != ref)
-		free(ptr);
+    if (ptr != ref)
+        free(ptr);
 }

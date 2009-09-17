@@ -1,8 +1,5 @@
-/*  -*- tab-width: 4; -*-
- *  vim: ts=4
- *
+/*
  *  ngtstat.c -- print statistical info in gtool-files.
- *
  */
 #include "internal.h"
 
@@ -36,10 +33,10 @@ static int slicing = 0;
 static int each_plane = 1;
 
 struct statics {
-	int count;					/* the # of samples */
-	double avr;					/* average */
-	double sd;					/* standard deviation */
-	double min, max;			/* min & max */
+    int count;                  /* the # of samples */
+    double avr;                 /* average */
+    double sd;                  /* standard deviation */
+    double min, max;            /* min & max */
 };
 
 
@@ -47,30 +44,30 @@ struct statics {
 int \
 NAME(void *ptr, const GT3_Varbuf *var) \
 { \
-	const TYPE *data = (const TYPE *)var->data; \
-	TYPE *output = (TYPE *)ptr; \
-	TYPE miss = (TYPE)var->miss; \
-	int i, j, xmax, ymax; \
+    const TYPE *data = (const TYPE *)var->data; \
+    TYPE *output = (TYPE *)ptr; \
+    TYPE miss = (TYPE)var->miss; \
+    int i, j, xmax, ymax; \
  \
-	if (!slicing) \
-		for (i = 0; i < var->dimlen[0] * var->dimlen[1]; i++) { \
-			if (data[i] == miss) \
-				continue; \
+    if (!slicing) \
+        for (i = 0; i < var->dimlen[0] * var->dimlen[1]; i++) { \
+            if (data[i] == miss) \
+                continue; \
  \
-			*output++ = data[i]; \
-		} \
-	else { \
-		xmax = min(xrange[1], var->dimlen[0]); \
-		ymax = min(yrange[1], var->dimlen[1]); \
-		for (j = yrange[0]; j < ymax; j++) \
-			for (i = xrange[0]; i < xmax; i++) { \
-				if (data[j * var->dimlen[0] + i] == miss) \
-					continue; \
+            *output++ = data[i]; \
+        } \
+    else { \
+        xmax = min(xrange[1], var->dimlen[0]); \
+        ymax = min(yrange[1], var->dimlen[1]); \
+        for (j = yrange[0]; j < ymax; j++) \
+            for (i = xrange[0]; i < xmax; i++) { \
+                if (data[j * var->dimlen[0] + i] == miss) \
+                    continue; \
  \
-				*output++ = data[j * var->dimlen[0] + i]; \
-			} \
-	} \
-	return output - (TYPE *)ptr;								\
+                *output++ = data[j * var->dimlen[0] + i]; \
+            } \
+    } \
+    return output - (TYPE *)ptr;                                \
 }
 
 
@@ -96,11 +93,11 @@ FUNCTMPL_SDEVIATION(double, double, std_deviation)
 static void
 print_caption(const char *name)
 {
-	const char *z = each_plane ? "Z" : "";
+    const char *z = each_plane ? "Z" : "";
 
-	printf("# Filename: %s\n", name);
-	printf("# %3s %-8s%3s %11s %11s %11s %11s %10s\n",
-		   "No.", "ITEM", z, "AVE", "SD", "MIN", "MAX", "NUM");
+    printf("# Filename: %s\n", name);
+    printf("# %3s %-8s%3s %11s %11s %11s %11s %10s\n",
+           "No.", "ITEM", z, "AVE", "SD", "MIN", "MAX", "NUM");
 }
 
 
@@ -110,308 +107,308 @@ print_caption(const char *name)
 static void
 sumup_stat(struct statics *stat, const struct statics sz[], int len)
 {
-	int i;
+    int i;
 
-	stat->min = HUGE_VAL;
-	stat->max = -HUGE_VAL;
-	for (i = 0; i < len; i++) {
-		stat->count += sz[i].count;
-		stat->avr   += sz[i].count * sz[i].avr;
-		stat->min   =  min(stat->min, sz[i].min);
-		stat->max   =  max(stat->max, sz[i].max);
-	}
+    stat->min = HUGE_VAL;
+    stat->max = -HUGE_VAL;
+    for (i = 0; i < len; i++) {
+        stat->count += sz[i].count;
+        stat->avr   += sz[i].count * sz[i].avr;
+        stat->min   =  min(stat->min, sz[i].min);
+        stat->max   =  max(stat->max, sz[i].max);
+    }
 
-	if (stat->count > 0) {
-		double var = 0.;
-		double adiff;
+    if (stat->count > 0) {
+        double var = 0.;
+        double adiff;
 
-		stat->avr /= stat->count;
-		for (i = 0; i < len; i++) {
-			adiff = stat->avr - sz[i].avr;
-			var += sz[i].count * (sz[i].sd * sz[i].sd + adiff * adiff);
-		}
-		var /= stat->count;
-		stat->sd = sqrt(var);
-	}
+        stat->avr /= stat->count;
+        for (i = 0; i < len; i++) {
+            adiff = stat->avr - sz[i].avr;
+            var += sz[i].count * (sz[i].sd * sz[i].sd + adiff * adiff);
+        }
+        var /= stat->count;
+        stat->sd = sqrt(var);
+    }
 }
 
 
 static void
 ngtstat_plane(struct statics *stat, const GT3_Varbuf *varbuf, void *work)
 {
-	double avr = 0., sd = 0.;
-	int len;
-	int (*avr_func)(double *, const void *, int);
-	int (*sd_func)(double *, const void *, double, int);
-	int (*pack_func)(void *, const GT3_Varbuf *);
-	double (*min_func)(const void *, int);
-	double (*max_func)(const void *, int);
+    double avr = 0., sd = 0.;
+    int len;
+    int (*avr_func)(double *, const void *, int);
+    int (*sd_func)(double *, const void *, double, int);
+    int (*pack_func)(void *, const GT3_Varbuf *);
+    double (*min_func)(const void *, int);
+    double (*max_func)(const void *, int);
 
-	if (varbuf->type == GT3_TYPE_FLOAT) {
-		pack_func = pack_float;
-		min_func = minvalf;
-		max_func = maxvalf;
-		avr_func = averagef;
-		sd_func  = std_deviationf;
-	} else {
-		pack_func = pack_double;
-		min_func = minval;
-		max_func = maxval;
-		avr_func = average;
-		sd_func  = std_deviation;
-	}
+    if (varbuf->type == GT3_TYPE_FLOAT) {
+        pack_func = pack_float;
+        min_func = minvalf;
+        max_func = maxvalf;
+        avr_func = averagef;
+        sd_func  = std_deviationf;
+    } else {
+        pack_func = pack_double;
+        min_func = minval;
+        max_func = maxval;
+        avr_func = average;
+        sd_func  = std_deviation;
+    }
 
-	len = pack_func(work, varbuf);
+    len = pack_func(work, varbuf);
 
-	avr_func(&avr, work, len);
-	sd_func(&sd, work, avr, len);
+    avr_func(&avr, work, len);
+    sd_func(&sd, work, avr, len);
 
-	stat->count = len;
-	stat->avr   = avr;
-	stat->sd    = sd;
-	stat->min   = min_func(work, len);
-	stat->max   = max_func(work, len);
+    stat->count = len;
+    stat->avr   = avr;
+    stat->sd    = sd;
+    stat->min   = min_func(work, len);
+    stat->max   = max_func(work, len);
 }
 
 
 int
 ngtstat_var(GT3_Varbuf *varbuf)
 {
-	static void *work = NULL;
-	static size_t worksize = 0;
-	static struct statics *stat = NULL;
-	static int max_num_plane = 0;
-	char prefix[32], item[32];
-	int i, znum, zstr;
+    static void *work = NULL;
+    static size_t worksize = 0;
+    static struct statics *stat = NULL;
+    static int max_num_plane = 0;
+    char prefix[32], item[32];
+    int i, znum, zstr;
 
 
-	/*
-	 *  Trial read to fill varbuf.
-	 *  Required before GT3_getVarAttr*().
-	 */
-	if (GT3_readVarZ(varbuf, zrange[0]) < 0) {
-		GT3_printErrorMessages(stderr);
-		return -1;
-	}
-	GT3_getVarAttrStr(item, sizeof item, varbuf, "ITEM");
-	GT3_getVarAttrInt(&zstr, varbuf, "ASTR3");
-	snprintf(prefix, sizeof prefix, "%5d %-8s",
-			 varbuf->fp->curr + 1, item);
+    /*
+     *  Trial read to fill varbuf.
+     *  Required before GT3_getVarAttr*().
+     */
+    if (GT3_readVarZ(varbuf, zrange[0]) < 0) {
+        GT3_printErrorMessages(stderr);
+        return -1;
+    }
+    GT3_getVarAttrStr(item, sizeof item, varbuf, "ITEM");
+    GT3_getVarAttrInt(&zstr, varbuf, "ASTR3");
+    snprintf(prefix, sizeof prefix, "%5d %-8s",
+             varbuf->fp->curr + 1, item);
 
-	/*
-	 *  (re)allocate work buffer.
-	 */
-	if (varbuf->bufsize > worksize) {
-		free(work);
-		if ((work = malloc(varbuf->bufsize)) == NULL) {
-			logging(LOG_SYSERR, NULL);
-			return -1;
-		}
-		worksize = varbuf->bufsize;
-	}
+    /*
+     *  (re)allocate work buffer.
+     */
+    if (varbuf->bufsize > worksize) {
+        free(work);
+        if ((work = malloc(varbuf->bufsize)) == NULL) {
+            logging(LOG_SYSERR, NULL);
+            return -1;
+        }
+        worksize = varbuf->bufsize;
+    }
 
-	znum = min(zrange[1], varbuf->dimlen[2]) - zrange[0];
+    znum = min(zrange[1], varbuf->dimlen[2]) - zrange[0];
 
-	if (znum > max_num_plane) {
-		free(stat);
-		if ((stat = (struct statics *)
-			 malloc(sizeof(struct statics) * znum)) == NULL) {
-			logging(LOG_SYSERR, NULL);
-			return -1;
-		}
-		max_num_plane = znum;
-	}
+    if (znum > max_num_plane) {
+        free(stat);
+        if ((stat = (struct statics *)
+             malloc(sizeof(struct statics) * znum)) == NULL) {
+            logging(LOG_SYSERR, NULL);
+            return -1;
+        }
+        max_num_plane = znum;
+    }
 
-	for (i = 0; i < znum; i++) {
-		if (GT3_readVarZ(varbuf, zrange[0] + i) < 0) {
-			GT3_printErrorMessages(stderr);
-			return -1;
-		}
-		ngtstat_plane(stat + i, varbuf, work);
+    for (i = 0; i < znum; i++) {
+        if (GT3_readVarZ(varbuf, zrange[0] + i) < 0) {
+            GT3_printErrorMessages(stderr);
+            return -1;
+        }
+        ngtstat_plane(stat + i, varbuf, work);
 
-		if (each_plane) {
-			printf("%14s%3d %11.5g %11.5g %11.5g %11.5g %10d\n",
-				   prefix,
-				   zstr + zrange[0] + i,
-				   stat[i].avr,
-				   stat[i].sd,
-				   stat[i].min,
-				   stat[i].max,
-				   stat[i].count);
-			/* prefix[0] = '\0'; */
-		}
-	}
+        if (each_plane) {
+            printf("%14s%3d %11.5g %11.5g %11.5g %11.5g %10d\n",
+                   prefix,
+                   zstr + zrange[0] + i,
+                   stat[i].avr,
+                   stat[i].sd,
+                   stat[i].min,
+                   stat[i].max,
+                   stat[i].count);
+            /* prefix[0] = '\0'; */
+        }
+    }
 
-	if (!each_plane) {
-		struct statics stat_all;
+    if (!each_plane) {
+        struct statics stat_all;
 
-		memset(&stat_all, 0, sizeof(struct statics));
-		sumup_stat(&stat_all, stat, znum);
-		printf("%14s    %11.5g %11.5g %11.5g %11.5g %10d\n",
-			   prefix,
-			   stat_all.avr,
-			   stat_all.sd,
-			   stat_all.min,
-			   stat_all.max,
-			   stat_all.count);
-	}
-	return 0;
+        memset(&stat_all, 0, sizeof(struct statics));
+        sumup_stat(&stat_all, stat, znum);
+        printf("%14s    %11.5g %11.5g %11.5g %11.5g %10d\n",
+               prefix,
+               stat_all.avr,
+               stat_all.sd,
+               stat_all.min,
+               stat_all.max,
+               stat_all.count);
+    }
+    return 0;
 }
 
 
 int
 ngtstat(const char *path, struct sequence *seq)
 {
-	GT3_File *fp;
-	GT3_Varbuf *var;
-	int stat, rval = 0;
+    GT3_File *fp;
+    GT3_Varbuf *var;
+    int stat, rval = 0;
 
-	if ((fp = GT3_open(path)) == NULL) {
-		GT3_printErrorMessages(stderr);
-		return -1;
-	}
+    if ((fp = GT3_open(path)) == NULL) {
+        GT3_printErrorMessages(stderr);
+        return -1;
+    }
 
-	if ((var = GT3_getVarbuf(fp)) == NULL) {
-		GT3_close(fp);
-		GT3_printErrorMessages(stderr);
-		return -1;
-	}
+    if ((var = GT3_getVarbuf(fp)) == NULL) {
+        GT3_close(fp);
+        GT3_printErrorMessages(stderr);
+        return -1;
+    }
 
-	print_caption(path);
-	if (seq == NULL)
-		while (!GT3_eof(fp)) {
-			if (ngtstat_var(var) < 0)
-				rval = -1;
+    print_caption(path);
+    if (seq == NULL)
+        while (!GT3_eof(fp)) {
+            if (ngtstat_var(var) < 0)
+                rval = -1;
 
-			if (GT3_next(fp) < 0) {
-				GT3_printErrorMessages(stderr);
-				break;
-			}
-		}
-	else
-		while ((stat = iterate_chunk(fp, seq)) != ITER_END) {
-			if (stat == ITER_ERROR || stat == ITER_ERRORCHUNK)
-				break;
+            if (GT3_next(fp) < 0) {
+                GT3_printErrorMessages(stderr);
+                break;
+            }
+        }
+    else
+        while ((stat = iterate_chunk(fp, seq)) != ITER_END) {
+            if (stat == ITER_ERROR || stat == ITER_ERRORCHUNK)
+                break;
 
-			if (stat == ITER_OUTRANGE)
-				continue;
+            if (stat == ITER_OUTRANGE)
+                continue;
 
-			if (ngtstat_var(var) < 0)
-				rval = -1;
-		}
+            if (ngtstat_var(var) < 0)
+                rval = -1;
+        }
 
-	GT3_freeVarbuf(var);
-	GT3_close(fp);
+    GT3_freeVarbuf(var);
+    GT3_close(fp);
 
-	return rval;
+    return rval;
 }
 
 
 static int
 set_range(int range[], const char *str)
 {
-	int nf;
+    int nf;
 
-	if ((nf = get_ints(range, 2, str, ':')) < 0)
-		return -1;
+    if ((nf = get_ints(range, 2, str, ':')) < 0)
+        return -1;
 
-	/*
-	 *  XXX
-	 *  transform
-	 *   FROM  1-offset and closed bound    [X,Y] => do i = X, Y.
-	 *   TO    0-offset and semi-open bound [X,Y) => for (i = X; i < Y; i++).
-	 */
-	range[0]--;
-	if (range[0] < 0)
-		range[0] = 0;
-	if (nf == 1)
-		range[1] = range[0] + 1;
-	return 0;
+    /*
+     *  XXX
+     *  transform
+     *   FROM  1-offset and closed bound    [X,Y] => do i = X, Y.
+     *   TO    0-offset and semi-open bound [X,Y) => for (i = X; i < Y; i++).
+     */
+    range[0]--;
+    if (range[0] < 0)
+        range[0] = 0;
+    if (nf == 1)
+        range[1] = range[0] + 1;
+    return 0;
 }
 
 
 void
 usage(void)
 {
-	const char *usage_message =
-		"Usage: " PROGNAME " [options] [files...]\n"
-		"\n"
-		"Print average(AVE), standard deviation(SD), MIN, and MAX.\n"
-		"\n"
-		"Options:\n"
-		"    -h        print help message\n"
-		"    -a        display total info of all Z-planes\n"
-		"    -t LIST   specify data No.\n"
-		"    -x RANGE  specify X-range\n"
-		"    -y RANGE  specify Y-range\n"
-		"    -z RANGE  specify Z-range\n"
-		"\n"
-		"    RANGE  := start[:[end]] | :[end]\n"
-		"    LIST   := RANGE[,RANGE]*\n";
+    const char *usage_message =
+        "Usage: " PROGNAME " [options] [files...]\n"
+        "\n"
+        "Print average(AVE), standard deviation(SD), MIN, and MAX.\n"
+        "\n"
+        "Options:\n"
+        "    -h        print help message\n"
+        "    -a        display total info of all Z-planes\n"
+        "    -t LIST   specify data No.\n"
+        "    -x RANGE  specify X-range\n"
+        "    -y RANGE  specify Y-range\n"
+        "    -z RANGE  specify Z-range\n"
+        "\n"
+        "    RANGE  := start[:[end]] | :[end]\n"
+        "    LIST   := RANGE[,RANGE]*\n";
 
-	fprintf(stderr, "%s\n", GT3_version());
-	fprintf(stderr, "%s\n", usage_message);
+    fprintf(stderr, "%s\n", GT3_version());
+    fprintf(stderr, "%s\n", usage_message);
 }
 
 
 int
 main(int argc, char **argv)
 {
-	struct sequence *seq = NULL;
-	int rval = 0;
-	int ch;
+    struct sequence *seq = NULL;
+    int rval = 0;
+    int ch;
 
-	open_logging(stderr, PROGNAME);
-	GT3_setProgname(PROGNAME);
-	while ((ch = getopt(argc, argv, "hat:x:y:z:")) != -1)
-		switch (ch) {
-		case 'a':
-			each_plane = 0;
-			break;
+    open_logging(stderr, PROGNAME);
+    GT3_setProgname(PROGNAME);
+    while ((ch = getopt(argc, argv, "hat:x:y:z:")) != -1)
+        switch (ch) {
+        case 'a':
+            each_plane = 0;
+            break;
 
-		case 't':
-			seq = initSeq(optarg, 1, 0x7fffffff);
-			break;
+        case 't':
+            seq = initSeq(optarg, 1, 0x7fffffff);
+            break;
 
-		case 'x':
-			slicing = 1;
-			if (set_range(xrange, optarg) < 0) {
-				logging(LOG_ERR, "%s: Invalid argument", optarg);
-				exit(1);
-			}
-			break;
+        case 'x':
+            slicing = 1;
+            if (set_range(xrange, optarg) < 0) {
+                logging(LOG_ERR, "%s: Invalid argument", optarg);
+                exit(1);
+            }
+            break;
 
-		case 'y':
-			slicing = 1;
-			if (set_range(yrange, optarg) < 0) {
-				logging(LOG_ERR, "%s: Invalid argument", optarg);
-				exit(1);
-			}
-			break;
+        case 'y':
+            slicing = 1;
+            if (set_range(yrange, optarg) < 0) {
+                logging(LOG_ERR, "%s: Invalid argument", optarg);
+                exit(1);
+            }
+            break;
 
-		case 'z':
-			if (set_range(zrange, optarg) < 0) {
-				logging(LOG_ERR, "%s: Invalid argument", optarg);
-				exit(1);
-			}
-			break;
+        case 'z':
+            if (set_range(zrange, optarg) < 0) {
+                logging(LOG_ERR, "%s: Invalid argument", optarg);
+                exit(1);
+            }
+            break;
 
-		case 'h':
-		default:
-			usage();
-			exit(1);
-			break;
-		}
+        case 'h':
+        default:
+            usage();
+            exit(1);
+            break;
+        }
 
-	argc -= optind;
-	argv += optind;
+    argc -= optind;
+    argv += optind;
 
-	for (; argc > 0 && *argv; argc--, argv++) {
-		if (seq)
-			reinitSeq(seq, 1, 0x7fffffff);
+    for (; argc > 0 && *argv; argc--, argv++) {
+        if (seq)
+            reinitSeq(seq, 1, 0x7fffffff);
 
-		if (ngtstat(*argv, seq) < 0)
-			rval = 1;
-	}
-	return rval;
+        if (ngtstat(*argv, seq) < 0)
+            rval = 1;
+    }
+    return rval;
 }

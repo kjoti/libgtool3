@@ -1,7 +1,5 @@
 /*
  *  bits_set.h
- *
- *  $Date: 2006/12/04 06:54:02 $
  */
 #ifndef BITS_SET__H
 #define BITS_SET__H
@@ -23,14 +21,14 @@ struct bits_set {
 
 #define BS_SETALL(bs) {                    \
      int i_;                               \
-     for (i_ = 0; i_ < (bs).size; i_++)	   \
-         (bs).set[i_] = 0xffffffffU;	   \
+     for (i_ = 0; i_ < (bs).size; i_++)    \
+         (bs).set[i_] = 0xffffffffU;       \
 }
 
 #define BS_CLSALL(bs) {                    \
      int i_;                               \
-     for (i_ = 0; i_ < (bs).size; i_++)	   \
-         (bs).set[i_] = 0;				   \
+     for (i_ = 0; i_ < (bs).size; i_++)    \
+         (bs).set[i_] = 0;                 \
 }
 
 typedef struct bits_set bits_set;

@@ -1,5 +1,4 @@
-/*  -*- tab-width: 4; -*-
- *
+/*
  *  logging.h
  */
 #ifndef LOGGING_H
@@ -14,11 +13,11 @@ extern "C" {
 
 /* message level */
 enum {
-	LOG_INFO,
-	LOG_NOTICE,
-	LOG_WARN,
-	LOG_ERR,
-	LOG_SYSERR
+    LOG_INFO,
+    LOG_NOTICE,
+    LOG_WARN,
+    LOG_ERR,
+    LOG_SYSERR
 };
 
 void set_logging_prefix_func(void (*func)(FILE *, int));
