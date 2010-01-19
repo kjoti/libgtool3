@@ -68,7 +68,8 @@ STLIB		= libgtool3.a
 LDADD		= $(STLIB) -lm   # use static library for bin
 #LDADD		= $(SHLIB) -lm
 
-UTILS		= logging.o seq.o fileiter.o split.o get_ints.o
+UTILS		= logging.o seq.o fileiter.o split.o get_ints.o \
+		ghprintf.o
 
 PICFLAG		= -fpic
 SONAME		= $(SHLIB)
@@ -85,7 +86,7 @@ LIBS		= $(SHLIB) $(STLIB)
 HEADERS		= gtool3.h
 BINS		= ngtcat ngtls ngtsumm ngtstat ngtick \
 		ngthead ngted ngtmkax ngtdiff ngtdump ngtavr \
-		ngtconv
+		ngtconv ngtredist
 
 all: $(LIBS) $(BINS) $(HEADERS)
 
@@ -133,6 +134,9 @@ ngtavr:  $(STLIB) ngtavr.o dateiter.o $(UTILS)
 
 ngtconv:  $(STLIB) ngtconv.o $(UTILS)
 	$(CC) $(LDFLAGS) -L. -o $@ ngtconv.o $(UTILS) $(LDADD)
+
+ngtredist:  $(STLIB) ngtredist.o $(UTILS)
+	$(CC) $(LDFLAGS) -L. -o $@ ngtredist.o $(UTILS) $(LDADD)
 
 install: all
 	$(MKDIR) $(bindir)

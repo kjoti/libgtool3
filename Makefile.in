@@ -41,7 +41,8 @@ host_triplet = @host@
 bin_PROGRAMS = ngtcat$(EXEEXT) ngtls$(EXEEXT) ngtsumm$(EXEEXT) \
 	ngtstat$(EXEEXT) ngtick$(EXEEXT) ngthead$(EXEEXT) \
 	ngted$(EXEEXT) ngtmkax$(EXEEXT) ngtdiff$(EXEEXT) \
-	ngtdump$(EXEEXT) ngtavr$(EXEEXT) ngtconv$(EXEEXT)
+	ngtdump$(EXEEXT) ngtavr$(EXEEXT) ngtconv$(EXEEXT) \
+	ngtredist$(EXEEXT)
 DIST_COMMON = README $(am__configure_deps) $(include_HEADERS) \
 	$(srcdir)/Makefile.am $(srcdir)/Makefile.in \
 	$(srcdir)/config.h.in $(top_srcdir)/configure INSTALL \
@@ -120,6 +121,11 @@ am_ngtmkax_OBJECTS = ngtmkax.$(OBJEXT) $(am__objects_1)
 ngtmkax_OBJECTS = $(am_ngtmkax_OBJECTS)
 ngtmkax_LDADD = $(LDADD)
 ngtmkax_DEPENDENCIES =
+am_ngtredist_OBJECTS = ngtredist.$(OBJEXT) ghprintf.$(OBJEXT) \
+	$(am__objects_1)
+ngtredist_OBJECTS = $(am_ngtredist_OBJECTS)
+ngtredist_LDADD = $(LDADD)
+ngtredist_DEPENDENCIES =
 am_ngtstat_OBJECTS = ngtstat.$(OBJEXT) $(am__objects_1)
 ngtstat_OBJECTS = $(am_ngtstat_OBJECTS)
 ngtstat_LDADD = $(LDADD)
@@ -142,13 +148,13 @@ LINK = $(LIBTOOL) --tag=CC --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) \
 SOURCES = $(libgtool3_la_SOURCES) $(ngtavr_SOURCES) $(ngtcat_SOURCES) \
 	$(ngtconv_SOURCES) $(ngtdiff_SOURCES) $(ngtdump_SOURCES) \
 	$(ngted_SOURCES) $(ngthead_SOURCES) $(ngtick_SOURCES) \
-	$(ngtls_SOURCES) $(ngtmkax_SOURCES) $(ngtstat_SOURCES) \
-	$(ngtsumm_SOURCES)
+	$(ngtls_SOURCES) $(ngtmkax_SOURCES) $(ngtredist_SOURCES) \
+	$(ngtstat_SOURCES) $(ngtsumm_SOURCES)
 DIST_SOURCES = $(libgtool3_la_SOURCES) $(ngtavr_SOURCES) \
 	$(ngtcat_SOURCES) $(ngtconv_SOURCES) $(ngtdiff_SOURCES) \
 	$(ngtdump_SOURCES) $(ngted_SOURCES) $(ngthead_SOURCES) \
 	$(ngtick_SOURCES) $(ngtls_SOURCES) $(ngtmkax_SOURCES) \
-	$(ngtstat_SOURCES) $(ngtsumm_SOURCES)
+	$(ngtredist_SOURCES) $(ngtstat_SOURCES) $(ngtsumm_SOURCES)
 includeHEADERS_INSTALL = $(INSTALL_HEADER)
 HEADERS = $(include_HEADERS)
 ETAGS = etags
@@ -316,6 +322,7 @@ ngtdiff_SOURCES = ngtdiff.c $(utils)
 ngtdump_SOURCES = ngtdump.c $(utils)
 ngtavr_SOURCES = ngtavr.c dateiter.c $(utils)
 ngtconv_SOURCES = ngtconv.c $(utils)
+ngtredist_SOURCES = ngtredist.c ghprintf.c $(utils)
 LDADD = -lgtool3 -lm
 all: config.h
 	$(MAKE) $(AM_MAKEFLAGS) all-am
@@ -459,6 +466,9 @@ ngtls$(EXEEXT): $(ngtls_OBJECTS) $(ngtls_DEPENDENCIES)
 ngtmkax$(EXEEXT): $(ngtmkax_OBJECTS) $(ngtmkax_DEPENDENCIES) 
 	@rm -f ngtmkax$(EXEEXT)
 	$(LINK) $(ngtmkax_LDFLAGS) $(ngtmkax_OBJECTS) $(ngtmkax_LDADD) $(LIBS)
+ngtredist$(EXEEXT): $(ngtredist_OBJECTS) $(ngtredist_DEPENDENCIES) 
+	@rm -f ngtredist$(EXEEXT)
+	$(LINK) $(ngtredist_LDFLAGS) $(ngtredist_OBJECTS) $(ngtredist_LDADD) $(LIBS)
 ngtstat$(EXEEXT): $(ngtstat_OBJECTS) $(ngtstat_DEPENDENCIES) 
 	@rm -f ngtstat$(EXEEXT)
 	$(LINK) $(ngtstat_LDFLAGS) $(ngtstat_OBJECTS) $(ngtstat_LDADD) $(LIBS)
@@ -482,6 +492,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/find_minmax.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/gauss-legendre.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/get_ints.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ghprintf.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/grid.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/gtdim.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/header.Plo@am__quote@
@@ -498,6 +509,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ngtick.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ngtls.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ngtmkax.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ngtredist.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ngtstat.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ngtsumm.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/read_urc.Plo@am__quote@
@@ -854,7 +866,7 @@ test: $(lib_LTLIBRARIES)
 	    grep "ifdef  *TEST_MAIN" $$f > /dev/null; \
 	    if [ $$? -eq 0 ]; then \
 	        echo "**** TESTING $$f ****"; \
-		$(COMPILE) -DTEST_MAIN $$f .libs/libgtool3.a -lm; \
+		$(COMPILE) -L.libs -DTEST_MAIN $$f $(LDADD); \
 	        if [ $$? -ne 0 ]; then \
 		    echo "**** $$f: ERROR IN COMPILE-TIME."; \
 		    exit; \
