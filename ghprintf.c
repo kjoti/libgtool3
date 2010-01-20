@@ -28,7 +28,7 @@ enum {
     PERCENT
 };
 
-static GT3_Duration date_adjust = { -1, GT3_UNIT_SEC };
+static GT3_Duration date_shift = { -1, GT3_UNIT_SEC };
 
 
 /*
@@ -101,7 +101,7 @@ get_date(GT3_Date *date, const GT3_HEADER *head, const char *key)
         return -1;
     }
 
-    if (date_adjust.value != 0) {
+    if (date_shift.value != 0) {
         cal = GT3_guessCalendarHeader(head);
         if (cal < 0) {
             GT3_printErrorMessages(stderr);
@@ -112,7 +112,7 @@ get_date(GT3_Date *date, const GT3_HEADER *head, const char *key)
             logging(LOG_WARN, "cannot guess calendar type");
             cal = GT3_CAL_GREGORIAN;
         }
-        GT3_addDuration(date, &date_adjust, cal);
+        GT3_addDuration(date, &date_shift, cal);
     }
     return 0;
 }
@@ -196,6 +196,17 @@ gh_snprintf(char *str, size_t size, const char *format,
     }
     *str = '\0';
     return rval;
+}
+
+
+/*
+ *  turn on/off "-1sec shift".
+ */
+void
+ghprintf_shift(int onoff)
+{
+    date_shift.value = onoff ? -1 : 0;
+    date_shift.unit = GT3_UNIT_SEC;
 }
 
 
