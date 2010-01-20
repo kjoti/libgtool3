@@ -56,7 +56,7 @@ LDADD = -lgtool3 -lm
 
 
 test: $(lib_LTLIBRARIES)
-	@for f in $(libgtool3_la_SOURCES); do \
+	@-for f in $(libgtool3_la_SOURCES); do \
 	    grep "ifdef  *TEST_MAIN" $$f > /dev/null; \
 	    if [ $$? -eq 0 ]; then \
 	        echo "**** TESTING $$f ****"; \
