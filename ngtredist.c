@@ -9,7 +9,6 @@
 #include <ctype.h>
 #include <errno.h>
 #include <limits.h>
-#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -209,12 +208,13 @@ sanitize(char *p)
 
 
 int
-redist(const char *path, const char *format)
+redist(const char *path, const char *format, struct sequence *seq)
 {
     GT3_File *fp;
     GT3_HEADER head;
     FILE *output = NULL;
     int eval, rval = 0;
+    int stat;
     int sw = 0;
     char outpath[2][PATH_MAX + 1];
 
@@ -230,7 +230,20 @@ redist(const char *path, const char *format)
     }
 
     outpath[0][0] = outpath[1][0] = '\0';
-    while (!GT3_eof(fp)) {
+    while ((stat = iterate_chunk(fp, seq)) != ITER_END) {
+        if (stat == ITER_OUTRANGE)
+            continue;
+
+        if (stat == ITER_ERROR) {
+            logging(LOG_ERR, "%s: Invalid -t argument", seq->it);
+            break;
+        }
+
+        if (stat == ITER_ERRORCHUNK) {
+            rval = -1;
+            break;
+        }
+
         if (GT3_readHeader(&head, fp) < 0) {
             GT3_printErrorMessages(stderr);
             rval = -1;
@@ -259,12 +272,6 @@ redist(const char *path, const char *format)
             rval = -1;
             break;
         }
-
-        if (GT3_next(fp) < 0) {
-            GT3_printErrorMessages(stderr);
-            rval = -1;
-            break;
-        }
     }
     close_file(output);
     GT3_close(fp);
@@ -283,6 +290,8 @@ usage(void)
         "Options:\n"
         "    -a        open in append mode\n"
         "    -w        open in overwrite mode\n"
+        "    -t LIST   specify data No.\n"
+        "    -s        do not shift -1sec in DATE\n"
         "    -n        dryrun\n"
         "    -v        verbose mode\n"
         "    -h        print help message\n"
@@ -303,7 +312,7 @@ main(int argc, char **argv)
     open_logging(stderr, PROGNAME);
     GT3_setProgname(PROGNAME);
 
-    while ((ch = getopt(argc, argv, "anvwh")) != -1)
+    while ((ch = getopt(argc, argv, "anst:vwh")) != -1)
         switch (ch) {
         case 'a':
             open_mode = APPEND_MODE;
@@ -312,6 +321,17 @@ main(int argc, char **argv)
         case 'n':
             set_logging_level("verbose");
             dryrun = 1;
+            break;
+
+        case 's':
+            ghprintf_shift(0);
+            break;
+
+        case 't':
+            if ((seq = initSeq(optarg, 1, 0x7fffffff)) == NULL) {
+                perror(NULL);
+                exit(1);
+            }
             break;
 
         case 'v':
@@ -337,15 +357,19 @@ main(int argc, char **argv)
         usage();
         exit(1);
     }
+    if (!seq)
+        seq = initSeq(":", 1, 0x7fffffff);
+
     format = *argv;
     argc--;
     argv++;
 
     for (; argc > 0 && *argv; argc--, argv++) {
-        if (redist(*argv, format) < 0) {
+        if (redist(*argv, format, seq) < 0) {
             exitval = 1;
             break;
         }
+        reinitSeq(seq, 1, 0x7fffffff);
     }
     return exitval;
 }
