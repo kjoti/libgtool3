@@ -268,6 +268,45 @@ guess_calendar(double sec, const GT3_Date *date)
 
 
 /*
+ *  GT3_guessCalendarHeader() guess a calendar from a header
+ *  and return a calendar type (GT3_CAL_XXX).
+ */
+int
+GT3_guessCalendarHeader(const GT3_HEADER *head)
+{
+    double sec = 0.;
+    GT3_Date date;
+    int i, time, tunit;
+
+
+    if (GT3_decodeHeaderDate(&date, head, "DATE") < 0
+        || (tunit = GT3_decodeHeaderTunit(head)) < 0
+        || GT3_decodeHeaderInt(&time, head, "TIME") < 0)
+        return -1;
+
+    switch (tunit) {
+    case GT3_UNIT_SEC:
+        sec = 1.;
+        break;
+    case GT3_UNIT_MIN:
+        sec = 60.;
+        break;
+    case GT3_UNIT_HOUR:
+        sec = 3600.;
+        break;
+    case GT3_UNIT_DAY:
+        sec = 24. * 3600.;
+        break;
+    default:
+        break;
+    }
+    sec *= time;
+
+    return guess_calendar(sec, &date);
+}
+
+
+/*
  *  GT3_guessCalendarFile() returns a calendar type (GT3_CAL_XXX),
  */
 int
@@ -277,41 +316,17 @@ GT3_guessCalendarFile(const char *path)
     GT3_HEADER head;
     GT3_Date date;
     int calendar;
-    int i, time;
-    double sec;
-    char hbuf[17];
-    struct { const char *unit; double fact; } tab[] = {
-        { "SEC",   1. },
-        { "MIN",   60. },
-        { "HOUR",  3600. },
-        { "DAY",   24. * 3600. }
-    };
 
     if ((fp = GT3_open(path)) == NULL
         || GT3_readHeader(&head, fp) < 0
         || GT3_decodeHeaderDate(&date, &head, "DATE") < 0)
         return -1;
 
-    if (date.year < 1 && GT3_seek(fp, -1, SEEK_END) == 0) {
+    if (date.year < 1 && GT3_seek(fp, -1, SEEK_END) == 0)
         /* we need more info.  */
         GT3_readHeader(&head, fp);
-        GT3_decodeHeaderDate(&date, &head, "DATE");
-    }
 
-    GT3_copyHeaderItem(hbuf, sizeof hbuf, &head, "UTIM");
-    GT3_decodeHeaderInt(&time, &head, "TIME");
-
-    sec = 3600.;
-    for (i = 0; i < sizeof tab / sizeof tab[0]; i++)
-        if (strcmp(hbuf, tab[i].unit) == 0) {
-            sec = tab[i].fact;
-            break;
-        }
-
-    sec *= time;
-
-    calendar = guess_calendar(sec, &date);
-
+    calendar = GT3_guessCalendarHeader(&head);
     GT3_close(fp);
     return calendar;
 }
@@ -431,34 +446,8 @@ GT3_getDuration(GT3_Duration *dur, GT3_File *fp, int calendar)
         /*
          *  Guess calendar-type from "TIME" and "DATE".
          */
-        int temp, tunit;
-        double time;
-        GT3_Date date;
-
-        if (GT3_decodeHeaderInt(&temp, &head, "TIME") < 0
-            || GT3_decodeHeaderDate(&date, &head, "DATE") < 0
-            || (tunit = GT3_decodeHeaderTunit(&head)) < 0)
-            return -1;
-
-        time = (double)temp;
-        switch (tunit) {
-        case GT3_UNIT_HOUR:
-            time *= 3600;
-            break;
-        case GT3_UNIT_DAY:
-            time *= 24 * 3600;
-            break;
-        case GT3_UNIT_MIN:
-            time *= 60;
-            break;
-        case GT3_UNIT_SEC:
-            break;
-        default:
-            assert(!"NOTREACHE");
-            break;
-        }
-        calendar = guess_calendar(time, &date);
-        if (calendar == GT3_CAL_DUMMY)
+        calendar = GT3_guessCalendarHeader(&head);
+        if (calendar < 0 || calendar == GT3_CAL_DUMMY)
             calendar = GT3_CAL_GREGORIAN;
     }
 

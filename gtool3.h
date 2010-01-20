@@ -312,6 +312,7 @@ void GT3_copyDate(GT3_Date *dest, const GT3_Date *src);
 void GT3_addDuration(GT3_Date *date, const GT3_Duration *dur, int ctype);
 double GT3_getTime(const GT3_Date *date, const GT3_Date *since,
                    int tunit, int ctype);
+int GT3_guessCalendarHeader(const GT3_HEADER *head);
 int GT3_guessCalendarFile(const char *path);
 
 int GT3_calcDuration(GT3_Duration *dur,
