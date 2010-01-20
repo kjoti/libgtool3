@@ -6,7 +6,8 @@
 #include <string.h>
 #include <stdio.h>
 
-#include "gtool3.h"
+#include "logging.h"
+#include "ghprintf.h"
 
 struct format_element {
     int type;
@@ -23,10 +24,10 @@ enum {
     FILENAME,
     DATA_NO,
     ITEM,
+    DATE_DECADE,
     PERCENT
 };
 
-static int current_calendar = GT3_CAL_GREGORIAN;
 static GT3_Duration date_adjust = { -1, GT3_UNIT_SEC };
 
 
@@ -36,9 +37,22 @@ static GT3_Duration date_adjust = { -1, GT3_UNIT_SEC };
 static int
 get_format_element(format_element *fmt, const char *input, char **endptr)
 {
+    struct {
+        int type;
+        char key, spec;
+    } tab[] = {
+        { DATE_YEAR,   'y', 'd' },
+        { DATE_MONTH,  'm', 'd' },
+        { DATE_DAY,    'd', 'd' },
+        { FILENAME,    'f', 's' },
+        { DATA_NO,     'n', 'd' },
+        { ITEM,        'i', 's' },
+        { DATE_DECADE, 'D', 'd' }
+    };
     char *dest;
     size_t size;
     format_element dummy;
+    int i;
 
     assert(input[0] == '%');
     input++;
@@ -48,6 +62,7 @@ get_format_element(format_element *fmt, const char *input, char **endptr)
         fmt->type = PERCENT;
         fmt->fmt[1] = '%';
         fmt->fmt[2] = '\0';
+        *endptr = (char *)++input;
         return 0;
     }
 
@@ -55,38 +70,19 @@ get_format_element(format_element *fmt, const char *input, char **endptr)
     size--;
     dest = fmt->fmt + 1;
     fmt->type = DUMMY;
-    while (size > 1 && *input != '\0' && fmt->type == DUMMY) {
-        switch (*input) {
-        case 'y':
-            fmt->type = DATE_YEAR;
-            *dest++ = 'd';
+    while (size > 1 && *input != '\0') {
+        for (i = 0; i < sizeof tab / sizeof tab[0]; i++)
+            if (*input == tab[i].key) {
+                fmt->type = tab[i].type;
+                *dest++ = tab[i].spec;
+                input++;
+                break;
+            }
+        if (fmt->type != DUMMY)
             break;
-        case 'm':
-            fmt->type = DATE_MONTH;
-            *dest++ = 'd';
-            break;
-        case 'd':
-            fmt->type = DATE_DAY;
-            *dest++ = 'd';
-            break;
-        case 'f':
-            fmt->type = FILENAME;
-            *dest++ = 's';
-            break;
-        case 'n':
-            fmt->type = DATA_NO;
-            *dest++ = 'd';
-            break;
-        case 'i':
-            fmt->type = ITEM;
-            *dest++ = 's';
-            break;
-        default:
-            *dest++ = *input;
-            break;
-        }
+
+        *dest++ = *input++;
         size--;
-        input++;
     }
     *dest = '\0';
     *endptr = (char *)input;
@@ -95,24 +91,30 @@ get_format_element(format_element *fmt, const char *input, char **endptr)
 }
 
 
-
 static int
 get_date(GT3_Date *date, const GT3_HEADER *head, const char *key)
 {
-    if (GT3_decodeHeaderDate(date, head, key) < 0)
+    int cal;
+
+    if (GT3_decodeHeaderDate(date, head, key) < 0) {
+        GT3_printErrorMessages(stderr);
         return -1;
+    }
 
-    if (date_adjust.value != 0)
-        GT3_addDuration(date, &date_adjust, current_calendar);
-
+    if (date_adjust.value != 0) {
+        cal = GT3_guessCalendarHeader(head);
+        if (cal < 0) {
+            GT3_printErrorMessages(stderr);
+            cal = GT3_CAL_GREGORIAN;
+            /* Header is wrong, but continue. */
+        }
+        if (cal == GT3_CAL_DUMMY) {
+            logging(LOG_WARN, "cannot guess calendar type");
+            cal = GT3_CAL_GREGORIAN;
+        }
+        GT3_addDuration(date, &date_adjust, cal);
+    }
     return 0;
-}
-
-
-void
-set_calendar(int cal)
-{
-    current_calendar = cal;
 }
 
 
@@ -122,8 +124,8 @@ gh_snprintf(char *str, size_t size, const char *format,
 {
     const char *p = format;
     format_element fmt;
-    char *endptr;
-    int nstr, date_cache = 0;
+    char *endptr = NULL;
+    int nstr = 0, date_cache = 0;
     GT3_Date date;
     int rval = 0;
     char buf[33];
@@ -139,26 +141,24 @@ gh_snprintf(char *str, size_t size, const char *format,
                 break;
             }
 
+            rval = 0;
             switch (fmt.type) {
             case DATE_YEAR:
-                if (!date_cache) {
-                    get_date(&date, head, "DATE");
+                if (!date_cache && (rval = get_date(&date, head, "DATE")) == 0)
                     date_cache = 1;
-                }
+
                 nstr = snprintf(str, size, fmt.fmt, date.year);
                 break;
             case DATE_MONTH:
-                if (!date_cache) {
-                    get_date(&date, head, "DATE");
+                if (!date_cache && (rval = get_date(&date, head, "DATE")) == 0)
                     date_cache = 1;
-                }
+
                 nstr = snprintf(str, size, fmt.fmt, date.mon);
                 break;
             case DATE_DAY:
-                if (!date_cache) {
-                    get_date(&date, head, "DATE");
+                if (!date_cache && (rval = get_date(&date, head, "DATE")) == 0)
                     date_cache = 1;
-                }
+
                 nstr = snprintf(str, size, fmt.fmt, date.day);
                 break;
             case FILENAME:
@@ -171,6 +171,12 @@ gh_snprintf(char *str, size_t size, const char *format,
                 GT3_copyHeaderItem(buf, sizeof buf, head, "ITEM");
                 nstr = snprintf(str, size, fmt.fmt, buf);
                 break;
+            case DATE_DECADE:
+                if (!date_cache && (rval = get_date(&date, head, "DATE")) == 0)
+                    date_cache = 1;
+
+                nstr = snprintf(str, size, fmt.fmt, (date.year / 10) * 10);
+                break;
             case PERCENT:
                 nstr = snprintf(str, size, "%%");
                 break;
@@ -179,7 +185,7 @@ gh_snprintf(char *str, size_t size, const char *format,
                 break;
             }
 
-            if (nstr >= size) {
+            if (rval < 0 || nstr >= size) {
                 rval = -1;
                 break;
             }
@@ -249,10 +255,19 @@ test2(void)
 
     GT3_initHeader(&head);
 
-    set_calendar(GT3_CAL_NOLEAP);
-    GT3_setDate(&date, 100, 5, 16, 12, 0, 0);
+    GT3_setDate(&date, 100, 1, 2, 12, 0, 0);
     GT3_setHeaderDate(&head, "DATE", &date);
+    GT3_setHeaderString(&head, "UTIM", "HOUR");
+    GT3_setHeaderInt(&head, "TIME", 360 * 100 * 24 + 24 + 12);
+
+
     GT3_setHeaderString(&head, "ITEM", "T2");
+
+    rval = gh_snprintf(str, sizeof str, "[%%]", &head, "T2", 1);
+    assert(strcmp(str, "[%]") == 0);
+
+    rval = gh_snprintf(str, sizeof str, "../y%y", &head, "T2", 1);
+    assert(strcmp(str, "../y100") == 0);
 
     rval = gh_snprintf(str, sizeof str, "../y%04y", &head, "T2", 1);
     assert(strcmp(str, "../y0100") == 0);
@@ -262,17 +277,15 @@ test2(void)
 
     rval = gh_snprintf(str, sizeof str, "data/%f_%04y-%02m-%02d",
                            &head, "T2", 1);
-    assert(strcmp(str, "data/T2_0100-05-16") == 0);
+    assert(strcmp(str, "data/T2_0100-01-02") == 0);
 
     rval = gh_snprintf(str, sizeof str, "data/%i_%04y-%02m-%02d",
                            &head, "T2", 1);
-    assert(strcmp(str, "data/T2_0100-05-16") == 0);
+    assert(strcmp(str, "data/T2_0100-01-02") == 0);
 
     GT3_setDate(&date, 100, 1, 1, 0, 0, 0);
     GT3_setHeaderDate(&head, "DATE", &date);
-
-    rval = gh_snprintf(str, sizeof str, "../y%04y/%f", &head, "T2", 1);
-    assert(strcmp(str, "../y0099/T2") == 0);
+    GT3_setHeaderInt(&head, "TIME", 360 * 100 * 24);
 
     rval = gh_snprintf(str, sizeof str, "../y%y/%f", &head, "T2", 1);
     assert(strcmp(str, "../y99/T2") == 0);
