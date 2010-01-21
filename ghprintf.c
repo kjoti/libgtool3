@@ -49,6 +49,7 @@ get_format_element(format_element *fmt, const char *input, char **endptr)
         { ITEM,        'i', 's' },
         { DATE_DECADE, 'D', 'd' }
     };
+    const char allowed[] = "0123456789+-# .";
     char *dest;
     size_t size;
     format_element dummy;
@@ -79,6 +80,9 @@ get_format_element(format_element *fmt, const char *input, char **endptr)
                 break;
             }
         if (fmt->type != DUMMY)
+            break;
+
+        if (strchr(allowed, *input) == NULL)
             break;
 
         *dest++ = *input++;
@@ -118,6 +122,13 @@ get_date(GT3_Date *date, const GT3_HEADER *head, const char *key)
 }
 
 
+/*
+ * Return value:
+ *    0: successful end.
+ *   -1: invalid data in a HEADER field.
+ *   -2: overflow output buffer.
+ *   -3: invalid format.
+ */
 int
 gh_snprintf(char *str, size_t size, const char *format,
             const GT3_HEADER *head, const char *filename, int curr)
@@ -137,7 +148,7 @@ gh_snprintf(char *str, size_t size, const char *format,
             size--;
         } else {
             if (get_format_element(&fmt, p, &endptr) < 0) {
-                rval = -1;
+                rval = -3;
                 break;
             }
 
@@ -185,10 +196,11 @@ gh_snprintf(char *str, size_t size, const char *format,
                 break;
             }
 
-            if (rval < 0 || nstr >= size) {
-                rval = -1;
+            if (nstr >= size)
+                rval = -2;
+
+            if (rval < 0)
                 break;
-            }
             str += nstr;
             size -= nstr;
             p = (const char *)endptr;
@@ -303,11 +315,50 @@ test2(void)
 }
 
 
+void
+test3(void)
+{
+    GT3_HEADER head;
+    GT3_Date date;
+    int rval;
+    char str[10];
+
+    GT3_initHeader(&head);
+
+    GT3_setDate(&date, 100, 1, 1, 0, 0, 0);
+    GT3_setHeaderDate(&head, "DATE", &date);
+    GT3_setHeaderString(&head, "UTIM", "HOUR");
+    GT3_setHeaderInt(&head, "TIME", 360 * 100 * 24);
+
+    ghprintf_shift(1);
+    rval = gh_snprintf(str, sizeof str, "%y-%02m-%02d", &head, "x", 1);
+    assert(rval == 0);
+    assert(strcmp(str, "99-12-30") == 0);
+
+    rval = gh_snprintf(str, sizeof str, "%3y-%02m-%02d", &head, "x", 1);
+    assert(rval == 0);
+    assert(strcmp(str, " 99-12-30") == 0);
+
+    rval = gh_snprintf(str, sizeof str, "%03y-%02m-%02d", &head, "x", 1);
+    assert(rval == 0);
+    assert(strcmp(str, "099-12-30") == 0);
+
+    rval = gh_snprintf(str, sizeof str, "%04y-%02m-%02d", &head, "x", 1);
+    assert(rval == -2);
+
+    ghprintf_shift(0);
+    rval = gh_snprintf(str, sizeof str, "%y-%02m-%02d", &head, "x", 1);
+    assert(rval == 0);
+    assert(strcmp(str, "100-01-01") == 0);
+}
+
+
 int
 main(int argc, char **argv)
 {
     test1();
     test2();
+    test3();
     return 0;
 }
 #endif
