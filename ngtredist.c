@@ -32,6 +32,27 @@ static int open_mode = NORMAL_MODE;
 static int dryrun = 0;
 
 
+
+/*
+ * Return value:
+ *    -1: error has occured.
+ *     0: two files are not identical.
+ *     1: two files are identical.
+ *
+ * FIXME: Is this function portable?
+ */
+int
+identical_file(const char *path1, const char *path2)
+{
+    struct stat sb1, sb2;
+
+    if (stat(path1, &sb1) < 0 || stat(path2, &sb2) < 0)
+        return -1;
+
+    return (sb1.st_dev == sb2.st_dev && sb1.st_ino == sb2.st_ino) ? 1 : 0;
+}
+
+
 char *
 dirname(const char *path)
 {
@@ -250,13 +271,23 @@ redist(const char *path, const char *format, struct sequence *seq)
             break;
         }
 
-        if (gh_snprintf(outpath[sw], sizeof outpath[sw], format,
-                        &head, fp->path, fp->curr) < 0) {
+        rval = gh_snprintf(outpath[sw], sizeof outpath[sw], format,
+                           &head, fp->path, fp->curr);
+        if (rval == -2)
+            logging(LOG_ERR, "output filename is too long.");
+        if (rval == -3)
+            logging(LOG_ERR, "%s: invalid format string.", format);
+        if (rval < 0)
+            break;
+
+        sanitize(outpath[sw]);
+
+        if (identical_file(path, outpath[sw]) == 1) {
+            logging(LOG_ERR, "\"%s\" and \"%s\" are identical.",
+                    path, outpath[sw]);
             rval = -1;
             break;
         }
-
-        sanitize(outpath[sw]);
 
         if (strcmp(outpath[0], outpath[1]) != 0) {
             if (close_file(output) != 0
