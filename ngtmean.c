@@ -23,12 +23,6 @@
     ? *((double *)((vbuf)->data) + (i)) \
     : *((float *) ((vbuf)->data) + (i)) )
 
-#define ISMISS(vbuf, i) \
-    (((vbuf)->type == GT3_TYPE_DOUBLE) \
-    ? *((double *)((vbuf)->data) + (i)) == vbuf->miss \
-    : *((float *) ((vbuf)->data) + (i)) == (float)vbuf->miss )
-
-
 struct range {
     int str, end;
 };
@@ -64,7 +58,7 @@ calc_mean(struct mdata *mdata, GT3_Varbuf *vbuf, unsigned mode)
     int i, x, y, z;
     int xm, ym, zm;
     int idest;
-
+    double value;
 
     wx = wy = wz = 1.;
     for (i = 0; i < mdata->size; i++) {
@@ -77,15 +71,17 @@ calc_mean(struct mdata *mdata, GT3_Varbuf *vbuf, unsigned mode)
             GT3_printErrorMessages(stderr);
             return -1;
         }
-
         zm = (Z_MEAN & mode) ? 0 : z;
         if (mdata->wght[2])
             wz = mdata->wght[2][z];
 
-        for (i = 0; i < vbuf->dimlen[0] * vbuf->dimlen[1]; i++) {
-            if (!ISMISS(vbuf, i)) {
-                y = i / vbuf->dimlen[0];
-                x = i - y * vbuf->dimlen[0];
+        for (y = 0; y < vbuf->dimlen[1]; y++) {
+            for (x = 0; x < vbuf->dimlen[0]; x++) {
+                i = x + vbuf->dimlen[0] * y;
+                value = DATA(vbuf, i);
+                if (value == vbuf->miss)
+                    continue;
+
                 xm = (X_MEAN & mode) ? 0 : x;
                 ym = (Y_MEAN & mode) ? 0 : y;
 
@@ -97,7 +93,7 @@ calc_mean(struct mdata *mdata, GT3_Varbuf *vbuf, unsigned mode)
                 idest = xm + mdata->shape[0] * (ym + mdata->shape[1] * zm);
 
                 wght = wx * wy * wz;
-                mdata->data[idest] += wght * DATA(vbuf, i);
+                mdata->data[idest] += wght * value;
                 mdata->wsum[idest] += wght;
             }
         }
@@ -130,7 +126,7 @@ setup_dim(struct mdata *var,
 
         if (flag && (var->wght[axis] = GT3_getDimWeight(name)) == NULL) {
             GT3_printErrorMessages(stderr);
-            /* XXX: only warn */
+            logging(LOG_WARN, "Ignore weight of %s.", name);
             /* return -1; */
         }
     }
