@@ -452,39 +452,35 @@ GT3_setHeaderDate(GT3_HEADER *header, const char *key, const GT3_Date *date)
 }
 
 
+/* last in last out */
 static void
-set_header_in_blank(GT3_HEADER *head, int begin, int maxnum, const char *str)
+edit_header_lilo(GT3_HEADER *head, int pos, int count, const char *str)
 {
-    int i;
     char *p;
 
-    for (i = 0; i < maxnum; i++) {
-        p = head->h + ELEM_SZ * (i + begin);
-
-        if (is_blank(p)) {
-            memcpy(p, str, min(strlen(str), ELEM_SZ));
-            break;
-        }
-    }
+    p = head->h + ELEM_SZ * pos;
+    memmove(p + ELEM_SZ, p, ELEM_SZ * (count - 1));
+    memset(p, ' ', ELEM_SZ);
+    memcpy(p, str, min(strlen(str), ELEM_SZ));
 }
 
 
 void
 GT3_setHeaderEdit(GT3_HEADER *head, const char *str)
 {
-    set_header_in_blank(head, 3, 8, str);
+    edit_header_lilo(head, 3, 8, str);
 }
 
 void
 GT3_setHeaderEttl(GT3_HEADER *head, const char *str)
 {
-    set_header_in_blank(head, 16, 8, str);
+    edit_header_lilo(head, 16, 8, str);
 }
 
 void
 GT3_setHeaderMemo(GT3_HEADER *head, const char *str)
 {
-    set_header_in_blank(head, 49, 10, str);
+    edit_header_lilo(head, 49, 10, str);
 }
 
 
@@ -639,6 +635,43 @@ main(int argc, char **argv)
         assert(p && strcmp(buf, "CNTL") == 0);
     }
 
+    {
+        GT3_HEADER head;
+        char buf[17];
+
+        GT3_initHeader(&head);
+
+        GT3_setHeaderString(&head, "DATE2", "20000101 000000");
+        GT3_setHeaderString(&head, "CDATE", "19991231 235959");
+
+        GT3_setHeaderMemo(&head, "one");
+        GT3_setHeaderMemo(&head, "two");
+        GT3_setHeaderMemo(&head, "thre");
+        GT3_setHeaderMemo(&head, "four");
+        GT3_setHeaderMemo(&head, "five");
+        GT3_setHeaderMemo(&head, "six");
+        GT3_setHeaderMemo(&head, "seven");
+        GT3_setHeaderMemo(&head, "eight");
+        GT3_setHeaderMemo(&head, "nine");
+        GT3_setHeaderMemo(&head, "ten");
+        GT3_setHeaderMemo(&head, "eleven");
+
+        GT3_copyHeaderItem(buf, sizeof buf, &head, "DATE2");
+        assert(strcmp(buf, "20000101 000000") == 0);
+
+        GT3_copyHeaderItem(buf, sizeof buf, &head, "CDATE");
+        assert(strcmp(buf, "19991231 235959") == 0);
+
+        GT3_copyHeaderItem(buf, sizeof buf, &head, "MEMO1");
+        assert(strcmp(buf, "eleven") == 0);
+        GT3_copyHeaderItem(buf, sizeof buf, &head, "MEMO2");
+        assert(strcmp(buf, "ten") == 0);
+
+        GT3_copyHeaderItem(buf, sizeof buf, &head, "MEMO9");
+        assert(strcmp(buf, "thre") == 0);
+        GT3_copyHeaderItem(buf, sizeof buf, &head, "MEMO10");
+        assert(strcmp(buf, "two") == 0);
+    }
     return 0;
 }
 #endif
