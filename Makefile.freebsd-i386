@@ -86,7 +86,7 @@ LIBS		= $(SHLIB) $(STLIB)
 HEADERS		= gtool3.h
 BINS		= ngtcat ngtls ngtsumm ngtstat ngtick \
 		ngthead ngted ngtmkax ngtdiff ngtdump ngtavr \
-		ngtconv ngtredist
+		ngtconv ngtredist ngtmean
 
 all: $(LIBS) $(BINS) $(HEADERS)
 
@@ -117,26 +117,29 @@ ngtick: $(STLIB) ngtick.o $(UTILS)
 ngted: $(STLIB) ngted.o $(UTILS)  copysubst.o
 	$(CC) $(LDFLAGS) -L. -o $@ ngted.o $(UTILS) copysubst.o $(LDADD)
 
-ngtmkax:  $(STLIB) ngtmkax.o $(UTILS)
+ngtmkax: $(STLIB) ngtmkax.o $(UTILS)
 	$(CC) $(LDFLAGS) -L. -o $@ ngtmkax.o $(UTILS) $(LDADD)
 
-ngtdiff:  $(STLIB) ngtdiff.o $(UTILS)
+ngtdiff: $(STLIB) ngtdiff.o $(UTILS)
 	$(CC) $(LDFLAGS) -L. -o $@ ngtdiff.o $(UTILS) $(LDADD)
 
-ngtdump:  $(STLIB) ngtdump.o $(UTILS)
+ngtdump: $(STLIB) ngtdump.o $(UTILS)
 	$(CC) $(LDFLAGS) -L. -o $@ ngtdump.o $(UTILS) $(LDADD)
 
 ngthead: ngthead.o
 	$(CC) $(LDFLAGS) -o $@ ngthead.o
 
-ngtavr:  $(STLIB) ngtavr.o dateiter.o $(UTILS)
+ngtavr: $(STLIB) ngtavr.o dateiter.o $(UTILS)
 	$(CC) $(LDFLAGS) -L. -o $@ ngtavr.o $(UTILS) dateiter.o $(LDADD)
 
-ngtconv:  $(STLIB) ngtconv.o $(UTILS)
+ngtconv: $(STLIB) ngtconv.o $(UTILS)
 	$(CC) $(LDFLAGS) -L. -o $@ ngtconv.o $(UTILS) $(LDADD)
 
-ngtredist:  $(STLIB) ngtredist.o $(UTILS)
+ngtredist: $(STLIB) ngtredist.o $(UTILS)
 	$(CC) $(LDFLAGS) -L. -o $@ ngtredist.o $(UTILS) $(LDADD)
+
+ngtmean: $(STLIB) ngtmean.o $(UTILS)
+	$(CC) $(LDFLAGS) -L. -o $@ ngtmean.o $(UTILS) $(LDADD)
 
 install: all
 	$(MKDIR) $(bindir)
