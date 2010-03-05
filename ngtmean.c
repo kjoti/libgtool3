@@ -23,24 +23,43 @@
     ? *((double *)((vbuf)->data) + (i)) \
     : *((float *) ((vbuf)->data) + (i)) )
 
+#ifndef max
+#  define max(a, b) ((a)>(b) ? (a) :(b))
+#endif
+#ifndef min
+#  define min(a, b) ((a)<(b) ? (a) :(b))
+#endif
+
 struct range {
     int str, end;
 };
 
 struct mdata {
     char dimname[3][17];
-    int shape[3];
     int off[3];
     double *wght[3];
     double miss;
     size_t size, reserved_size;
 
+    int shape[3];
+
+    /*
+     * XXX: 'off' indicates 'str1 - 1' of input data, which is
+     * not affected range option.
+     */
+    int nstr[3];
     double *data;
     double *wsum;
+    struct range range[3];
 };
 
-static struct range *g_xrange = NULL;
-static struct range *g_yrange = NULL;
+#define RANGE_MAX 0x7fffffff
+static struct range g_range[3] = {
+    { 0, RANGE_MAX },
+    { 0, RANGE_MAX },
+    { 0, RANGE_MAX },
+};
+static int shift_flag = 1;
 
 /* mean flags */
 #define X_MEAN   1U
@@ -52,12 +71,45 @@ static struct range *g_yrange = NULL;
 
 
 static int
+shift_var(struct mdata *mdata, unsigned mode)
+{
+    if (mode & Z_MEAN)
+        mdata->dimname[2][0] = '\0';
+
+    if (mode & Y_MEAN) {
+        memcpy(mdata->dimname[1], mdata->dimname[2], 17);
+        mdata->shape[1] = mdata->shape[2];
+        mdata->nstr[1] = mdata->nstr[2];
+        mdata->dimname[2][0] = '\0';
+        mdata->shape[2] = 1;
+        mdata->nstr[2] = 0;
+    }
+
+    if (mode & X_MEAN) {
+        memcpy(mdata->dimname[0], mdata->dimname[1], 17);
+        mdata->shape[0] = mdata->shape[1];
+        mdata->nstr[0] = mdata->nstr[1];
+
+        memcpy(mdata->dimname[1], mdata->dimname[2], 17);
+        mdata->shape[1] = mdata->shape[2];
+        mdata->nstr[1] = mdata->nstr[2];
+
+        mdata->dimname[2][0] = '\0';
+        mdata->shape[2] = 1;
+        mdata->nstr[2] = 0;
+    }
+    return 0;
+}
+
+
+static int
 calc_mean(struct mdata *mdata, GT3_Varbuf *vbuf, unsigned mode)
 {
     double wx, wy, wz, wght;
     int i, x, y, z;
     int xm, ym, zm;
     int idest;
+    int x0, x1, y0, y1;
     double value;
 
     wx = wy = wz = 1.;
@@ -66,7 +118,12 @@ calc_mean(struct mdata *mdata, GT3_Varbuf *vbuf, unsigned mode)
         mdata->wsum[i] = 0.;
     }
 
-    for (z = 0; z < vbuf->dimlen[2]; z++) {
+    x0 = mdata->range[0].str;
+    x1 = mdata->range[0].end;
+    y0 = mdata->range[1].str;
+    y1 = mdata->range[1].end;
+
+    for (z = mdata->range[2].str; z < mdata->range[2].end; z++) {
         if (GT3_readVarZ(vbuf, z) < 0) {
             GT3_printErrorMessages(stderr);
             return -1;
@@ -75,15 +132,15 @@ calc_mean(struct mdata *mdata, GT3_Varbuf *vbuf, unsigned mode)
         if (mdata->wght[2])
             wz = mdata->wght[2][z];
 
-        for (y = 0; y < vbuf->dimlen[1]; y++) {
-            for (x = 0; x < vbuf->dimlen[0]; x++) {
-                i = x + vbuf->dimlen[0] * y;
+        for (y = y0; y < y1; y++) {
+            for (x = x0; x < x1; x++) {
+                i = x - mdata->off[0] + vbuf->dimlen[0] * (y - mdata->off[1]);
                 value = DATA(vbuf, i);
                 if (value == vbuf->miss)
                     continue;
 
-                xm = (X_MEAN & mode) ? 0 : x;
-                ym = (Y_MEAN & mode) ? 0 : y;
+                xm = (X_MEAN & mode) ? 0 : x - x0;
+                ym = (Y_MEAN & mode) ? 0 : y - y0;
 
                 if (mdata->wght[0])
                     wx = mdata->wght[0][x];
@@ -110,26 +167,65 @@ calc_mean(struct mdata *mdata, GT3_Varbuf *vbuf, unsigned mode)
 
 
 static int
+is_need_weight(const char *name)
+{
+    return (   name[0] == '\0'
+            || memcmp(name, "NUMBER", 6) == 0 )
+        ? 0 : 1;
+}
+
+
+static int
 setup_dim(struct mdata *var,
+          int size,
           const GT3_HEADER *head,
           int axis, unsigned flag)
 {
-    const char *aitm[] = { "AITM1", "AITM2", "AITM3" };
-    char name[17];
+    char key2[3] = { '1', '2', '3' };
+    char key[8], name[17];
+    int val;
 
+    snprintf(key, sizeof key, "AITM%c", key2[axis]);
+    GT3_copyHeaderItem(name, sizeof name, head, key);
 
-    GT3_copyHeaderItem(name, sizeof name, head, aitm[axis]);
-    if (strcmp(var->dimname[axis], name) != 0) {
-        strcpy(var->dimname[axis], name);
+    /* wght */
+    if (flag && is_need_weight(name)) {
+        if (strcmp(var->dimname[axis], name) != 0) {
+            free(var->wght[axis]);
+
+            if ((var->wght[axis] = GT3_getDimWeight(name)) == NULL) {
+                GT3_printErrorMessages(stderr);
+                logging(LOG_WARN, "Ignore weight of %s.", name);
+                /* return -1; */
+            }
+        }
+    } else {
         free(var->wght[axis]);
         var->wght[axis] = NULL;
-
-        if (flag && (var->wght[axis] = GT3_getDimWeight(name)) == NULL) {
-            GT3_printErrorMessages(stderr);
-            logging(LOG_WARN, "Ignore weight of %s.", name);
-            /* return -1; */
-        }
     }
+
+    /* dimname */
+    strcpy(var->dimname[axis], name);
+
+    /* off (ASTR[1-3] of input data) */
+    snprintf(key, sizeof key, "ASTR%c", key2[axis]);
+    if (GT3_decodeHeaderInt(&val, head, key) < 0) {
+        GT3_printErrorMessages(stderr);
+        logging(LOG_WARN, "Ignore this error...");
+        val = 1;
+    }
+    val--;
+    var->off[axis] = val;
+
+    /* range */
+    var->range[axis].str = max(val, g_range[axis].str);
+    var->range[axis].end = min(val + size, g_range[axis].end);
+    if (var->range[axis].str >= var->range[axis].end) {
+        logging(LOG_ERR, "empty %c-range", "XYZ"[axis]);
+        return -1;
+    }
+    /* nstr might be shifted */
+    var->nstr[axis] = var->range[axis].str;
     return 0;
 }
 
@@ -137,24 +233,24 @@ setup_dim(struct mdata *var,
 static int
 setup_var(struct mdata *var,
           const int *dimlen,
-          const GT3_HEADER *head,
+          GT3_HEADER *head,
           unsigned mode)
 {
     double miss;
 
-    if (   setup_dim(var, head, 0, mode & X_WEIGHT) < 0
-        || setup_dim(var, head, 1, mode & Y_WEIGHT) < 0
-        || setup_dim(var, head, 2, mode & Z_WEIGHT) < 0)
+    if (   setup_dim(var, dimlen[0], head, 0, mode & X_WEIGHT) < 0
+        || setup_dim(var, dimlen[1], head, 1, mode & Y_WEIGHT) < 0
+        || setup_dim(var, dimlen[2], head, 2, mode & Z_WEIGHT) < 0)
         return -1;
 
-    var->shape[0] = (mode & X_MEAN) ? 1 : dimlen[0];
-    var->shape[1] = (mode & Y_MEAN) ? 1 : dimlen[1];
-    var->shape[2] = (mode & Z_MEAN) ? 1 : dimlen[2];
-    var->off[0] = var->off[1] = var->off[2] = 0;
+    var->shape[0] = mode & X_MEAN ? 1 : var->range[0].end - var->range[0].str;
+    var->shape[1] = mode & Y_MEAN ? 1 : var->range[1].end - var->range[1].str;
+    var->shape[2] = mode & Z_MEAN ? 1 : var->range[2].end - var->range[2].str;
 
-    miss = -999.; /* default value */
-    if (GT3_decodeHeaderDouble(&miss, head, "MISS") < 0)
+    if (GT3_decodeHeaderDouble(&miss, head, "MISS") < 0) {
         GT3_printErrorMessages(stderr);
+        miss = -999.; /* default value */
+    }
     var->miss = miss;
     return 0;
 }
@@ -184,20 +280,59 @@ realloc_var(struct mdata *var)
 }
 
 
-int
+static int
 write_mean(FILE *output, const struct mdata *mdata,
            const GT3_HEADER *headin,
+           unsigned mode,
            const char *fmt)
 {
     GT3_HEADER head;
     int rval;
+    char fmt_asis[17];
+    char buf[17];
+
+    if (!fmt) {
+        /* use the same format to input data. */
+        GT3_copyHeaderItem(fmt_asis, sizeof fmt_asis, headin, "DFMT");
+    }
 
     memcpy(&head, headin, sizeof(GT3_HEADER));
+
+    GT3_setHeaderString(&head, "AITM1", mdata->dimname[0]);
+    GT3_setHeaderString(&head, "AITM2", mdata->dimname[1]);
+    GT3_setHeaderString(&head, "AITM3", mdata->dimname[2]);
+
+    GT3_setHeaderInt(&head, "ASTR1", 1 + mdata->nstr[0]);
+    GT3_setHeaderInt(&head, "ASTR2", 1 + mdata->nstr[1]);
+    GT3_setHeaderInt(&head, "ASTR3", 1 + mdata->nstr[2]);
+
+    if (mode & X_MEAN) {
+        GT3_setHeaderEdit(&head, (mode & X_WEIGHT) ? "XMW" : "XM");
+        snprintf(buf, sizeof buf, "X-Mean:%d,%d",
+                 mdata->range[0].str + 1, mdata->range[0].end);
+        GT3_setHeaderEttl(&head, buf);
+    }
+
+    if (mode & Y_MEAN) {
+        GT3_setHeaderEdit(&head, (mode & Y_WEIGHT) ? "YMW" : "YM");
+        snprintf(buf, sizeof buf, "Y-Mean:%d,%d",
+                 mdata->range[1].str + 1, mdata->range[1].end);
+        GT3_setHeaderEttl(&head, buf);
+    }
+    if (mode & Z_MEAN) {
+        GT3_setHeaderEdit(&head, (mode & Z_WEIGHT) ? "ZMW" : "ZM");
+        snprintf(buf, sizeof buf, "Z-Mean:%d,%d",
+                 mdata->range[2].str + 1, mdata->range[2].end);
+        GT3_setHeaderEttl(&head, buf);
+    }
+
     if ((rval = GT3_write(mdata->data, GT3_TYPE_DOUBLE,
                           mdata->shape[0],
                           mdata->shape[1],
                           mdata->shape[2],
-                          &head, fmt, output)) < 0)
+                          &head,
+                          fmt ? fmt : fmt_asis,
+                          output)) < 0)
         GT3_printErrorMessages(stderr);
 
     return rval;
@@ -229,7 +364,8 @@ ngtmean(FILE *output, const char *path,
         if (setup_var(mdata, fp->dimlen, &head, mode) < 0
             || realloc_var(mdata) < 0
             || calc_mean(mdata, vbuf, mode) < 0
-            || write_mean(output, mdata, &head, fmt) < 0)
+            || (shift_flag && shift_var(mdata, mode) < 0)
+            || write_mean(output, mdata, &head, mode, fmt) < 0)
             goto finish;
 
         if (GT3_next(fp) < 0) {
@@ -281,6 +417,25 @@ toupper_string(char *str)
 }
 
 
+static struct range *
+set_range(struct range *range, const char *str)
+{
+    int vals[] = { 1, RANGE_MAX };
+    int num;
+
+    if (str == NULL || (num = get_ints(vals, 2, str, ':')) < 0)
+        return NULL;
+
+    range->str = vals[0] - 1;
+    range->end = vals[1];
+
+    if (num == 1)
+        range->end = range->str + 1;
+    return range;
+}
+
+
+
 int
 main(int argc, char **argv)
 {
@@ -288,7 +443,7 @@ main(int argc, char **argv)
     unsigned mode = X_MEAN | Y_MEAN | Z_MEAN | X_WEIGHT | Y_WEIGHT | Z_WEIGHT;
     char *filename = "gtool.out";
     char dummy[17];
-    char *fmt = "UR8";
+    char *fmt = NULL;
     FILE *output = NULL;
     int ch;
     int exitval = 1;
@@ -296,11 +451,14 @@ main(int argc, char **argv)
     open_logging(stderr, PROGNAME);
     GT3_setProgname(PROGNAME);
 
-    while ((ch = getopt(argc, argv, "f:m:o:")) != -1)
+    while ((ch = getopt(argc, argv, "f:m:no:x:y:z:h")) != -1)
         switch (ch) {
         case 'f':
             fmt = strdup(optarg);
             toupper_string(fmt);
+            break;
+        case 'n':
+            shift_flag = 0;
             break;
         case 'm':
             mode = set_mmode(optarg);
@@ -308,11 +466,30 @@ main(int argc, char **argv)
         case 'o':
             filename = optarg;
             break;
+        case 'x':
+            if (set_range(g_range, optarg) == NULL) {
+                logging(LOG_ERR, "-x: invalid x-range (%s)", optarg);
+                exit(1);
+            }
+            break;
+        case 'y':
+            if (set_range(g_range + 1, optarg) == NULL) {
+                logging(LOG_ERR, "-y: invalid y-range (%s)", optarg);
+                exit(1);
+            }
+            break;
+        case 'z':
+            if (set_range(g_range + 2, optarg) == NULL) {
+                logging(LOG_ERR, "-z: invalid z-range (%s)", optarg);
+                exit(1);
+            }
+            break;
+        case 'h':
         default:
             break;
         }
 
-    if (GT3_output_format(dummy, fmt) < 0) {
+    if (fmt && GT3_output_format(dummy, fmt) < 0) {
         logging(LOG_ERR, "%s: Unknown format", fmt);
         exit(1);
     }
