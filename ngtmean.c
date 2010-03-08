@@ -101,15 +101,16 @@ shift_var(struct mdata *mdata, unsigned mode)
 static int
 calc_mean(struct mdata *mdata, GT3_Varbuf *vbuf, unsigned mode)
 {
-    double wx, wy, wz, wght;
+    double wz, wght;
     int i, x, y, z;
     int xm, ym, zm;
     int idest;
     int x0, x1, y0, y1;
     double value;
     double *wghtx = NULL, *wghty = NULL, *wghtz = NULL;
+    double wyz;
 
-    wx = wy = wz = 1.;
+    wz = 1.;
     for (i = 0; i < mdata->size; i++) {
         mdata->data[i] = 0.;
         mdata->wsum[i] = 0.;
@@ -121,7 +122,6 @@ calc_mean(struct mdata *mdata, GT3_Varbuf *vbuf, unsigned mode)
         wghty = mdata->wght[1] + mdata->off[1];
     if (mdata->wght[2])
         wghtz = mdata->wght[2] + mdata->off[2];
-
 
     x0 = mdata->range[0].str;
     x1 = mdata->range[0].end;
@@ -138,6 +138,10 @@ calc_mean(struct mdata *mdata, GT3_Varbuf *vbuf, unsigned mode)
             wz = wghtz[z];
 
         for (y = y0; y < y1; y++) {
+            ym = (Y_MEAN & mode) ? 0 : y - y0;
+            wyz = wghty ? wghty[y] * wz : wz;
+
+            idest = mdata->shape[0] * (ym + mdata->shape[1] * zm);
             for (x = x0; x < x1; x++) {
                 i = x + vbuf->dimlen[0] * y;
                 value = DATA(vbuf, i);
@@ -145,17 +149,9 @@ calc_mean(struct mdata *mdata, GT3_Varbuf *vbuf, unsigned mode)
                     continue;
 
                 xm = (X_MEAN & mode) ? 0 : x - x0;
-                ym = (Y_MEAN & mode) ? 0 : y - y0;
-
-                if (wghtx)
-                    wx = wghtx[x];
-                if (wghty)
-                    wy = wghty[y];
-
-                idest = xm + mdata->shape[0] * (ym + mdata->shape[1] * zm);
-                wght = wx * wy * wz;
-                mdata->data[idest] += wght * value;
-                mdata->wsum[idest] += wght;
+                wght = wghtx ? wghtx[x] * wyz : wyz;
+                mdata->data[idest + xm] += wght * value;
+                mdata->wsum[idest + xm] += wght;
             }
         }
     }
