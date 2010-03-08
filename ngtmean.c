@@ -36,18 +36,13 @@ struct range {
 
 struct mdata {
     char dimname[3][17];
-    int off[3];
+    int off[3];                 /* starting with 0 */
     double *wght[3];
     double miss;
     size_t size, reserved_size;
 
     int shape[3];
 
-    /*
-     * XXX: 'off' indicates 'str1 - 1' of input data, which is
-     * not affected range option.
-     */
-    int nstr[3];
     double *data;
     double *wsum;
     struct range range[3];
@@ -73,30 +68,31 @@ static int shift_flag = 1;
 static int
 shift_var(struct mdata *mdata, unsigned mode)
 {
-    if (mode & Z_MEAN)
+    if (mode & Z_MEAN) {
         mdata->dimname[2][0] = '\0';
-
+        mdata->off[2] = 0;
+    }
     if (mode & Y_MEAN) {
         memcpy(mdata->dimname[1], mdata->dimname[2], 17);
         mdata->shape[1] = mdata->shape[2];
-        mdata->nstr[1] = mdata->nstr[2];
+        mdata->off[1] = mdata->off[2];
         mdata->dimname[2][0] = '\0';
         mdata->shape[2] = 1;
-        mdata->nstr[2] = 0;
+        mdata->off[2] = 0;
     }
 
     if (mode & X_MEAN) {
         memcpy(mdata->dimname[0], mdata->dimname[1], 17);
         mdata->shape[0] = mdata->shape[1];
-        mdata->nstr[0] = mdata->nstr[1];
+        mdata->off[0] = mdata->off[1];
 
         memcpy(mdata->dimname[1], mdata->dimname[2], 17);
         mdata->shape[1] = mdata->shape[2];
-        mdata->nstr[1] = mdata->nstr[2];
+        mdata->off[1] = mdata->off[2];
 
         mdata->dimname[2][0] = '\0';
         mdata->shape[2] = 1;
-        mdata->nstr[2] = 0;
+        mdata->off[2] = 0;
     }
     return 0;
 }
@@ -111,12 +107,21 @@ calc_mean(struct mdata *mdata, GT3_Varbuf *vbuf, unsigned mode)
     int idest;
     int x0, x1, y0, y1;
     double value;
+    double *wghtx = NULL, *wghty = NULL, *wghtz = NULL;
 
     wx = wy = wz = 1.;
     for (i = 0; i < mdata->size; i++) {
         mdata->data[i] = 0.;
         mdata->wsum[i] = 0.;
     }
+
+    if (mdata->wght[0])
+        wghtx = mdata->wght[0] + mdata->off[0];
+    if (mdata->wght[1])
+        wghty = mdata->wght[1] + mdata->off[1];
+    if (mdata->wght[2])
+        wghtz = mdata->wght[2] + mdata->off[2];
+
 
     x0 = mdata->range[0].str;
     x1 = mdata->range[0].end;
@@ -128,13 +133,13 @@ calc_mean(struct mdata *mdata, GT3_Varbuf *vbuf, unsigned mode)
             GT3_printErrorMessages(stderr);
             return -1;
         }
-        zm = (Z_MEAN & mode) ? 0 : z;
-        if (mdata->wght[2])
-            wz = mdata->wght[2][z];
+        zm = (Z_MEAN & mode) ? 0 : z - mdata->range[2].str;
+        if (wghtz)
+            wz = wghtz[z];
 
         for (y = y0; y < y1; y++) {
             for (x = x0; x < x1; x++) {
-                i = x - mdata->off[0] + vbuf->dimlen[0] * (y - mdata->off[1]);
+                i = x + vbuf->dimlen[0] * y;
                 value = DATA(vbuf, i);
                 if (value == vbuf->miss)
                     continue;
@@ -142,13 +147,12 @@ calc_mean(struct mdata *mdata, GT3_Varbuf *vbuf, unsigned mode)
                 xm = (X_MEAN & mode) ? 0 : x - x0;
                 ym = (Y_MEAN & mode) ? 0 : y - y0;
 
-                if (mdata->wght[0])
-                    wx = mdata->wght[0][x];
-                if (mdata->wght[1])
-                    wy = mdata->wght[1][y];
+                if (wghtx)
+                    wx = wghtx[x];
+                if (wghty)
+                    wy = wghty[y];
 
                 idest = xm + mdata->shape[0] * (ym + mdata->shape[1] * zm);
-
                 wght = wx * wy * wz;
                 mdata->data[idest] += wght * value;
                 mdata->wsum[idest] += wght;
@@ -214,18 +218,16 @@ setup_dim(struct mdata *var,
         logging(LOG_WARN, "Ignore this error...");
         val = 1;
     }
-    val--;
-    var->off[axis] = val;
+    var->off[axis] = val - 1;
 
-    /* range */
-    var->range[axis].str = max(val, g_range[axis].str);
-    var->range[axis].end = min(val + size, g_range[axis].end);
+    /* range: clip 0 .. dimlen */
+    var->range[axis].str = max(0, g_range[axis].str);
+    var->range[axis].end = min(size, g_range[axis].end);
+
     if (var->range[axis].str >= var->range[axis].end) {
         logging(LOG_ERR, "empty %c-range", "XYZ"[axis]);
         return -1;
     }
-    /* nstr might be shifted */
-    var->nstr[axis] = var->range[axis].str;
     return 0;
 }
 
@@ -302,9 +304,9 @@ write_mean(FILE *output, const struct mdata *mdata,
     GT3_setHeaderString(&head, "AITM2", mdata->dimname[1]);
     GT3_setHeaderString(&head, "AITM3", mdata->dimname[2]);
 
-    GT3_setHeaderInt(&head, "ASTR1", 1 + mdata->nstr[0]);
-    GT3_setHeaderInt(&head, "ASTR2", 1 + mdata->nstr[1]);
-    GT3_setHeaderInt(&head, "ASTR3", 1 + mdata->nstr[2]);
+    GT3_setHeaderInt(&head, "ASTR1", 1 + mdata->off[0]);
+    GT3_setHeaderInt(&head, "ASTR2", 1 + mdata->off[1]);
+    GT3_setHeaderInt(&head, "ASTR3", 1 + mdata->off[2]);
 
     if (mode & X_MEAN) {
         GT3_setHeaderEdit(&head, (mode & X_WEIGHT) ? "XMW" : "XM");
