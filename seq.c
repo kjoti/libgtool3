@@ -52,14 +52,20 @@ strtr(char *str, const char *s1, const char *s2)
 
 
 void
+rewindSeq(struct sequence *seq)
+{
+    seq->it   = seq->spec;
+    seq->curr = 0;
+    seq->head = seq->tail = seq->step = 0;
+}
+
+
+void
 reinitSeq(struct sequence *seq, int first, int last)
 {
     seq->first = first;
     seq->last  = last;
-
-    seq->it   = seq->spec;
-    seq->curr = 0;
-    seq->head = seq->tail = seq->step = 0;
+    rewindSeq(seq);
 }
 
 
