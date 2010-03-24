@@ -64,12 +64,21 @@ OBJS		= \
 SHLIBNAME	= libgtool3.so
 SHLIB		= libgtool3.so.$(MAJOR_VERSION)
 STLIB		= libgtool3.a
+INTLIB		= libinternal.a # Not installed.
 
-LDADD		= $(STLIB) -lm   # use static library for bin
-#LDADD		= $(SHLIB) -lm
+LDADD		= $(INTLIB) $(STLIB) -lm   # use static library for bin
+#LDADD		= $(INTLIB) $(SHLIB) -lm
 
-UTILS		= logging.o seq.o fileiter.o split.o get_ints.o \
-		ghprintf.o
+UTILS		= \
+		copysubst.o \
+		dateiter.o \
+		fileiter.o \
+		get_ints.o \
+		ghprintf.o \
+		logging.o \
+		range.o \
+		seq.o \
+		split.o
 
 PICFLAG		= -fpic
 SONAME		= $(SHLIB)
@@ -82,7 +91,7 @@ SOURCES		= $(LIBSOURCES) $(UTILSOURCES)
 #
 #  targets
 #
-LIBS		= $(SHLIB) $(STLIB)
+LIBS		= $(SHLIB) $(STLIB) $(INTLIB)
 HEADERS		= gtool3.h
 BINS		= ngtcat ngtls ngtsumm ngtstat ngtick \
 		ngthead ngted ngtmkax ngtdiff ngtdump ngtavr \
@@ -99,47 +108,51 @@ $(SHLIB): $(SOBJS)
 	    -o $@ -Wl,-soname,$(SONAME) \
 	    `lorder $(SOBJS) | tsort -q`
 
-ngtcat: $(STLIB) ngtcat.o $(UTILS)
-	$(CC) $(LDFLAGS) -L. -o $@ ngtcat.o $(UTILS) $(LDADD)
+$(INTLIB): $(UTILS)
+	$(AR) $(ARFLAGS) $@ $(UTILS)
+	$(RANLIB) $@
 
-ngtls: $(STLIB) ngtls.o  $(UTILS)
-	$(CC) $(LDFLAGS) -L. -o $@ ngtls.o $(UTILS)  $(LDADD)
+ngtcat: $(LIBS) ngtcat.o
+	$(CC) $(LDFLAGS) -L. -o $@ ngtcat.o $(LDADD)
 
-ngtsumm: $(STLIB) ngtsumm.o $(UTILS)
-	$(CC) $(LDFLAGS) -L. -o $@ ngtsumm.o $(UTILS) $(LDADD)
+ngtls: $(LIBS) ngtls.o
+	$(CC) $(LDFLAGS) -L. -o $@ ngtls.o $(LDADD)
 
-ngtstat: $(STLIB) ngtstat.o $(UTILS)
-	$(CC) $(LDFLAGS) -L. -o $@ ngtstat.o $(UTILS) $(LDADD)
+ngtsumm: $(LIBS) ngtsumm.o
+	$(CC) $(LDFLAGS) -L. -o $@ ngtsumm.o $(LDADD)
 
-ngtick: $(STLIB) ngtick.o $(UTILS)
-	$(CC) $(LDFLAGS) -L. -o $@ ngtick.o $(UTILS) $(LDADD)
+ngtstat: $(LIBS) ngtstat.o
+	$(CC) $(LDFLAGS) -L. -o $@ ngtstat.o $(LDADD)
 
-ngted: $(STLIB) ngted.o $(UTILS)  copysubst.o
-	$(CC) $(LDFLAGS) -L. -o $@ ngted.o $(UTILS) copysubst.o $(LDADD)
+ngtick: $(LIBS) ngtick.o
+	$(CC) $(LDFLAGS) -L. -o $@ ngtick.o $(LDADD)
 
-ngtmkax: $(STLIB) ngtmkax.o $(UTILS)
-	$(CC) $(LDFLAGS) -L. -o $@ ngtmkax.o $(UTILS) $(LDADD)
+ngted: $(LIBS) ngted.o
+	$(CC) $(LDFLAGS) -L. -o $@ ngted.o $(LDADD)
 
-ngtdiff: $(STLIB) ngtdiff.o $(UTILS)
-	$(CC) $(LDFLAGS) -L. -o $@ ngtdiff.o $(UTILS) $(LDADD)
+ngtmkax: $(LIBS) ngtmkax.o
+	$(CC) $(LDFLAGS) -L. -o $@ ngtmkax.o $(LDADD)
 
-ngtdump: $(STLIB) ngtdump.o $(UTILS)
-	$(CC) $(LDFLAGS) -L. -o $@ ngtdump.o $(UTILS) $(LDADD)
+ngtdiff: $(LIBS) ngtdiff.o
+	$(CC) $(LDFLAGS) -L. -o $@ ngtdiff.o $(LDADD)
+
+ngtdump: $(LIBS) ngtdump.o
+	$(CC) $(LDFLAGS) -L. -o $@ ngtdump.o $(LDADD)
 
 ngthead: ngthead.o
 	$(CC) $(LDFLAGS) -o $@ ngthead.o
 
-ngtavr: $(STLIB) ngtavr.o dateiter.o $(UTILS)
-	$(CC) $(LDFLAGS) -L. -o $@ ngtavr.o $(UTILS) dateiter.o $(LDADD)
+ngtavr: $(LIBS) ngtavr.o
+	$(CC) $(LDFLAGS) -L. -o $@ ngtavr.o $(LDADD)
 
-ngtconv: $(STLIB) ngtconv.o $(UTILS)
-	$(CC) $(LDFLAGS) -L. -o $@ ngtconv.o $(UTILS) $(LDADD)
+ngtconv: $(LIBS) ngtconv.o
+	$(CC) $(LDFLAGS) -L. -o $@ ngtconv.o $(LDADD)
 
-ngtredist: $(STLIB) ngtredist.o $(UTILS)
-	$(CC) $(LDFLAGS) -L. -o $@ ngtredist.o $(UTILS) $(LDADD)
+ngtredist: $(LIBS) ngtredist.o
+	$(CC) $(LDFLAGS) -L. -o $@ ngtredist.o $(LDADD)
 
-ngtmean: $(STLIB) ngtmean.o $(UTILS)
-	$(CC) $(LDFLAGS) -L. -o $@ ngtmean.o $(UTILS) $(LDADD)
+ngtmean: $(LIBS) ngtmean.o
+	$(CC) $(LDFLAGS) -L. -o $@ ngtmean.o $(LDADD)
 
 install: all
 	$(MKDIR) $(bindir)
@@ -162,7 +175,7 @@ TAGS: $(SOURCES)
 TESTCC	= $(CC) -DTEST_MAIN $(LDFLAGS) $(CFLAGS)
 
 test: $(LIBS)
-	@-for obj in $(OBJS); do \
+	@-for obj in $(OBJS) $(UTILS); do \
 	    f=`basename $$obj .o`.c ; \
 	    grep "ifdef  *TEST_MAIN" $$f > /dev/null; \
 	    if [ $$? -eq 0 ]; then \
@@ -184,7 +197,7 @@ test: $(LIBS)
 	echo "**** All tests passed."
 
 clean:
-	@rm -f $(LIBS) $(BINS) a.out *.o $(OBJS) $(SOBJS)
+	@rm -f $(LIBS) $(BINS) a.out $(OBJS) $(SOBJS) $(UITLS) *.o
 
 ##
 MAIN_HEADERS	= gtool3.h internal.h
@@ -199,4 +212,4 @@ ngtls.o: $(MAIN_HEADERS)
 reverse.o: $(MAIN_HEADERS)
 urc_pack.o: $(MAIN_HEADERS)
 varbuf.o: $(MAIN_HEADERS)
-write: $(MAIN_HEADERS)
+write.o: $(MAIN_HEADERS)
