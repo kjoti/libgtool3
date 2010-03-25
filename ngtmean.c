@@ -10,11 +10,12 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "gtool3.h"
-#include "seq.h"
 #include "fileiter.h"
-#include "myutils.h"
+#include "gtool3.h"
 #include "logging.h"
+#include "myutils.h"
+#include "range.h"
+#include "seq.h"
 
 #define PROGNAME "ngtmean"
 
@@ -30,21 +31,19 @@
 #  define min(a, b) ((a)<(b) ? (a) :(b))
 #endif
 
-struct range {
-    int str, end;
-};
-
 struct mdata {
     char dimname[3][17];
-    int off[3];                 /* starting with 0 */
+    int off[3];                 /* "ASTR - 1" in an input file */
     double *wght[3];
     double miss;
+
+    /* shape of data, wsum (buffer) */
     size_t size, reserved_size;
-
     int shape[3];
-
     double *data;
     double *wsum;
+
+    /* slicing (independent of ASTR) */
     struct range range[3];
 };
 
@@ -52,9 +51,10 @@ struct mdata {
 static struct range g_range[3] = {
     { 0, RANGE_MAX },
     { 0, RANGE_MAX },
-    { 0, RANGE_MAX },
+    { 0, RANGE_MAX }
 };
 static int shift_flag = 1;
+static struct sequence *g_zseq = NULL;
 
 /* mean flags */
 #define X_MEAN   1U
@@ -71,28 +71,34 @@ shift_var(struct mdata *mdata, unsigned mode)
     if (mode & Z_MEAN) {
         mdata->dimname[2][0] = '\0';
         mdata->off[2] = 0;
+        mdata->range[2].str = mdata->range[2].end = 0;
     }
     if (mode & Y_MEAN) {
         memcpy(mdata->dimname[1], mdata->dimname[2], 17);
         mdata->shape[1] = mdata->shape[2];
         mdata->off[1] = mdata->off[2];
+        mdata->range[1] = mdata->range[2];
         mdata->dimname[2][0] = '\0';
         mdata->shape[2] = 1;
         mdata->off[2] = 0;
+        mdata->range[2].str = mdata->range[2].end = 0;
     }
 
     if (mode & X_MEAN) {
         memcpy(mdata->dimname[0], mdata->dimname[1], 17);
         mdata->shape[0] = mdata->shape[1];
         mdata->off[0] = mdata->off[1];
+        mdata->range[0] = mdata->range[1];
 
         memcpy(mdata->dimname[1], mdata->dimname[2], 17);
         mdata->shape[1] = mdata->shape[2];
         mdata->off[1] = mdata->off[2];
+        mdata->range[1] = mdata->range[2];
 
         mdata->dimname[2][0] = '\0';
         mdata->shape[2] = 1;
         mdata->off[2] = 0;
+        mdata->range[2].str = mdata->range[2].end = 0;
     }
     return 0;
 }
@@ -103,7 +109,7 @@ calc_mean(struct mdata *mdata, GT3_Varbuf *vbuf, unsigned mode)
 {
     double wz, wght;
     int i, x, y, z;
-    int xm, ym, zm;
+    int xm, ym, zm, n;
     int idest;
     int x0, x1, y0, y1;
     double value;
@@ -128,12 +134,23 @@ calc_mean(struct mdata *mdata, GT3_Varbuf *vbuf, unsigned mode)
     y0 = mdata->range[1].str;
     y1 = mdata->range[1].end;
 
-    for (z = mdata->range[2].str; z < mdata->range[2].end; z++) {
+    if (g_zseq)
+        reinitSeq(g_zseq, 1, vbuf->dimlen[2]);
+
+    for (n = 0; n < mdata->range[2].end - mdata->range[2].str; n++) {
+        if (g_zseq) {
+            if (nextSeq(g_zseq) < 0) {
+                assert(!"NOTREACHED");
+            }
+            z = g_zseq->curr - 1;
+        } else
+            z = n + mdata->range[2].str;
+
         if (GT3_readVarZ(vbuf, z) < 0) {
             GT3_printErrorMessages(stderr);
             return -1;
         }
-        zm = (Z_MEAN & mode) ? 0 : z - mdata->range[2].str;
+        zm = (Z_MEAN & mode) ? 0 : n;
         if (wghtz)
             wz = wghtz[z];
 
@@ -170,8 +187,10 @@ static int
 is_need_weight(const char *name)
 {
     return (   name[0] == '\0'
-            || memcmp(name, "NUMBER", 6) == 0 )
-        ? 0 : 1;
+            || memcmp(name, "NUMBER", 6) == 0
+            || memcmp(name, "GLON", 4) == 0
+            || memcmp(name, "OCLON", 5) == 0 )
+         ? 0 : 1;
 }
 
 
@@ -220,6 +239,28 @@ setup_dim(struct mdata *var,
     var->range[axis].str = max(0, g_range[axis].str);
     var->range[axis].end = min(size, g_range[axis].end);
 
+    /*
+     * check AEND[1-3] if weight is used.
+     */
+    if (var->wght[axis]) {
+        GT3_Dim *dim;
+
+        if ((dim = GT3_getDim(name))) {
+            snprintf(key, sizeof key, "AEND%c", key2[axis]);
+
+            val = var->off[axis] + size;
+            GT3_decodeHeaderInt(&val, head, key);
+            if (val > dim->len - dim->cyclic) {
+                logging(LOG_WARN, "%s exceeds dimlen(%d)",
+                        key, dim->len - dim->cyclic);
+                logging(LOG_WARN, "Ignore weight for %s", name);
+                free(var->wght[axis]);
+                var->wght[axis] = NULL;
+            }
+        }
+        GT3_freeDim(dim);
+    }
+
     if (var->range[axis].str >= var->range[axis].end) {
         logging(LOG_ERR, "empty %c-range", "XYZ"[axis]);
         return -1;
@@ -229,10 +270,10 @@ setup_dim(struct mdata *var,
 
 
 static int
-setup_var(struct mdata *var,
-          const int *dimlen,
-          GT3_HEADER *head,
-          unsigned mode)
+setup_mdata(struct mdata *var,
+            const int *dimlen,
+            const GT3_HEADER *head,
+            unsigned mode)
 {
     double miss;
 
@@ -241,6 +282,14 @@ setup_var(struct mdata *var,
         || setup_dim(var, dimlen[2], head, 2, mode & Z_WEIGHT) < 0)
         return -1;
 
+    /*
+     * z-slicing.
+     */
+    if (g_zseq) {
+        reinitSeq(g_zseq, 1, dimlen[2]);
+        var->range[2].str = 0;
+        var->range[2].end = countSeq(g_zseq);
+    }
     var->shape[0] = mode & X_MEAN ? 1 : var->range[0].end - var->range[0].str;
     var->shape[1] = mode & Y_MEAN ? 1 : var->range[1].end - var->range[1].str;
     var->shape[2] = mode & Z_MEAN ? 1 : var->range[2].end - var->range[2].str;
@@ -279,6 +328,41 @@ realloc_var(struct mdata *var)
 
 
 static int
+modify_head(GT3_HEADER *head, const struct mdata *mdata, unsigned mode)
+{
+    char buf[17];
+
+    if (mode & X_MEAN) {
+        GT3_setHeaderEdit(head, (mode & X_WEIGHT) ? "XMW" : "XM");
+        snprintf(buf, sizeof buf, "%s:%d,%d",
+                 mdata->dimname[0],
+                 mdata->range[0].str + 1, mdata->range[0].end);
+        GT3_setHeaderEttl(head, buf);
+    }
+    if (mode & Y_MEAN) {
+        GT3_setHeaderEdit(head, (mode & Y_WEIGHT) ? "YMW" : "YM");
+        snprintf(buf, sizeof buf, "%s:%d,%d",
+                 mdata->dimname[1],
+                 mdata->range[1].str + 1, mdata->range[1].end);
+        GT3_setHeaderEttl(head, buf);
+    }
+    if (mode & Z_MEAN) {
+        GT3_setHeaderEdit(head, (mode & Z_WEIGHT) ? "ZMW" : "ZM");
+        if (g_zseq) {
+            snprintf(buf, sizeof buf, "%s(%s)",
+                     mdata->dimname[2], g_zseq->spec);
+        } else {
+            snprintf(buf, sizeof buf, "%s:%d,%d",
+                     mdata->dimname[2],
+                     mdata->range[2].str + 1, mdata->range[2].end);
+        }
+        GT3_setHeaderEttl(head, buf);
+    }
+    return 0;
+}
+
+
+static int
 write_mean(FILE *output, const struct mdata *mdata,
            const GT3_HEADER *headin,
            unsigned mode,
@@ -287,7 +371,6 @@ write_mean(FILE *output, const struct mdata *mdata,
     GT3_HEADER head;
     int rval;
     char fmt_asis[17];
-    char buf[17];
 
     if (!fmt) {
         /* use the same format to input data. */
@@ -298,31 +381,14 @@ write_mean(FILE *output, const struct mdata *mdata,
 
     GT3_setHeaderString(&head, "AITM1", mdata->dimname[0]);
     GT3_setHeaderString(&head, "AITM2", mdata->dimname[1]);
-    GT3_setHeaderString(&head, "AITM3", mdata->dimname[2]);
+    if (g_zseq)
+        GT3_setHeaderString(&head, "AITM3", "NUMBER1000");
+    else
+        GT3_setHeaderString(&head, "AITM3", mdata->dimname[2]);
 
-    GT3_setHeaderInt(&head, "ASTR1", 1 + mdata->off[0]);
-    GT3_setHeaderInt(&head, "ASTR2", 1 + mdata->off[1]);
-    GT3_setHeaderInt(&head, "ASTR3", 1 + mdata->off[2]);
-
-    if (mode & X_MEAN) {
-        GT3_setHeaderEdit(&head, (mode & X_WEIGHT) ? "XMW" : "XM");
-        snprintf(buf, sizeof buf, "X-Mean:%d,%d",
-                 mdata->range[0].str + 1, mdata->range[0].end);
-        GT3_setHeaderEttl(&head, buf);
-    }
-
-    if (mode & Y_MEAN) {
-        GT3_setHeaderEdit(&head, (mode & Y_WEIGHT) ? "YMW" : "YM");
-        snprintf(buf, sizeof buf, "Y-Mean:%d,%d",
-                 mdata->range[1].str + 1, mdata->range[1].end);
-        GT3_setHeaderEttl(&head, buf);
-    }
-    if (mode & Z_MEAN) {
-        GT3_setHeaderEdit(&head, (mode & Z_WEIGHT) ? "ZMW" : "ZM");
-        snprintf(buf, sizeof buf, "Z-Mean:%d,%d",
-                 mdata->range[2].str + 1, mdata->range[2].end);
-        GT3_setHeaderEttl(&head, buf);
-    }
+    GT3_setHeaderInt(&head, "ASTR1", 1 + mdata->off[0] + mdata->range[0].str);
+    GT3_setHeaderInt(&head, "ASTR2", 1 + mdata->off[1] + mdata->range[1].str);
+    GT3_setHeaderInt(&head, "ASTR3", 1 + mdata->off[2] + mdata->range[2].str);
 
     if ((rval = GT3_write(mdata->data, GT3_TYPE_DOUBLE,
                           mdata->shape[0],
@@ -339,12 +405,13 @@ write_mean(FILE *output, const struct mdata *mdata,
 
 static int
 ngtmean(FILE *output, const char *path,
-        struct mdata *mdata, unsigned mode, const char *fmt)
+        struct mdata *mdata, unsigned mode, const char *fmt,
+        struct sequence *tseq)
 {
     GT3_File *fp = NULL;
     GT3_Varbuf *vbuf = NULL;
     GT3_HEADER head;
-    int rval = -1;
+    int stat, rval = -1;
 
 
     if ((fp = GT3_open(path)) == NULL
@@ -353,22 +420,46 @@ ngtmean(FILE *output, const char *path,
         goto finish;
     }
 
-    while (!GT3_eof(fp)) {
-        if (GT3_readHeader(&head, fp) < 0) {
-            GT3_printErrorMessages(stderr);
-            goto finish;
+    if (tseq == NULL) {
+        while (!GT3_eof(fp)) {
+            if (GT3_readHeader(&head, fp) < 0) {
+                GT3_printErrorMessages(stderr);
+                goto finish;
+            }
+
+            if (setup_mdata(mdata, fp->dimlen, &head, mode) < 0
+                || realloc_var(mdata) < 0
+                || calc_mean(mdata, vbuf, mode) < 0
+                || modify_head(&head, mdata, mode) < 0
+                || (shift_flag && shift_var(mdata, mode) < 0)
+                || write_mean(output, mdata, &head, mode, fmt) < 0)
+                goto finish;
+
+            if (GT3_next(fp) < 0) {
+                GT3_printErrorMessages(stderr);
+                goto finish;
+            }
         }
+    } else {
+        while ((stat = iterate_chunk(fp, tseq)) != ITER_END) {
+            if (stat == ITER_ERROR || stat == ITER_ERRORCHUNK)
+                goto finish;
 
-        if (setup_var(mdata, fp->dimlen, &head, mode) < 0
-            || realloc_var(mdata) < 0
-            || calc_mean(mdata, vbuf, mode) < 0
-            || (shift_flag && shift_var(mdata, mode) < 0)
-            || write_mean(output, mdata, &head, mode, fmt) < 0)
-            goto finish;
+            if (stat == ITER_OUTRANGE)
+                continue;
 
-        if (GT3_next(fp) < 0) {
-            GT3_printErrorMessages(stderr);
-            goto finish;
+            if (GT3_readHeader(&head, fp) < 0) {
+                GT3_printErrorMessages(stderr);
+                goto finish;
+            }
+
+            if (setup_mdata(mdata, fp->dimlen, &head, mode) < 0
+                || realloc_var(mdata) < 0
+                || calc_mean(mdata, vbuf, mode) < 0
+                || modify_head(&head, mdata, mode) < 0
+                || (shift_flag && shift_var(mdata, mode) < 0)
+                || write_mean(output, mdata, &head, mode, fmt) < 0)
+                goto finish;
         }
     }
     rval = 0;
@@ -415,25 +506,6 @@ toupper_string(char *str)
 }
 
 
-static struct range *
-set_range(struct range *range, const char *str)
-{
-    int vals[] = { 1, RANGE_MAX };
-    int num;
-
-    if (str == NULL || (num = get_ints(vals, 2, str, ':')) < 0)
-        return NULL;
-
-    range->str = vals[0] - 1;
-    range->end = vals[1];
-
-    if (num == 1)
-        range->end = range->str + 1;
-    return range;
-}
-
-
-
 int
 main(int argc, char **argv)
 {
@@ -443,42 +515,50 @@ main(int argc, char **argv)
     char dummy[17];
     char *fmt = NULL;
     FILE *output = NULL;
+    struct sequence *tseq = NULL;
     int ch;
     int exitval = 1;
 
     open_logging(stderr, PROGNAME);
     GT3_setProgname(PROGNAME);
 
-    while ((ch = getopt(argc, argv, "f:m:no:x:y:z:h")) != -1)
+    while ((ch = getopt(argc, argv, "f:m:no:t:x:y:z:h")) != -1)
         switch (ch) {
         case 'f':
             fmt = strdup(optarg);
             toupper_string(fmt);
             break;
-        case 'n':
-            shift_flag = 0;
-            break;
         case 'm':
             mode = set_mmode(optarg);
+            break;
+        case 'n':
+            shift_flag = 0;
             break;
         case 'o':
             filename = optarg;
             break;
+        case 't':
+            if ((tseq = initSeq(optarg, 1, RANGE_MAX)) == NULL) {
+                logging(LOG_SYSERR, NULL);
+                exit(1);
+            }
+            break;
         case 'x':
-            if (set_range(g_range, optarg) == NULL) {
+            if (get_range(g_range, optarg, 1, RANGE_MAX) < 0) {
                 logging(LOG_ERR, "-x: invalid x-range (%s)", optarg);
                 exit(1);
             }
             break;
         case 'y':
-            if (set_range(g_range + 1, optarg) == NULL) {
+            if (get_range(g_range + 1, optarg, 1, RANGE_MAX) < 0) {
                 logging(LOG_ERR, "-y: invalid y-range (%s)", optarg);
                 exit(1);
             }
             break;
         case 'z':
-            if (set_range(g_range + 2, optarg) == NULL) {
-                logging(LOG_ERR, "-z: invalid z-range (%s)", optarg);
+            if (get_seq_or_range(g_range + 2, &g_zseq,
+                                 optarg, 1, RANGE_MAX) < 0) {
+                logging(LOG_SYSERR, NULL);
                 exit(1);
             }
             break;
@@ -501,12 +581,14 @@ main(int argc, char **argv)
     memset(&mdata, 0, sizeof(struct mdata));
 
     for (; argc > 0 && *argv; argc--, argv++) {
-        if (ngtmean(output, *argv, &mdata, mode, fmt) < 0) {
+        if (tseq)
+            reinitSeq(tseq, 1, 0x7ffffff);
+
+        if (ngtmean(output, *argv, &mdata, mode, fmt, tseq) < 0) {
             logging(LOG_ERR, "in %s.", *argv);
             goto finish;
         }
     }
-
     exitval = 0;
 
 finish:
