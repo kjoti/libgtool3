@@ -11,6 +11,19 @@
 #include "seq.h"
 
 
+struct range *
+dup_range(const struct range *range)
+{
+    struct range *ptr;
+
+    if ((ptr = malloc(sizeof(struct range)))) {
+        ptr->str = range->str;
+        ptr->end = range->end;
+    }
+    return ptr;
+}
+
+
 /*
  *  XXX: get_range() transforms the range from 1-offset to 0-offset.
  *
@@ -126,9 +139,8 @@ get_seq_or_range(struct range *range, struct sequence **seq,
 }
 
 
-#if 1
+#ifdef TEST_MAIN
 #include <assert.h>
-
 
 void
 test1(void)
