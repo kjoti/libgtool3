@@ -1,12 +1,8 @@
 /*
- *  ngtdump.c -- print data.
+ * ngtdump.c -- print data.
  */
 #include "internal.h"
 
-#include <assert.h>
-#include <errno.h>
-#include <math.h>
-#include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -16,6 +12,7 @@
 #include "fileiter.h"
 #include "myutils.h"
 #include "logging.h"
+#include "range.h"
 
 #ifndef min
 #  define min(a,b) ((a) < (b) ? (a) : (b))
@@ -40,9 +37,13 @@
 /*
  * global range setting.
  */
-static int xrange[] = { 0, 0x7fffffff };
-static int yrange[] = { 0, 0x7fffffff };
-static int zrange[] = { 0, 0x7fffffff };
+#define RANGE_MAX 0x7fffffff
+static struct range g_range[] = {
+    { 0, RANGE_MAX },
+    { 0, RANGE_MAX },
+    { 0, RANGE_MAX }
+};
+static struct sequence *g_zseq = NULL;
 
 static int use_index_flag = 1;
 
@@ -59,40 +60,21 @@ snprintf_date(char *buf, size_t len, const GT3_Date *date)
 
 
 int
-get_range_in_chunk(int x[], int y[], int z[], const GT3_File *fp)
+dump_info(GT3_File *fp, const GT3_HEADER *head)
 {
-    x[0] = max(0, xrange[0]);
-    y[0] = max(0, yrange[0]);
-    z[0] = max(0, zrange[0]);
-    x[1] = min(fp->dimlen[0], xrange[1]);
-    y[1] = min(fp->dimlen[1], yrange[1]);
-    z[1] = min(fp->dimlen[2], zrange[1]);
-
-    return x[1] > x[0] && y[1] > y[0] && z[1] > z[0];
-}
-
-
-int
-dump_info(GT3_File *fp)
-{
-    GT3_HEADER head;
     char hbuf[33];
     GT3_Date date;
 
-    if (GT3_readHeader(&head, fp) < 0) {
-        GT3_printErrorMessages(stderr);
-        return -1;
-    }
     printf("#\n");
     printf("#       Data No.: %d\n", fp->curr + 1);
-    GT3_copyHeaderItem(hbuf, sizeof hbuf, &head, "TITLE");
+    GT3_copyHeaderItem(hbuf, sizeof hbuf, head, "TITLE");
     printf("#          TITLE: %s\n", hbuf);
-    GT3_copyHeaderItem(hbuf, sizeof hbuf, &head, "UNIT");
+    GT3_copyHeaderItem(hbuf, sizeof hbuf, head, "UNIT");
     printf("#           UNIT: %s\n", hbuf);
     printf("#     Data Shape: %dx%dx%d\n",
            fp->dimlen[0], fp->dimlen[1], fp->dimlen[2]);
 
-    if (GT3_decodeHeaderDate(&date, &head, "DATE") == 0) {
+    if (GT3_decodeHeaderDate(&date, head, "DATE") == 0) {
         snprintf_date(hbuf, sizeof hbuf, &date);
         printf("#           DATE: %s\n", hbuf);
     }
@@ -119,107 +101,131 @@ set_dimvalue(char *hbuf, size_t len, GT3_Dim *dim, int idx)
 
 
 int
-dump_var(GT3_Varbuf *var)
+dump_var(GT3_Varbuf *var, const GT3_HEADER *head)
 {
-    int x, y, z, n, ij;
-    GT3_HEADER head;
+    int x, y, z, n, nz, ij;
     GT3_Dim *dim[] = { NULL, NULL, NULL };
-    const char *dimname[] = { "AITM1", "AITM2", "AITM3" };
+    char key2[] = { '1', '2', '3' };
+    char key[17];
     char vstr[32];
     unsigned missf;
     double val;
-    int xr[2], yr[2], zr[2];
-    int xoff = 1, yoff = 1, zoff = 1;
+    struct range range[3];
+    int off[] = { 1, 1, 1 };
     char hbuf[17];
     char dimv[3][32];
     char items[3][32];
     char vfmt[16];
     int nwidth, nprec;
-    int conti_z, conti_y;
+    int newline_z, newline_y;
     int rval = 0;
 
 
-    if (GT3_readHeader(&head, var->fp) < 0) {
-        GT3_printErrorMessages(stderr);
-        return -1;
-    }
-
     for (n = 0; n < 3; n++) {
-        GT3_copyHeaderItem(hbuf, sizeof hbuf, &head, dimname[n]);
+        snprintf(key, sizeof key, "AITM%c", key2[n]);
+        GT3_copyHeaderItem(hbuf, sizeof hbuf, head, key);
         snprintf(items[n], sizeof items[n], "%13s",
                  hbuf[0] == '\0' ? "(No axis)" : hbuf);
 
         if (!use_index_flag && (dim[n] = GT3_getDim(hbuf)) == NULL) {
             GT3_printErrorMessages(stderr);
             logging(LOG_ERR, "%s: Unknown axis name.", hbuf);
-
             snprintf(items[n], sizeof items[n], "%12s?", hbuf);
+        }
+
+        /* off */
+        snprintf(key, sizeof key, "ASTR%c", key2[n]);
+        GT3_decodeHeaderInt(off + n, head, key);
+        off[n]--;
+
+        /* range */
+        range[n].str = max(0, g_range[n].str);
+        range[n].end = min(var->dimlen[n], g_range[n].end);
+    }
+
+    if (g_zseq) {
+        reinitSeq(g_zseq, 1, var->dimlen[2]);
+        nz = countSeq(g_zseq);
+    } else
+        nz = range[2].end - range[2].str;
+
+    if (   range[0].end - range[0].str <= 0
+        || range[1].end - range[1].str <= 0
+        || nz <= 0) {
+        printf("#%s\n", "No Data in specified region.\n");
+        goto finish;
+    }
+
+    /*
+     * set printf-format for variables
+     */
+    switch (var->fp->fmt) {
+    case GT3_FMT_UR8:
+        nprec = 17;
+        break;
+    case GT3_FMT_URC:
+    case GT3_FMT_URC1:
+        nprec = 7;
+        break;
+    default:
+        nprec = 8;
+        break;
+    }
+    nwidth = nprec + 9;
+    snprintf(vfmt, sizeof vfmt, "%%%d.%dg", nwidth, nprec);
+
+    GT3_copyHeaderItem(hbuf, sizeof hbuf, head, "ITEM");
+    printf("#%s%s%s%*s\n",
+           items[0], items[1], items[2], nwidth, hbuf);
+
+    newline_y = range[0].end - range[0].str > 1;
+    newline_z = newline_y || range[1].end - range[1].str > 1;
+
+    for (n = 0; n < nz; n++) {
+        if (g_zseq) {
+            if (nextSeq(g_zseq) < 0) {
+                logging(LOG_WARN, "NOTREACHED");
+                break;
+            }
+            z = g_zseq->curr - 1;
+        } else
+            z = n + range[2].str;
+
+        if (GT3_readVarZ(var, z) < 0) {
+            GT3_printErrorMessages(stderr);
+            rval = -1;
+            break;
+        }
+        if (n > 0 && newline_z)
+            putchar('\n');
+
+        set_dimvalue(dimv[2], sizeof dimv[2], dim[2], z + off[2]);
+
+        for (y = range[1].str; y < range[1].end; y++) {
+            if (y > range[1].str && newline_y)
+                putchar('\n');
+
+            set_dimvalue(dimv[1], sizeof dimv[1], dim[1], y + off[1]);
+
+
+            for (x = range[0].str; x < range[0].end; x++) {
+                set_dimvalue(dimv[0], sizeof dimv[0], dim[0], x + off[0]);
+
+                ij = x + var->dimlen[0] * y;
+                missf = ISMISS(var, ij);
+                vstr[0] = '_';
+                vstr[1] = '\0';
+                if (!missf) {
+                    val = DATA(var, ij);
+                    snprintf(vstr, sizeof vstr, vfmt, val);
+                }
+                printf(" %s%s%s%*s\n",
+                       dimv[0], dimv[1], dimv[2], nwidth, vstr);
+            }
         }
     }
 
-    if (get_range_in_chunk(xr, yr, zr, var->fp)) {
-        /* set printf-format for variables */
-        switch (var->fp->fmt) {
-        case GT3_FMT_UR8:
-            nprec = 17;
-            break;
-        case GT3_FMT_URC:
-        case GT3_FMT_URC1:
-            nprec = 7;
-            break;
-        default:
-            nprec = 8;
-            break;
-        }
-        nwidth = nprec + 9;
-        snprintf(vfmt, sizeof vfmt, "%%%d.%dg", nwidth, nprec);
-
-        GT3_copyHeaderItem(hbuf, sizeof hbuf, &head, "ITEM");
-        printf("#%s%s%s%*s\n",
-               items[0], items[1], items[2], nwidth, hbuf);
-        GT3_decodeHeaderInt(&xoff, &head, "ASTR1");
-        GT3_decodeHeaderInt(&yoff, &head, "ASTR2");
-        GT3_decodeHeaderInt(&zoff, &head, "ASTR3");
-        xoff--;
-        yoff--;
-        zoff--;
-
-        conti_z = yr[1] - yr[0] <= 1 && xr[1] - xr[0] <= 1;
-        conti_y = xr[1] - xr[0] <= 1;
-        for (z = zr[0]; z < zr[1]; z++) {
-            if (GT3_readVarZ(var, z) < 0) {
-                GT3_printErrorMessages(stderr);
-                rval = -1;
-                break;
-            }
-
-            if (z > zr[0] && !conti_z)
-                printf("\n");
-
-            set_dimvalue(dimv[2], sizeof dimv[2], dim[2], z + zoff);
-            for (y = yr[0]; y < yr[1]; y++) {
-                if (y > yr[0] && !conti_y)
-                    printf("\n");
-                set_dimvalue(dimv[1], sizeof dimv[1], dim[1], y + yoff);
-                for (x = xr[0]; x < xr[1]; x++) {
-                    set_dimvalue(dimv[0], sizeof dimv[0], dim[0], x + xoff);
-                    ij = x + var->dimlen[0] * y;
-                    val = DATA(var, ij);
-                    missf = ISMISS(var, ij);
-
-                    vstr[0] = '_';
-                    vstr[1] = '\0';
-                    if (!missf)
-                        snprintf(vstr, sizeof vstr, vfmt, val);
-
-                    printf(" %s%s%s%*s\n",
-                           dimv[0], dimv[1], dimv[2], nwidth, vstr);
-                }
-            }
-        }
-    } else
-        printf("#%s\n", "No Data in specified region.\n");
-
+finish:
     GT3_freeDim(dim[0]);
     GT3_freeDim(dim[1]);
     GT3_freeDim(dim[2]);
@@ -232,6 +238,7 @@ ngtdump(const char *path, struct sequence *seq)
 {
     GT3_File *fp;
     GT3_Varbuf *var;
+    GT3_HEADER head;
     int rval = 0;
     int stat;
 
@@ -244,7 +251,12 @@ ngtdump(const char *path, struct sequence *seq)
     printf("###\n# Filename: %s\n", path);
     if (seq == NULL) {
         while (!GT3_eof(fp)) {
-            if (dump_info(fp) < 0 || dump_var(var) < 0) {
+            if (GT3_readHeader(&head, fp) < 0) {
+                GT3_printErrorMessages(stderr);
+                rval = -1;
+                break;
+            }
+            if (dump_info(fp, &head) < 0 || dump_var(var, &head) < 0) {
                 rval = -1;
                 break;
             }
@@ -263,7 +275,12 @@ ngtdump(const char *path, struct sequence *seq)
             if (stat == ITER_OUTRANGE)
                 continue;
 
-            if (dump_info(fp) < 0 || dump_var(var) < 0) {
+            if (GT3_readHeader(&head, fp) < 0) {
+                GT3_printErrorMessages(stderr);
+                rval = -1;
+                break;
+            }
+            if (dump_info(fp, &head) < 0 || dump_var(var, &head) < 0) {
                 rval = -1;
                 break;
             }
@@ -272,29 +289,6 @@ ngtdump(const char *path, struct sequence *seq)
     GT3_freeVarbuf(var);
     GT3_close(fp);
     return rval;
-}
-
-
-static int
-set_range(int range[], const char *str)
-{
-    int nf;
-
-    if ((nf = get_ints(range, 2, str, ':')) < 0)
-        return -1;
-
-    /*
-     *  XXX
-     *  transform
-     *   FROM  1-offset and closed bound    [X,Y] => do i = X, Y.
-     *   TO    0-offset and semi-open bound [X,Y) => for (i = X; i < Y; i++).
-     */
-    range[0]--;
-    if (range[0] < 0)
-        range[0] = 0;
-    if (nf == 1)
-        range[1] = range[0] + 1;
-    return 0;
 }
 
 
@@ -338,26 +332,29 @@ main(int argc, char **argv)
             break;
 
         case 't':
-            seq = initSeq(optarg, 1, 0x7fffffff);
+            if ((seq = initSeq(optarg, 1, 0x7fffffff)) == NULL) {
+                logging(LOG_SYSERR, NULL);
+                exit(1);
+            }
             break;
 
         case 'x':
-            if (set_range(xrange, optarg) < 0) {
-                logging(LOG_ERR, "%s: Invalid argument", optarg);
+            if (get_range(g_range, optarg, 1, RANGE_MAX) < 0) {
+                logging(LOG_ERR, "-x: invalid x-range (%s)", optarg);
                 exit(1);
             }
             break;
 
         case 'y':
-            if (set_range(yrange, optarg) < 0) {
-                logging(LOG_ERR, "%s: Invalid argument", optarg);
+            if (get_range(g_range + 1, optarg, 1, RANGE_MAX) < 0) {
+                logging(LOG_ERR, "-y: invalid y-range (%s)", optarg);
                 exit(1);
             }
             break;
-
         case 'z':
-            if (set_range(zrange, optarg) < 0) {
-                logging(LOG_ERR, "%s: Invalid argument", optarg);
+            if (get_seq_or_range(g_range + 2, &g_zseq,
+                                 optarg, 1, RANGE_MAX) < 0) {
+                logging(LOG_SYSERR, NULL);
                 exit(1);
             }
             break;
