@@ -1,5 +1,5 @@
 /*
- *  ngtconv.c -- gtool3 format converter.
+ * ngtconv.c -- gtool3 format converter.
  */
 #include "internal.h"
 
@@ -15,6 +15,7 @@
 #include "fileiter.h"
 #include "myutils.h"
 #include "logging.h"
+#include "range.h"
 
 #define PROGNAME "ngtconv"
 #define RANGE_MAX 0x7fffffff
@@ -26,20 +27,18 @@
 #  define min(a, b) ((a)<(b) ? (a) :(b))
 #endif
 
-struct range {
-    int str, end;
-};
-
 struct buffer {
     double *ptr;
     size_t reserved;
     size_t curr;
 };
 
-
-static struct range *g_xrange = NULL;
-static struct range *g_yrange = NULL;
-static struct sequence *zseq = NULL;
+static struct range g_range[] = {
+    { 0, RANGE_MAX },
+    { 0, RANGE_MAX },
+    { 0, RANGE_MAX }
+};
+static struct sequence *g_zseq = NULL;
 static struct buffer g_buffer;
 
 
@@ -73,67 +72,46 @@ allocate_buffer(struct buffer *buf, size_t newsize)
 }
 
 
-static void
-clip_range(struct range *range, const struct range *clip)
-{
-    range->str = max(range->str, clip->str);
-    range->end = min(range->end, clip->end);
-}
-
-
 static int
 conv_chunk(FILE *output, const char *dfmt, GT3_Varbuf *var, GT3_File *fp)
 {
     GT3_HEADER head;
-    struct range xrange, yrange;
-    int zprev = -1, zstr = 1;
-    int out_of_order = 0;
-    int nx, ny, nz, zcnt;
-    int y, z;
+    int nx, ny, nz;
+    int i, n, y, z;
     size_t offset, nelems;
-    int astr1, astr2, astr3;
+    struct range range[3];
+    int astr[] = { 1, 1, 1 };
+    char key[17];
+    char suffix[] = { '1', '2', '3' };
+    char asis[17];
 
 
     if (GT3_readHeader(&head, fp) < 0) {
         GT3_printErrorMessages(stderr);
         return -1;
     }
-    if (GT3_decodeHeaderInt(&astr1, &head, "ASTR1") < 0
-        || GT3_decodeHeaderInt(&astr2, &head, "ASTR2") < 0
-        || GT3_decodeHeaderInt(&astr3, &head, "ASTR3") < 0) {
-        GT3_printLastErrorMessage(stderr);
-        astr1 = astr2 = astr3 = 1;
+
+    for (i = 0; i < 3; i++) {
+        snprintf(key, sizeof key, "ASTR%c", suffix[i]);
+        if (GT3_decodeHeaderInt(astr + i, &head, key) < 0) {
+            logging(LOG_WARN, "invalid %s", key);
+            GT3_printLastErrorMessage(stderr);
+        }
+
+        range[i].str = max(0, g_range[i].str);
+        range[i].end = min(fp->dimlen[i], g_range[i].end);
     }
-    xrange.str = astr1 - 1;
-    xrange.end = xrange.str + fp->dimlen[0];
-    yrange.str = astr2 - 1;
-    yrange.end = yrange.str + fp->dimlen[1];
 
-#ifdef USE_ZLEVEL
-    reinitSeq(zseq, astr3, astr3 + fp->dimlen[2] - 1);
-#else
-    reinitSeq(zseq, 1, fp->dimlen[2]);
-#endif
+    nx = range[0].end - range[0].str;
+    ny = range[1].end - range[1].str;
+    nz = range[2].end - range[2].str;
+    if (g_zseq) {
+        reinitSeq(g_zseq, 1, fp->dimlen[2]);
+        nz = countSeq(g_zseq);
+    }
 
-    if (g_xrange)
-        clip_range(&xrange, g_xrange);
-    if (g_yrange)
-        clip_range(&yrange, g_yrange);
-
-    /*
-     * into 0-offset.
-     */
-    xrange.str -= astr1 - 1;
-    xrange.end -= astr1 - 1;
-    yrange.str -= astr2 - 1;
-    yrange.end -= astr2 - 1;
-
-    nx = xrange.end - xrange.str;
-    ny = yrange.end - yrange.str;
-    nz = countSeq(zseq);
-
-    if (nx <= 0 || ny <= 0) {
-        logging(LOG_WARN, "empty horizontal domain");
+    if (nx <= 0 || ny <= 0 || nz <= 0) {
+        logging(LOG_WARN, "empty domain");
         return 0;
     }
 
@@ -142,59 +120,53 @@ conv_chunk(FILE *output, const char *dfmt, GT3_Varbuf *var, GT3_File *fp)
         return -1;
     }
 
-    zcnt = 0;
-    while (nextSeq(zseq) > 0) {
-#ifdef USE_ZLEVEL
-        z = zseq->curr - astr3;
-#else
-        z = zseq->curr - 1;
-#endif
-        if (z < 0 || z >= fp->dimlen[2])
-            continue;
+    for (n = 0; n < nz; n++) {
+        if (g_zseq) {
+            if (nextSeq(g_zseq) < 0) {
+                assert(!"NOTREACHED");
+            }
+            z = g_zseq->curr - 1;
+        } else
+            z = n + range[2].str;
 
         if (GT3_readVarZ(var, z) < 0) {
             GT3_printErrorMessages(stderr);
             return -1;
         }
 
-        if (xrange.str > 0 || xrange.end < fp->dimlen[0]) {
+        if (range[0].str > 0 || range[0].end < fp->dimlen[0]) {
             nelems = nx;
-            for (y = yrange.str; y < yrange.end; y++) {
-                offset = fp->dimlen[0] * y + xrange.str;
+            for (y = range[1].str; y < range[1].end; y++) {
+                offset = fp->dimlen[0] * y + range[0].str;
 
                 copy_to_buffer(&g_buffer, var, offset, nelems);
             }
         } else {
-            offset = fp->dimlen[0] * yrange.str;
+            offset = fp->dimlen[0] * range[1].str;
             nelems = nx * ny;
 
             copy_to_buffer(&g_buffer, var, offset, nelems);
         }
-
-        out_of_order |= zprev >= 0 && z != zprev + 1;
-        if (zprev < 0)
-            zstr = z;
-        zprev = z;
-        zcnt++;
     }
 
-    if (zcnt == 0) {
-        logging(LOG_WARN, "empty z-level");
-        return 0;
-    }
-
-    GT3_setHeaderInt(&head, "ASTR1", astr1 + xrange.str);
-    GT3_setHeaderInt(&head, "ASTR2", astr2 + yrange.str);
-    if (out_of_order) {
-        logging(LOG_INFO, "zlevel: out of order");
+    GT3_setHeaderInt(&head, "ASTR1", astr[0] + range[0].str);
+    GT3_setHeaderInt(&head, "ASTR2", astr[1] + range[1].str);
+    if (g_zseq) {
         GT3_setHeaderString(&head, "AITM3", "NUMBER1000");
         GT3_setHeaderInt(&head, "ASTR3", 1);
     } else
-        GT3_setHeaderInt(&head, "ASTR3", zstr + astr3);
+        GT3_setHeaderInt(&head, "ASTR3", astr[2] + range[2].str);
+
+    /* format 'ASIS' support */
+    asis[0] = '\0';
+    if (strcmp(dfmt, "ASIS") == 0)
+        GT3_copyHeaderItem(asis, sizeof asis, &head, "DFMT");
 
     if (GT3_write(g_buffer.ptr, GT3_TYPE_DOUBLE,
-                  nx, ny, zcnt,
-                  &head, dfmt, output) < 0) {
+                  nx, ny, nz,
+                  &head,
+                  asis[0] != '\0' ? asis : dfmt,
+                  output) < 0) {
 
         GT3_printErrorMessages(stderr);
         return -1;
@@ -203,7 +175,7 @@ conv_chunk(FILE *output, const char *dfmt, GT3_Varbuf *var, GT3_File *fp)
 }
 
 
-int
+static int
 conv_file(const char *path, const char *fmt, FILE *output,
           struct sequence *seq)
 {
@@ -250,24 +222,6 @@ conv_file(const char *path, const char *fmt, FILE *output,
 }
 
 
-static struct range *
-set_range(struct range *range, const char *str)
-{
-    int vals[] = { 1, RANGE_MAX };
-    int num;
-
-    if (str == NULL || (num = get_ints(vals, 2, str, ':')) < 0)
-        return NULL;
-
-    range->str = vals[0] - 1;
-    range->end = vals[1];
-
-    if (num == 1)
-        range->end = range->str + 1;
-    return range;
-}
-
-
 static char *
 toupper_string(char *str)
 {
@@ -308,10 +262,10 @@ main(int argc, char **argv)
     struct sequence *tseq = NULL;
     int rval;
     const char *mode = "wb";
-    const char *fmt = "UR4";
+    char *fmt = NULL;
+    const char *default_fmt = "UR4";
     char *outpath = "gtool.out";
     FILE *output;
-    struct range xr, yr;
     char dummy[17];
 
     open_logging(stderr, PROGNAME);
@@ -322,36 +276,39 @@ main(int argc, char **argv)
             mode = "ab";
             break;
         case 'f':
-            toupper_string(optarg);
-            if (GT3_output_format(dummy, optarg) < 0) {
-                logging(LOG_ERR, "%s: Unknown format name", optarg);
+            if ((fmt = strdup(optarg)) == NULL) {
+                logging(LOG_SYSERR, NULL);
                 exit(1);
             }
-            fmt = strdup(optarg);
+            toupper_string(fmt);
+            if (strcmp(fmt, "ASIS") != 0
+                && GT3_output_format(dummy, fmt) < 0) {
+                logging(LOG_ERR, "%s: Unknown format name", fmt);
+                exit(1);
+            }
             break;
         case 't':
-            if ((tseq = initSeq(optarg, 0, RANGE_MAX)) == NULL) {
+            if ((tseq = initSeq(optarg, 1, RANGE_MAX)) == NULL) {
                 logging(LOG_SYSERR, NULL);
                 exit(1);
             }
             break;
         case 'x':
-            g_xrange = set_range(&xr, optarg);
-            if (g_xrange == NULL) {
+            if (get_range(g_range, optarg, 1, RANGE_MAX) < 0) {
                 logging(LOG_ERR, "-x: invalid argument: %s", optarg);
                 exit(1);
             }
             break;
         case 'y':
-            g_yrange = set_range(&yr, optarg);
-            if (g_yrange == NULL) {
+            if (get_range(g_range + 1, optarg, 1, RANGE_MAX) < 0) {
                 logging(LOG_ERR, "-y: invalid argument: %s", optarg);
                 exit(1);
             }
             break;
         case 'z':
-            if ((zseq = initSeq(optarg, 1, RANGE_MAX)) == NULL) {
-                logging(LOG_SYSERR, NULL);
+            if (get_seq_or_range(g_range + 2, &g_zseq, optarg,
+                                 1, RANGE_MAX) < 0) {
+                logging(LOG_ERR, "-z: invalid argument: %s", optarg);
                 exit(1);
             }
             break;
@@ -377,11 +334,6 @@ main(int argc, char **argv)
         exit(1);
     }
 
-    if (!zseq && (zseq = initSeq(":", 1, RANGE_MAX)) == NULL) {
-        logging(LOG_SYSERR, NULL);
-        exit(1);
-    }
-
-    rval = conv_file(argv[0], fmt, output, tseq);
+    rval = conv_file(argv[0], fmt ? fmt : default_fmt, output, tseq);
     return (rval < 0) ? 1 : 0;
 }
