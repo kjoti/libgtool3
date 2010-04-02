@@ -187,6 +187,7 @@ static int
 is_need_weight(const char *name)
 {
     return (   name[0] == '\0'
+            || memcmp(name, "SFC1\0", 5) == 0
             || memcmp(name, "NUMBER", 6) == 0
             || memcmp(name, "GLON", 4) == 0
             || memcmp(name, "OCLON", 5) == 0 )
@@ -336,14 +337,16 @@ modify_head(GT3_HEADER *head, const struct mdata *mdata, unsigned mode)
         GT3_setHeaderEdit(head, (mode & X_WEIGHT) ? "XMW" : "XM");
         snprintf(buf, sizeof buf, "%s:%d,%d",
                  mdata->dimname[0],
-                 mdata->range[0].str + 1, mdata->range[0].end);
+                 mdata->off[0] + mdata->range[0].str + 1,
+                 mdata->off[0] + mdata->range[0].end);
         GT3_setHeaderEttl(head, buf);
     }
     if (mode & Y_MEAN) {
         GT3_setHeaderEdit(head, (mode & Y_WEIGHT) ? "YMW" : "YM");
         snprintf(buf, sizeof buf, "%s:%d,%d",
                  mdata->dimname[1],
-                 mdata->range[1].str + 1, mdata->range[1].end);
+                 mdata->off[1] + mdata->range[1].str + 1,
+                 mdata->off[1] + mdata->range[1].end);
         GT3_setHeaderEttl(head, buf);
     }
     if (mode & Z_MEAN) {
@@ -354,7 +357,8 @@ modify_head(GT3_HEADER *head, const struct mdata *mdata, unsigned mode)
         } else {
             snprintf(buf, sizeof buf, "%s:%d,%d",
                      mdata->dimname[2],
-                     mdata->range[2].str + 1, mdata->range[2].end);
+                     mdata->off[2] + mdata->range[2].str + 1,
+                     mdata->off[2] + mdata->range[2].end);
         }
         GT3_setHeaderEttl(head, buf);
     }
@@ -506,6 +510,31 @@ toupper_string(char *str)
 }
 
 
+static void
+usage(void)
+{
+    const char *usage_message =
+        "Usage: " PROGNAME " [options] [files...]\n"
+        "\n"
+        "calculate mean.\n"
+        "\n"
+        "Options:\n"
+        "    -f fmt    output GTOOL3 format (default: same as input)\n"
+        "    -m MODE   mean mode (any combination \"xyzXYZ\")\n"
+        "    -n        no shift axes\n"
+        "    -o PATH   no shift axes\n"
+        "    -t LIST   specify data No.\n"
+        "    -x RANGE  specify X-range\n"
+        "    -y RANGE  specify Y-range\n"
+        "    -z LIST   specify Z-layer\n"
+        "    -h        print help message\n"
+        "\n";
+
+    fprintf(stderr, "%s\n", GT3_version());
+    fprintf(stderr, "%s\n", usage_message);
+}
+
+
 int
 main(int argc, char **argv)
 {
@@ -564,6 +593,8 @@ main(int argc, char **argv)
             break;
         case 'h':
         default:
+            usage();
+            exit(0);
             break;
         }
 
