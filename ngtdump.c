@@ -84,7 +84,7 @@ dump_info(GT3_File *fp, const GT3_HEADER *head)
 
 
 void
-set_dimvalue(char *hbuf, size_t len, GT3_Dim *dim, int idx)
+set_dimvalue(char *hbuf, size_t len, const GT3_Dim *dim, int idx)
 {
     if (use_index_flag || dim == NULL) {
         snprintf(hbuf, len, "%13d", idx + 1);
@@ -206,7 +206,6 @@ dump_var(GT3_Varbuf *var, const GT3_HEADER *head)
                 putchar('\n');
 
             set_dimvalue(dimv[1], sizeof dimv[1], dim[1], y + off[1]);
-
 
             for (x = range[0].str; x < range[0].end; x++) {
                 set_dimvalue(dimv[0], sizeof dimv[0], dim[0], x + off[0]);
@@ -354,7 +353,7 @@ main(int argc, char **argv)
         case 'z':
             if (get_seq_or_range(g_range + 2, &g_zseq,
                                  optarg, 1, RANGE_MAX) < 0) {
-                logging(LOG_SYSERR, NULL);
+                logging(LOG_ERR, "-z: invalid z-layers (%s)", optarg);
                 exit(1);
             }
             break;
