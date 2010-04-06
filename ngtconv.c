@@ -72,6 +72,31 @@ allocate_buffer(struct buffer *buf, size_t newsize)
 }
 
 
+/*
+ * XXX: fmt has enough size.
+ *
+ * UR4 => MR4, UR8 => MR8, URC => MRY16, URX?? => MRY??, URY?? => MRY??
+ */
+static void
+masked_format(char *fmt, const char *orig)
+{
+    if (   strcmp(orig, "URC") == 0 
+        || strcmp(orig, "URC2") == 0
+        || strcmp(orig, "UI2") == 0) {
+        strcpy(fmt, "URY16");
+    } else {
+        strcpy(fmt, orig);
+
+        fmt[0] = 'M';
+        if (fmt[2] == 'X')
+            fmt[2] = 'Y';
+    }
+
+    if (GT3_format(fmt) < 0)
+        fmt[0] = '\0';
+}
+
+
 static int
 conv_chunk(FILE *output, const char *dfmt, GT3_Varbuf *var, GT3_File *fp)
 {
@@ -83,7 +108,7 @@ conv_chunk(FILE *output, const char *dfmt, GT3_Varbuf *var, GT3_File *fp)
     int astr[] = { 1, 1, 1 };
     char key[17];
     char suffix[] = { '1', '2', '3' };
-    char asis[17];
+    char fmtsp[17];
 
 
     if (GT3_readHeader(&head, fp) < 0) {
@@ -157,15 +182,23 @@ conv_chunk(FILE *output, const char *dfmt, GT3_Varbuf *var, GT3_File *fp)
     } else
         GT3_setHeaderInt(&head, "ASTR3", astr[2] + range[2].str);
 
-    /* format 'ASIS' support */
-    asis[0] = '\0';
+    /*
+     * format 'ASIS' and 'MASK' support.
+     */
+    fmtsp[0] = '\0';
     if (strcmp(dfmt, "ASIS") == 0)
-        GT3_copyHeaderItem(asis, sizeof asis, &head, "DFMT");
+        GT3_copyHeaderItem(fmtsp, sizeof fmtsp, &head, "DFMT");
+    if (strcmp(dfmt, "MASK") == 0) {
+        char orig[17];
+
+        GT3_copyHeaderItem(orig, sizeof orig, &head, "DFMT");
+        masked_format(fmtsp, orig);
+    }
 
     if (GT3_write(g_buffer.ptr, GT3_TYPE_DOUBLE,
                   nx, ny, nz,
                   &head,
-                  asis[0] != '\0' ? asis : dfmt,
+                  fmtsp[0] != '\0' ? fmtsp : dfmt,
                   output) < 0) {
 
         GT3_printErrorMessages(stderr);
@@ -282,6 +315,7 @@ main(int argc, char **argv)
             }
             toupper_string(fmt);
             if (strcmp(fmt, "ASIS") != 0
+                && strcmp(fmt, "MASK") != 0
                 && GT3_output_format(dummy, fmt) < 0) {
                 logging(LOG_ERR, "%s: Unknown format name", fmt);
                 exit(1);
