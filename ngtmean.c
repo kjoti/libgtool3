@@ -546,7 +546,7 @@ main(int argc, char **argv)
     FILE *output = NULL;
     struct sequence *tseq = NULL;
     int ch;
-    int exitval = 1;
+    int exitval = 0;
 
     open_logging(stderr, PROGNAME);
     GT3_setProgname(PROGNAME);
@@ -617,13 +617,12 @@ main(int argc, char **argv)
 
         if (ngtmean(output, *argv, &mdata, mode, fmt, tseq) < 0) {
             logging(LOG_ERR, "in %s.", *argv);
-            goto finish;
+            exitval = 1;
+            break;
         }
     }
-    exitval = 0;
 
-finish:
-    if (output && fclose(output) < 0) {
+    if (fclose(output) < 0) {
         logging(LOG_SYSERR, NULL);
         exitval = 1;
     }
