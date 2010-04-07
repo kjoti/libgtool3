@@ -71,6 +71,9 @@ int ct_num_days_in_year(const caltime *date);
 int ct_num_days_in_month(const caltime *date);
 int ct_snprint(char *buf, size_t num, const caltime *date);
 
+int ct_supported_caltypes(void);
+const char *ct_calendar_name(int ctype);
+
 #ifdef __cplusplus
 }
 #endif

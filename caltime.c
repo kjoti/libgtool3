@@ -38,6 +38,14 @@ static struct cal_trait all_traits[] = {
     { mon_offset_jul, ndays_in_years_jul, 365.25    }   /* for Julian */
 };
 
+static const char *nametab[] = {
+    "gregorian",
+    "noleap",
+    "all_leap",
+    "360_day",
+    "julian"
+};
+
 
 static int
 mon_offset(int yr, int mo, const int **mtbl)
@@ -519,8 +527,22 @@ ct_snprint(char *buf, size_t num, const caltime *date)
                     hour, sec / 60, sec % 60);
 }
 
+int
+ct_supported_caltypes(void)
+{
+    return CALTIME_DUMMY;
+}
+
+const char *
+ct_calendar_name(int ctype)
+{
+    return (ctype >= 0 && ctype < CALTIME_DUMMY) ? nametab[ctype] : NULL;
+}
+
 
 #ifdef TEST_MAIN
+#include <string.h>
+
 int
 main(int argc, char **argv)
 {
@@ -638,6 +660,14 @@ main(int argc, char **argv)
     assert(ct_verify_date(CALTIME_GREGORIAN, 2000, 1, 32) == -1);
     assert(ct_verify_date(CALTIME_GREGORIAN, 2000, 1, 31) == 0);
     assert(ct_verify_date(CALTIME_360_DAY,   2000, 1, 31) == -1);
+
+    /*
+     * calendar name.
+     */
+    assert(sizeof nametab / sizeof nametab[0] == CALTIME_DUMMY);
+    assert(ct_calendar_name(CALTIME_DUMMY) == NULL);
+    assert(strcmp(ct_calendar_name(CALTIME_GREGORIAN), "gregorian") == 0);
+    assert(strcmp(ct_calendar_name(CALTIME_360_DAY), "360_day") == 0);
     return 0;
 }
 #endif
