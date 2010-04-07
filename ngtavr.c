@@ -31,6 +31,7 @@ struct average {
     double *data;
     double *wght;
     double miss;
+    size_t len;
     size_t reserved_len;
     int shape[3];
 
@@ -58,6 +59,7 @@ static void
 init_average(struct average *avr)
 {
     avr->data = avr->wght = NULL;
+    avr->len = 0;
     avr->reserved_len = 0;
     avr->count = 0;
     avr->duration = 0;
@@ -89,6 +91,7 @@ alloc_average(struct average *avr, size_t len)
     } else
         ptr = avr->data;
 
+    avr->len  = len;
     avr->data = ptr;
     avr->wght = ptr + len;
     return 0;
@@ -100,7 +103,7 @@ clear_average(struct average *avr)
 {
     int i;
 
-    for (i = 0; i < avr->reserved_len; i++) {
+    for (i = 0; i < avr->len; i++) {
         avr->data[i] = 0.;
         avr->wght[i] = 0.;
     }
@@ -115,7 +118,6 @@ clear_average(struct average *avr)
 static int
 setup_average(struct average *avr, GT3_Varbuf *var)
 {
-    size_t len;
     struct range zrange;
     int zlen;
 
@@ -132,8 +134,7 @@ setup_average(struct average *avr, GT3_Varbuf *var)
         return -1;
     }
 
-    len = var->dimlen[0] * var->dimlen[1] * zlen;
-    if (alloc_average(avr, len) < 0)
+    if (alloc_average(avr, var->dimlen[0] * var->dimlen[1] * zlen) < 0)
         return -1;
 
     avr->shape[0] = var->dimlen[0];
@@ -178,7 +179,7 @@ integrate(double *vsum, double *tsum,
 
     len2 = min(len, var->dimlen[0] * var->dimlen[1]);
     if (len != len2)
-        logging(LOG_WARN, "horizontal shape mismatches");
+        logging(LOG_WARN, "# of horizontal grids has changed.");
 
     if (g_zseq)
         reinitSeq(g_zseq, 1, var->dimlen[2]);
@@ -224,7 +225,7 @@ integrate(double *vsum, double *tsum,
 
 
 static int
-check_heads(const GT3_HEADER *head1, const GT3_HEADER *head2)
+cmp_heads(const GT3_HEADER *head1, const GT3_HEADER *head2)
 {
     int rval = 0;
     char buf1[17], buf2[17];
@@ -319,13 +320,16 @@ write_average(const struct average *avr, FILE *fp)
      */
     GT3_setHeaderDate(&head, "DATE1", &avr->date1);
     GT3_setHeaderDate(&head, "DATE2", &avr->date2);
-    GT3_setHeaderInt(&head, "TDUR", (int)(avr->duration + 0.5));
     GT3_setHeaderString(&head, "UTIM", "HOUR");
+    GT3_setHeaderInt(&head, "TDUR", (int)(avr->duration + 0.5));
 
     /*
      * set DATE
      */
-    GT3_midDate(&date, &avr->date1, &avr->date2, calendar_type);
+    if (GT3_midDate(&date, &avr->date1, &avr->date2, calendar_type) < 0) {
+        GT3_printErrorMessages(stderr);
+        date = avr->date1;
+    }
     GT3_setHeaderDate(&head, "DATE", &date);
 
     /*
@@ -380,18 +384,15 @@ write_average(const struct average *avr, FILE *fp)
 static void
 average(struct average *avr)
 {
-    size_t i, len;
+    int i;
     double tdur_lowlim;
-
-    len = avr->shape[0] * avr->shape[1] * avr->shape[2];
-    assert(avr->reserved_len >= len);
 
     /*
      * The lower limit of time-duration.
      */
     tdur_lowlim = limit_factor * avr->duration;
 
-    for (i = 0; i < len; i++) {
+    for (i = 0; i < avr->len; i++) {
         if (avr->wght[i] < tdur_lowlim || avr->wght[i] == 0.)
             avr->data[i] = avr->miss;
         else
@@ -418,7 +419,7 @@ integrate_chunk(struct average *avr, GT3_Varbuf *var)
         return -1;
     }
 
-    if (avr->count > 0 && check_heads(&avr->head, &head) < 0)
+    if (avr->count > 0 && cmp_heads(&avr->head, &head) < 0)
         logging(LOG_WARN, "at %d in %s.", var->fp->curr + 1, var->fp->path);
 
     if (   GT3_decodeHeaderDate(&date1, &head, "DATE1") < 0
