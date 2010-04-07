@@ -22,7 +22,18 @@ conv_date_to_ct(struct caltime *p, const GT3_Date *date, int ctype)
 {
     int rval;
 
+    if (ctype < 0 || ctype >= GT3_CAL_DUMMY) {
+        gt3_error(GT3_ERR_CALL, "Invalid calendar type: %d", ctype);
+        return -1;
+    }
+
     rval = ct_init_caltime(p, ctype, date->year, date->mon, date->day);
+    if (rval < 0) {
+        gt3_error(GT3_ERR_CALL,
+                  "Invalid date: (%s) %d-%02d-%02d",
+                  GT3_calendar_name(ctype),
+                  date->year, date->mon, date->day);
+    }
     ct_add_seconds(p, date->sec + 60 * (date->min + 60 * date->hour));
     return rval;
 }
@@ -96,7 +107,7 @@ GT3_cmpDate2(const GT3_Date *date1, const GT3_Date *date2)
 }
 
 
-void
+int
 GT3_midDate(GT3_Date *mid, const GT3_Date *date1, const GT3_Date *date2,
             int calendar)
 {
@@ -105,7 +116,7 @@ GT3_midDate(GT3_Date *mid, const GT3_Date *date1, const GT3_Date *date2,
 
     if (conv_date_to_ct(&from, date1, calendar) < 0
         || conv_date_to_ct(&to, date2, calendar) < 0)
-        return;
+        return -1;
 
     days = ct_diff_days(&to, &from);
     ct_add_days(&to, -days);
@@ -119,6 +130,7 @@ GT3_midDate(GT3_Date *mid, const GT3_Date *date1, const GT3_Date *date2,
     ct_add_seconds(&from, secs / 2);
 
     conv_ct_to_date(mid, &from);
+    return 0;
 }
 
 
@@ -226,9 +238,10 @@ guess_calendar(double sec, const GT3_Date *date)
      */
     for (i = 0; i < sizeof ctab / sizeof ctab[0]; i++) {
         ct_init_caltime(&orig, ctab[i], 0, 1, 1);
-        if (conv_date_to_ct(&curr, date, ctab[i]) < 0)
+        if (conv_date_to_ct(&curr, date, ctab[i]) < 0) {
+            GT3_clearLastError();
             continue;
-
+        }
         time = ct_diff_seconds(&curr, &orig);
         /*
          * XXX: We have a margin of error of 1-hour.
@@ -250,9 +263,10 @@ guess_calendar(double sec, const GT3_Date *date)
         nsec  = (int)(sec - 24. * 3600. * ndays);
 
         for (i = 0; i < sizeof ctab / sizeof ctab[0]; i++) {
-            if (conv_date_to_ct(&curr, date, ctab[i]) < 0)
+            if (conv_date_to_ct(&curr, date, ctab[i]) < 0) {
+                GT3_clearLastError();
                 continue;
-
+            }
             ct_add_days(&curr, -ndays);
             ct_add_seconds(&curr, -nsec);
 
@@ -381,10 +395,8 @@ GT3_calcDuration(GT3_Duration *dur,
         struct caltime ctdate1, ctdate2;
 
         if (conv_date_to_ct(&ctdate1, date1, calendar) < 0
-            || conv_date_to_ct(&ctdate2, date2, calendar) < 0) {
-            gt3_error(GT3_ERR_CALL, "Invalid date");
+            || conv_date_to_ct(&ctdate2, date2, calendar) < 0)
             return -1;
-        }
 
         if (dsec == 0) {
             dur->value = ct_diff_days(&ctdate2, &ctdate1);
@@ -466,6 +478,13 @@ int
 GT3_checkDate(const GT3_Date *date, int calendar)
 {
     return ct_verify_date(calendar, date->year, date->mon, date->day);
+}
+
+
+const char *
+GT3_calendar_name(int calendar)
+{
+    return ct_calendar_name(calendar);
 }
 
 

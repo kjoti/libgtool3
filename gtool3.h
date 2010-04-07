@@ -307,7 +307,7 @@ void GT3_setProgname(const char *name);
 void GT3_setDate(GT3_Date *date, int, int, int, int, int, int);
 int GT3_cmpDate(const GT3_Date *date, int, int, int, int, int, int);
 int GT3_cmpDate2(const GT3_Date *date1, const GT3_Date *date2);
-void GT3_midDate(GT3_Date *, const GT3_Date *, const GT3_Date *, int);
+int GT3_midDate(GT3_Date *, const GT3_Date *, const GT3_Date *, int);
 void GT3_copyDate(GT3_Date *dest, const GT3_Date *src);
 void GT3_addDuration(GT3_Date *date, const GT3_Duration *dur, int ctype);
 double GT3_getTime(const GT3_Date *date, const GT3_Date *since,
@@ -321,6 +321,7 @@ int GT3_calcDuration(GT3_Duration *dur,
 
 int GT3_getDuration(GT3_Duration *dur, GT3_File *fp, int calendar);
 int GT3_checkDate(const GT3_Date *date, int calendar);
+const char *GT3_calendar_name(int calendar);
 
 /* vcat.c */
 GT3_VCatFile *GT3_newVCatFile(void);
