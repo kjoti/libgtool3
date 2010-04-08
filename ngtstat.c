@@ -246,12 +246,12 @@ ngtstat_var(GT3_Varbuf *varbuf)
 
     for (n = 0; n < 3; n++) {
         range[n].str = max(0, g_range[n].str);
-        range[n].end = min(varbuf->dimlen[n], g_range[n].end);
+        range[n].end = min(varbuf->fp->dimlen[n], g_range[n].end);
     }
 
     znum = range[2].end - range[2].str;
     if (g_zseq) {
-        reinitSeq(g_zseq, 1, varbuf->dimlen[2]);
+        reinitSeq(g_zseq, 1, varbuf->fp->dimlen[2]);
         znum = countSeq(g_zseq);
     }
 
@@ -315,6 +315,7 @@ ngtstat(const char *path, struct sequence *seq)
 
             if (GT3_next(fp) < 0) {
                 GT3_printErrorMessages(stderr);
+                rval = -1;
                 break;
             }
         }

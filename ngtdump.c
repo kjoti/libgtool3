@@ -140,11 +140,11 @@ dump_var(GT3_Varbuf *var, const GT3_HEADER *head)
 
         /* range */
         range[n].str = max(0, g_range[n].str);
-        range[n].end = min(var->dimlen[n], g_range[n].end);
+        range[n].end = min(var->fp->dimlen[n], g_range[n].end);
     }
 
     if (g_zseq) {
-        reinitSeq(g_zseq, 1, var->dimlen[2]);
+        reinitSeq(g_zseq, 1, var->fp->dimlen[2]);
         nz = countSeq(g_zseq);
     } else
         nz = range[2].end - range[2].str;

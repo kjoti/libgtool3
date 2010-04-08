@@ -120,13 +120,14 @@ setup_average(struct average *avr, GT3_Varbuf *var)
 {
     struct range zrange;
     int zlen;
+    int *dimlen = var->fp->dimlen;
 
     if (g_zseq) {
-        reinitSeq(g_zseq, 1, var->dimlen[2]);
+        reinitSeq(g_zseq, 1, dimlen[2]);
         zlen = countSeq(g_zseq);
     } else {
         zrange.str = max(0, g_zrange.str);
-        zrange.end = min(var->dimlen[2], g_zrange.end);
+        zrange.end = min(dimlen[2], g_zrange.end);
         zlen = zrange.end - zrange.str;
     }
     if (zlen <= 0) {
@@ -134,11 +135,11 @@ setup_average(struct average *avr, GT3_Varbuf *var)
         return -1;
     }
 
-    if (alloc_average(avr, var->dimlen[0] * var->dimlen[1] * zlen) < 0)
+    if (alloc_average(avr, dimlen[0] * dimlen[1] * zlen) < 0)
         return -1;
 
-    avr->shape[0] = var->dimlen[0];
-    avr->shape[1] = var->dimlen[1];
+    avr->shape[0] = dimlen[0];
+    avr->shape[1] = dimlen[1];
     avr->shape[2] = zlen;
     avr->miss  = -999.0;      /* by default */
     clear_average(avr);
@@ -177,12 +178,12 @@ integrate(double *vsum, double *tsum,
     int rval = 0;
     int i, n, z;
 
-    len2 = min(len, var->dimlen[0] * var->dimlen[1]);
+    len2 = min(len, var->fp->dimlen[0] * var->fp->dimlen[1]);
     if (len != len2)
         logging(LOG_WARN, "# of horizontal grids has changed.");
 
     if (g_zseq)
-        reinitSeq(g_zseq, 1, var->dimlen[2]);
+        reinitSeq(g_zseq, 1, var->fp->dimlen[2]);
 
     for (n = 0; n < nz; n++) {
         if (g_zseq) {
@@ -252,7 +253,7 @@ cmp_heads(const GT3_HEADER *head1, const GT3_HEADER *head2)
             GT3_copyHeaderItem(buf1, sizeof buf1, head1, tab[i].key);
             GT3_copyHeaderItem(buf2, sizeof buf2, head2, tab[i].key);
 
-            logging(LOG_WARN, "%s changed from %s to %s.",
+            logging(LOG_WARN, "%s has changed from %s to %s.",
                     tab[i].key, buf1, buf2);
             rval = -1;
         }

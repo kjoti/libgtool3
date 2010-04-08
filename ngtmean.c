@@ -135,7 +135,7 @@ calc_mean(struct mdata *mdata, GT3_Varbuf *vbuf, unsigned mode)
     y1 = mdata->range[1].end;
 
     if (g_zseq)
-        reinitSeq(g_zseq, 1, vbuf->dimlen[2]);
+        reinitSeq(g_zseq, 1, vbuf->fp->dimlen[2]);
 
     for (n = 0; n < mdata->range[2].end - mdata->range[2].str; n++) {
         if (g_zseq) {
