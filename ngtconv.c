@@ -3,6 +3,8 @@
  */
 #include "internal.h"
 
+#include <sys/types.h>
+#include <sys/stat.h>
 #include <assert.h>
 #include <ctype.h>
 #include <stdio.h>
@@ -40,6 +42,26 @@ static struct range g_range[] = {
 };
 static struct sequence *g_zseq = NULL;
 static struct buffer g_buffer;
+
+
+/*
+ * Return value:
+ *    -1: error has occured.
+ *     0: two files are not identical.
+ *     1: two files are identical.
+ *
+ * FIXME: Is this function portable?
+ */
+static int
+identical_file(const char *path1, const char *path2)
+{
+    struct stat sb1, sb2;
+
+    if (stat(path1, &sb1) < 0 || stat(path2, &sb2) < 0)
+        return -1;
+
+    return (sb1.st_dev == sb2.st_dev && sb1.st_ino == sb2.st_ino) ? 1 : 0;
+}
 
 
 static void
@@ -80,10 +102,10 @@ allocate_buffer(struct buffer *buf, size_t newsize)
 static void
 masked_format(char *fmt, const char *orig)
 {
-    if (   strcmp(orig, "URC") == 0 
+    if (   strcmp(orig, "URC") == 0
         || strcmp(orig, "URC2") == 0
         || strcmp(orig, "UI2") == 0) {
-        strcpy(fmt, "URY16");
+        strcpy(fmt, "MRY16");
     } else {
         strcpy(fmt, orig);
 
@@ -92,8 +114,10 @@ masked_format(char *fmt, const char *orig)
             fmt[2] = 'Y';
     }
 
-    if (GT3_format(fmt) < 0)
+    if (GT3_format(fmt) < 0) {
+        GT3_clearLastError();
         fmt[0] = '\0';
+    }
 }
 
 
@@ -293,7 +317,6 @@ main(int argc, char **argv)
 {
     int ch;
     struct sequence *tseq = NULL;
-    int rval;
     const char *mode = "wb";
     char *fmt = NULL;
     const char *default_fmt = "UR4";
@@ -363,11 +386,18 @@ main(int argc, char **argv)
     if (argc > 1)
         outpath = argv[1];
 
+    if (identical_file(argv[0], outpath) == 1) {
+        logging(LOG_ERR,
+                "\"%s\" and \"%s\" are identical.",
+                argv[0], outpath);
+        exit(1);
+    }
+
     if ((output = fopen(outpath, mode)) == NULL) {
         logging(LOG_SYSERR, outpath);
         exit(1);
     }
 
-    rval = conv_file(argv[0], fmt ? fmt : default_fmt, output, tseq);
-    return (rval < 0) ? 1 : 0;
+    return conv_file(argv[0], fmt ? fmt : default_fmt, output, tseq) < 0
+        ? 1 : 0;
 }
