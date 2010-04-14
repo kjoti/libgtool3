@@ -83,6 +83,7 @@ alloc_average(struct average *avr, size_t len)
             logging(LOG_SYSERR, NULL);
             return -1;
         }
+        free_average(avr);
         avr->reserved_len = len;
     } else
         ptr = avr->data;
