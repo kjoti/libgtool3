@@ -522,7 +522,7 @@ usage(void)
         "    -f fmt    output GTOOL3 format (default: same as input)\n"
         "    -m MODE   mean mode (any combination \"xyzXYZ\")\n"
         "    -n        no shift axes\n"
-        "    -o PATH   no shift axes\n"
+        "    -o PATH   specify output file\n"
         "    -t LIST   specify data No.\n"
         "    -x RANGE  specify X-range\n"
         "    -y RANGE  specify Y-range\n"
