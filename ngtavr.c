@@ -37,6 +37,7 @@ struct average {
 
     unsigned count;
     double duration;            /* in HOUR */
+    double total_wght;
     GT3_Date date1, date2;
     GT3_HEADER head;
 };
@@ -58,14 +59,9 @@ static char *g_format = "UR8";
 static void
 init_average(struct average *avr)
 {
-    avr->data = avr->wght = NULL;
-    avr->len = 0;
-    avr->reserved_len = 0;
-    avr->count = 0;
-    avr->duration = 0;
-    avr->shape[0] = 0;
-    avr->shape[1] = 0;
-    avr->shape[2] = 0;
+    memset(avr, 0, sizeof(struct average));
+    assert(avr->data == NULL);
+    assert(avr->wght == NULL);
 }
 
 
@@ -109,6 +105,7 @@ clear_average(struct average *avr)
     }
     avr->count = 0;
     avr->duration = 0.;
+    avr->total_wght = 0.;
 
     GT3_setDate(&avr->date1, 0, 1, 1, 0, 0, 0);
     GT3_setDate(&avr->date2, 9999, 1, 1, 0, 0, 0);
@@ -386,15 +383,12 @@ static void
 average(struct average *avr)
 {
     int i;
-    double tdur_lowlim;
+    double thres;
 
-    /*
-     * The lower limit of time-duration.
-     */
-    tdur_lowlim = limit_factor * avr->duration;
+    thres = limit_factor * avr->total_wght;
 
     for (i = 0; i < avr->len; i++) {
-        if (avr->wght[i] < tdur_lowlim || avr->wght[i] == 0.)
+        if (avr->wght[i] < thres || avr->wght[i] == 0.)
             avr->data[i] = avr->miss;
         else
             avr->data[i] /= avr->wght[i];
@@ -413,6 +407,7 @@ integrate_chunk(struct average *avr, GT3_Varbuf *var)
     GT3_HEADER head;
     GT3_Date date1, date2;
     int date_missing = 0;
+    double wght;
 
 
     if (GT3_readHeader(&head, var->fp) < 0) {
@@ -444,17 +439,23 @@ integrate_chunk(struct average *avr, GT3_Varbuf *var)
         logging(LOG_WARN, "Negative time-duration: %f (hour)", dt);
         dt = 0.;
     }
+    if (dt == 0. && avr->duration > 0. && !ignore_tdur) {
+        logging(LOG_ERR, "Time-duration has changed from non-zero to zero.");
+        logging(LOG_ERR, "Use \"-n\" option to work around.");
+        return -1;
+    }
 
     GT3_copyHeaderItem(item, sizeof item, &head, "ITEM");
-    logging(LOG_INFO, "Read %s (No. %d)", item, var->fp->curr + 1);
 
     /*
      * integral
      */
+    wght = (ignore_tdur || dt == 0.) ? 1. : dt;
     if (integrate(avr->data, avr->wght,
                   avr->shape[0] * avr->shape[1], avr->shape[2],
-                  var, ignore_tdur || dt == 0. ? 1. : dt) < 0)
+                  var, wght) < 0)
         return -1;
+
 
     if (avr->count == 0) {
         GT3_copyHeader(&avr->head, &head);
@@ -462,9 +463,13 @@ integrate_chunk(struct average *avr, GT3_Varbuf *var)
 
         GT3_decodeHeaderDouble(&avr->miss, &avr->head, "MISS");
     }
-    avr->duration += dt;
     avr->date2 = date2;
     avr->count++;
+    avr->duration += dt;
+    avr->total_wght += wght;
+
+    logging(LOG_INFO, "Read %s (No.%d), weight(%g), count(%d)",
+            item, var->fp->curr + 1, wght, avr->count);
     return 0;
 }
 
@@ -887,7 +892,7 @@ main(int argc, char **argv)
             }
 
         if (avr.count > 0) {
-            logging(LOG_WARN, "write buffered data.");
+            logging(LOG_INFO, "write buffered data.");
             average(&avr);
             if (write_average(&avr, ofp) < 0) {
                 logging(LOG_ERR, ofile);
