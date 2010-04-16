@@ -232,18 +232,6 @@ ngtstat_var(GT3_Varbuf *varbuf)
         return -1;
     }
 
-    /*
-     *  (re)allocate work buffer.
-     */
-    if (varbuf->bufsize > worksize) {
-        free(work);
-        if ((work = malloc(varbuf->bufsize)) == NULL) {
-            logging(LOG_SYSERR, NULL);
-            return -1;
-        }
-        worksize = varbuf->bufsize;
-    }
-
     for (n = 0; n < 3; n++) {
         range[n].str = max(0, g_range[n].str);
         range[n].end = min(varbuf->fp->dimlen[n], g_range[n].end);
@@ -278,6 +266,18 @@ ngtstat_var(GT3_Varbuf *varbuf)
         if (GT3_readVarZ(varbuf, z) < 0) {
             GT3_printErrorMessages(stderr);
             return -1;
+        }
+
+        /*
+         *  (re)allocate work buffer.
+         */
+        if (varbuf->bufsize > worksize) {
+            free(work);
+            if ((work = malloc(varbuf->bufsize)) == NULL) {
+                logging(LOG_SYSERR, NULL);
+                return -1;
+            }
+            worksize = varbuf->bufsize;
         }
 
         stat[n].zidx = z + astr3;
