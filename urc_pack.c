@@ -1,10 +1,11 @@
 /*
  *  urc_pack.c -- gtool URC format pack/unpack routine.
  */
+#include "internal.h"
+
 #include <assert.h>
 #include <math.h>
 
-#include "internal.h"
 
 #ifndef HAVE_ILOGB
 #  define ilogb(x)    ((int)floor(log10(x) / log10(2.)))

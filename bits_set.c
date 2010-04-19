@@ -1,8 +1,9 @@
 /*
  *  bits_set.c
  */
-#include <stdlib.h>
+#include "internal.h"
 
+#include <stdlib.h>
 #include "bits_set.h"
 
 
