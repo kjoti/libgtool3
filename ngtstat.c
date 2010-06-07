@@ -99,7 +99,7 @@ print_caption(const char *name)
     const char *z = each_plane ? "Z" : "";
 
     printf("# Filename: %s\n", name);
-    printf("# %3s %-8s%3s %11s %11s %11s %11s %10s\n",
+    printf("# %3s %-8s %3s %11s %11s %11s %11s %10s\n",
            "No.", "ITEM", z, "AVE", "SD", "MIN", "MAX", "NUM");
 }
 
@@ -189,7 +189,7 @@ print_stat(const struct statics *stat, int num, int tidx,
 
     if (each_plane) {
         for (i = 0; i < num; i++)
-            printf("%14s%3d %11.5g %11.5g %11.5g %11.5g %10d\n",
+            printf("%14s %3d %11.5g %11.5g %11.5g %11.5g %10d\n",
                    prefix,
                    stat[i].zidx,
                    stat[i].avr,
@@ -204,7 +204,7 @@ print_stat(const struct statics *stat, int num, int tidx,
 
         memset(&stat_all, 0, sizeof(struct statics));
         sumup_stat(&stat_all, stat, num);
-        printf("%14sALL %11.5g %11.5g %11.5g %11.5g %10d\n",
+        printf("%14s ALL %11.5g %11.5g %11.5g %11.5g %10d\n",
                prefix,
                stat_all.avr,
                stat_all.sd,
