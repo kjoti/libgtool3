@@ -32,6 +32,7 @@ static int slicing = 0;
 static char *zslice_str = NULL;
 static int global_xrange[] = { 0, 0x7fffffff };
 static int global_yrange[] = { 0, 0x7fffffff };
+static FILE *output_stream;
 
 
 static int
@@ -374,7 +375,7 @@ gtcat_cyclic(int num, char *path[], struct sequence *seq)
                 : GT3_seek(fp, seq->curr, SEEK_END);
 
             if (stat == 0) {
-                if (mcopy(stdout, fp) < 0) {
+                if (mcopy(output_stream, fp) < 0) {
                     GT3_printErrorMessages(stderr);
                     logging(LOG_SYSERR, NULL);
                     errflag = 1;
@@ -417,7 +418,7 @@ gtcat(const char *path, struct sequence *seq)
             break;
         }
 
-        if (mcopy(stdout, fp) < 0) {
+        if (mcopy(output_stream, fp) < 0) {
             GT3_printErrorMessages(stderr);
             logging(LOG_SYSERR, NULL);
             rval = -1;
@@ -441,6 +442,7 @@ usage(void)
         "Options:\n"
         "    -h        print help message\n"
         "    -c        cyclic mode\n"
+        "    -o PATH   specify output filename (default: output into stdout)\n"
         "    -x RANGE  specify X-range\n"
         "    -y RANGE  specify Y-range\n"
         "    -z LIST   specify Z-planes\n"
@@ -461,12 +463,21 @@ main(int argc, char **argv)
     int cyclic = 0;
     int ch, rval = 0;
 
+    output_stream = stdout;
+
     open_logging(stderr, PROGNAME);
     GT3_setProgname(PROGNAME);
-    while ((ch = getopt(argc, argv, "cht:x:y:z:")) != -1)
+    while ((ch = getopt(argc, argv, "cho:t:x:y:z:")) != -1)
         switch (ch) {
         case 'c':
             cyclic = 1;
+            break;
+
+        case 'o':
+            if ((output_stream = fopen(optarg, "wb")) == NULL) {
+                logging(LOG_SYSERR, optarg);
+                exit(1);
+            }
             break;
 
         case 't':
