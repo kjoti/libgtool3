@@ -990,7 +990,9 @@ GT3_getBuiltinDimWeight(const char *name)
     struct axistab builtin[] = {
         { "GLON", weight_glon },
         { "GLAT", weight_glat },
-        { "GGLA", weight_ggla }
+        { "GGLA", weight_ggla },
+        { "OCLONT", weight_glon },
+        { "OCLONV", weight_glon }
     };
 
     if (name == NULL)
