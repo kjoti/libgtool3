@@ -55,6 +55,7 @@ static struct range g_range[3] = {
 };
 static int shift_flag = 1;
 static struct sequence *g_zseq = NULL;
+static int sum_flag = 0;
 
 /* mean flags */
 #define X_MEAN   1U
@@ -173,12 +174,13 @@ calc_mean(struct mdata *mdata, GT3_Varbuf *vbuf, unsigned mode)
         }
     }
 
-    for (i = 0; i < mdata->size; i++)
-        if (mdata->wsum[i] > 0.)
-            mdata->data[i] /= mdata->wsum[i];
-        else
-            mdata->data[i] = mdata->miss;
-
+    if (sum_flag == 0) {
+        for (i = 0; i < mdata->size; i++)
+            if (mdata->wsum[i] > 0.)
+                mdata->data[i] /= mdata->wsum[i];
+            else
+                mdata->data[i] = mdata->miss;
+    }
     return 0;
 }
 
@@ -189,9 +191,9 @@ is_need_weight(const char *name)
     return (   name[0] == '\0'
             || memcmp(name, "SFC1\0", 5) == 0
             || memcmp(name, "NUMBER", 6) == 0
-            || memcmp(name, "GLON", 4) == 0
-            || memcmp(name, "OCLON", 5) == 0 )
-         ? 0 : 1;
+            || (sum_flag == 0 && memcmp(name, "GLON", 4) == 0)
+            || (sum_flag == 0 && memcmp(name, "OCLON", 5) == 0) )
+        ? 0 : 1;
 }
 
 
@@ -523,6 +525,7 @@ usage(void)
         "    -m MODE   mean mode (any combination \"xyzXYZ\")\n"
         "    -n        no shift axes\n"
         "    -o PATH   specify output file\n"
+        "    -s        sum instead of mean\n"
         "    -t LIST   specify data No.\n"
         "    -x RANGE  specify X-range\n"
         "    -y RANGE  specify Y-range\n"
@@ -551,7 +554,7 @@ main(int argc, char **argv)
     open_logging(stderr, PROGNAME);
     GT3_setProgname(PROGNAME);
 
-    while ((ch = getopt(argc, argv, "f:m:no:t:x:y:z:h")) != -1)
+    while ((ch = getopt(argc, argv, "f:m:no:st:x:y:z:h")) != -1)
         switch (ch) {
         case 'f':
             fmt = strdup(optarg);
@@ -565,6 +568,9 @@ main(int argc, char **argv)
             break;
         case 'o':
             filename = optarg;
+            break;
+        case 's':
+            sum_flag = 1;
             break;
         case 't':
             if ((tseq = initSeq(optarg, 1, RANGE_MAX)) == NULL) {
