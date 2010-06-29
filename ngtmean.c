@@ -180,7 +180,11 @@ calc_mean(struct mdata *mdata, GT3_Varbuf *vbuf, unsigned mode)
                 mdata->data[i] /= mdata->wsum[i];
             else
                 mdata->data[i] = mdata->miss;
-    }
+    } else
+        for (i = 0; i < mdata->size; i++)
+            if (mdata->wsum[i] == 0.)
+                mdata->data[i] = mdata->miss;
+
     return 0;
 }
 
