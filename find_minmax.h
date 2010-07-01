@@ -1,5 +1,5 @@
 /*
- *  find_minmax.h
+ * find_minmax.h
  */
 #ifndef FIND_MINMAX_H
 #define FIND_MINMAX_H

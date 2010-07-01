@@ -1,5 +1,5 @@
 /*
- *  ngtls.c -- list gtool3 file (like 'gtshow -ls').
+ * ngtls.c -- list gtool3 file (like 'gtshow -ls').
  */
 #include "internal.h"
 

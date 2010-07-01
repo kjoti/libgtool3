@@ -277,8 +277,8 @@ get_tstepsize(const GT3_HEADER *head,
 
     if ((tdur > 0 && unit >= 0) || date_missing) {
         /*
-         *  XXX: Wrong DATA1/DATE2 fields often happen.
-         *  So we use TDUR rather than DATE[12] if TDUR > 0.
+         * XXX: Wrong DATA1/DATE2 fields often happen.
+         * So we use TDUR rather than DATE[12] if TDUR > 0.
          */
         dt = tdur;
         switch (unit) {
@@ -599,7 +599,7 @@ ngtavr_eachstep(struct average *avr,
             goto finish;
     } else {
         /*
-         *  Replace file-pointer in Varbuf.
+         * Replace file-pointer in Varbuf.
          */
         GT3_reattachVarbuf(var, fp);
     }

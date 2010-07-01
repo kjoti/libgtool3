@@ -25,7 +25,7 @@ dup_range(const struct range *range)
 
 
 /*
- *  XXX: get_range() transforms the range from 1-offset to 0-offset.
+ * XXX: get_range() transforms the range from 1-offset to 0-offset.
  *
  *  2:5 == 2, 3, 4, 5 (1-offset)
  *      => 1, 2, 3, 4 (0-offset)

@@ -1,5 +1,5 @@
 /*
- *  read_urc.c -- read URC.
+ * read_urc.c -- read URC.
  */
 #include "internal.h"
 
@@ -72,9 +72,9 @@ sread_dword(void *dest, const void *src)
 }
 
 /*
- *  read_URCv() supports URC1 and URC2 format.
+ * read_URCv() supports URC1 and URC2 format.
  *
- *  XXX: 'skip' and 'nelem' are not in bytes.
+ * XXX: 'skip' and 'nelem' are not in bytes.
  */
 static int
 read_URCv(GT3_Varbuf *var, int zpos, size_t skip, size_t nelem, FILE *fp,
@@ -102,7 +102,7 @@ read_URCv(GT3_Varbuf *var, int zpos, size_t skip, size_t nelem, FILE *fp,
     }
 
     /*
-     *  Three parameters (ref, D, and E)
+     * Three parameters (ref, D, and E)
      */
     if (xfread(pbuf, 1, sizeof pbuf, fp) < 0)
         return -1;
@@ -135,7 +135,7 @@ read_URCv(GT3_Varbuf *var, int zpos, size_t skip, size_t nelem, FILE *fp,
     outp = (float *)var->data + skip;
 
     /*
-     *  unpack data and store them into var->data.
+     * unpack data and store them into var->data.
      */
     for (i = 0; nelem > 0; i++, nelem -= num) {
         num = min(nelem, sizeof packed / 2);

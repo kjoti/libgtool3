@@ -1,5 +1,5 @@
 /*
- *  record.c -- Fortran unformatted record I/O for GTOOL3.
+ * record.c -- Fortran unformatted record I/O for GTOOL3.
  */
 #include "internal.h"
 
@@ -48,10 +48,10 @@ read_from_record(void *ptr, size_t skip, size_t nelem,
 
 
 /*
- *  read_words_from_record() reads words from a fortran-unformatted record,
- *  and stores them in 'ptr'.
+ * read_words_from_record() reads words from a fortran-unformatted record,
+ * and stores them in 'ptr'.
  *
- *  WORD: 4-byte in size.
+ * WORD: 4-byte in size.
  */
 int
 read_words_from_record(void *ptr, size_t skip, size_t nelem, FILE *fp)
@@ -65,11 +65,12 @@ read_words_from_record(void *ptr, size_t skip, size_t nelem, FILE *fp)
     return 0;
 }
 
+
 /*
- *  read_dwords_from_record() reads dwords from a fortran-unformatted record,
- *  and stores them in 'ptr'.
+ * read_dwords_from_record() reads dwords from a fortran-unformatted record,
+ * and stores them in 'ptr'.
  *
- *  DWORD: 8-byte in size.
+ * DWORD: 8-byte in size.
  */
 int
 read_dwords_from_record(void *ptr, size_t skip, size_t nelem, FILE *fp)

@@ -1,5 +1,5 @@
 /*
- *  ngtick.c -- set time-dimension.
+ * ngtick.c -- set time-dimension.
  */
 #include "internal.h"
 
@@ -113,7 +113,7 @@ modify_date(GT3_HEADER *head,
 
 
 /*
- *  Return value:
+ * Return value:
  *             -1: some error has occurred.
  *       ITER_END: no more timeseq (only when -t option specified)
  *  ITER_CONTINUE: the others
@@ -169,7 +169,7 @@ tick(GT3_File *fp, struct caltime *start, int dur, int durunit)
         }
 
         /*
-         *  calculate the midpoint of the time_bnd[].
+         * calculate the midpoint of the time_bnd[].
          */
         if (snapshot_flag) {
             time = time_bnd[i ^ 1]; /* use upper */
@@ -192,7 +192,7 @@ tick(GT3_File *fp, struct caltime *start, int dur, int durunit)
         }
 
         /*
-         *  rewrite the modified header.
+         * rewrite the modified header.
          */
         if (fseeko(fp->fp, fp->off + 4, SEEK_SET) < 0
             || fwrite(head.h, 1, GT3_HEADER_SIZE, fp->fp) != GT3_HEADER_SIZE) {
@@ -201,7 +201,7 @@ tick(GT3_File *fp, struct caltime *start, int dur, int durunit)
         }
 
         /*
-         *  make a step forward.
+         * make a step forward.
          */
         step(lower, 2 * dur, durunit);
         time_bnd[i] = ct_diff_seconds(lower, &global_origin);
@@ -219,7 +219,7 @@ tick(GT3_File *fp, struct caltime *start, int dur, int durunit)
 
 
 /*
- *  Set "TIME", "DATE", "TDUR", "DATE1", and "DATE2".
+ * Set "TIME", "DATE", "TDUR", "DATE1", and "DATE2".
  */
 static int
 tick_file(const char *path, caltime *start, int dur, int durunit)
@@ -328,7 +328,7 @@ parse_tdef(const char *head, int *yr, int *mon, int *day, int *sec,
     }
 
     /*
-     *  time-duration (e.g., 1yr, 1mo, 6hr, ...etc)
+     * time-duration (e.g., 1yr, 1mo, 6hr, ...etc)
      */
     if (get_tdur(timedur, buf[ipos]) < 0)
         return -1;
@@ -383,13 +383,13 @@ main(int argc, char **argv)
     argv += optind;
 
     /*
-     *  The origin of the time-axis is set to 0-1-1 (1st Jan, B.C. 1).
-     *  in most GTOOL3-files.
+     * The origin of the time-axis is set to 0-1-1 (1st Jan, B.C. 1).
+     * in most GTOOL3-files.
      */
     ct_init_caltime(&global_origin, caltype, 0, 1, 1);
 
     /*
-     *  1st argument: time-def specifier.
+     * 1st argument: time-def specifier.
      */
     if (argc <= 0) {
         usage();
@@ -408,7 +408,7 @@ main(int argc, char **argv)
     ct_add_seconds(&start, sec);
 
     /*
-     *  process each file.
+     * process each file.
      */
     argc--;
     argv++;

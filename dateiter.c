@@ -1,7 +1,7 @@
 /*
- *  dateiter.c -- date/time iterator.
+ * dateiter.c -- date/time iterator.
  *
- *  use caltime routine.
+ * use caltime routine.
  */
 #include "internal.h"
 
@@ -35,7 +35,7 @@ setDateIterator(DateIterator *it,
 
 
 /*
- *  go to next stop.
+ * go to next stop.
  */
 void
 nextDateIterator(DateIterator *it)
@@ -48,7 +48,7 @@ nextDateIterator(DateIterator *it)
 
 
 /*
- *  return value:
+ * return value:
  *     date - it->next
  */
 int

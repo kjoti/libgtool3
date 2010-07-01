@@ -1,5 +1,5 @@
 /*
- *  internal.h -- a header file for using libgtool3
+ * internal.h -- a header file for using libgtool3
  */
 #ifndef GT3_INTERNAL__H
 #define GT3_INTERNAL__H
@@ -27,7 +27,7 @@ typedef unsigned uint32_t;
 #endif
 
 /*
- *  WORDS_BIGENDIAN might be defined by 'autoconf'.
+ * WORDS_BIGENDIAN might be defined by 'autoconf'.
  */
 #ifdef WORDS_BIGENDIAN
 #  define IS_LITTLE_ENDIAN 0
@@ -41,9 +41,9 @@ typedef unsigned uint32_t;
 #endif
 
 /*
- *  fort_size_t:
- *  A type for the header/trailer of Fortran unformatted data.
- *  sizeof(fort_size_t) must be 4.
+ * fort_size_t:
+ * A type for the header/trailer of Fortran unformatted data.
+ * sizeof(fort_size_t) must be 4.
  */
 typedef uint32_t fort_size_t;
 
@@ -56,7 +56,7 @@ typedef uint32_t fort_size_t;
 
 
 /*
- *  urc_pack.c
+ * urc_pack.c
  */
 void calc_urc_param(const float *data, int len, double miss,
                     double *prmin, double *pfac_e, double *pfac_d,

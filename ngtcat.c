@@ -1,5 +1,5 @@
 /*
- *  ngtcat.c -- concatenate gtool files.
+ * ngtcat.c -- concatenate gtool files.
  */
 #include "internal.h"
 
@@ -106,7 +106,7 @@ slicecopy2(FILE *dest, GT3_File *fp, size_t esize,
     ssize = esize * (xrange[1] - xrange[0]);
     for (z = zstr; znum > 0; znum--, z += zstep) {
         /*
-         *  XXX Out-of-range is ignored.
+         * XXX Out-of-range is ignored.
          */
         if (z < 0 || z >= fp->dimlen[2])
             continue;
@@ -200,7 +200,7 @@ slicecopy(FILE *dest, GT3_File *fp)
             && yrange[1] - yrange[0] == fp->dimlen[1];
 
     /*
-     *  modify header field.
+     * modify header field.
      */
     GT3_setHeaderInt(&head, "ASTR1", xrange[0] + xstr0);
     GT3_setHeaderInt(&head, "AEND1", xrange[1] + xstr0 - 1);
@@ -209,7 +209,7 @@ slicecopy(FILE *dest, GT3_File *fp)
     GT3_setHeaderInt(&head, "SIZE",  xynum * znum);
     if (zorder) {
         /*
-         *  In this case, the z-axis name cannot remain the same.
+         * In this case, the z-axis name cannot remain the same.
          */
         zstr0 = 1;
         GT3_setHeaderString(&head, "AITM3", "NUMBER1000");
@@ -223,7 +223,7 @@ slicecopy(FILE *dest, GT3_File *fp)
         return -1;
 
     /*
-     *  For UR4 or UR8, write Fortran header.
+     * For UR4 or UR8, write Fortran header.
      */
     if (fp->fmt == GT3_FMT_UR4 || fp->fmt == GT3_FMT_UR8) {
         siz = esize * xynum * znum;
@@ -235,7 +235,7 @@ slicecopy(FILE *dest, GT3_File *fp)
     }
 
     /*
-     *  iterate z-slice.
+     * iterate z-slice.
      */
     reinitSeq(zseq, zseq->first, zseq->last);
     while (nextToken(zseq)) {
@@ -245,13 +245,13 @@ slicecopy(FILE *dest, GT3_File *fp)
 
         if (all_flag && zseq->step == 1) {
             /*
-             *  Simple slicing:
-             *  In this case, data in this slice are contiguous.
+             * Simple slicing:
+             * In this case, data in this slice are contiguous.
              */
             int zpos;
 
             /*
-             *  z-index check.
+             * z-index check.
              */
             zpos = clip(zseq->head, 1, fp->dimlen[2]) - 1;
             nz   = clip(zseq->tail, 1, fp->dimlen[2]) - zpos;
@@ -289,7 +289,7 @@ slicecopy(FILE *dest, GT3_File *fp)
     }
 
     /*
-     *  For UR4 or UR8, write Fortran trailer.
+     * For UR4 or UR8, write Fortran trailer.
      */
     if (fp->fmt == GT3_FMT_UR4 || fp->fmt == GT3_FMT_UR8)
         if (fwrite(&siz, 1, FH_SIZE, dest) != FH_SIZE)
@@ -333,8 +333,8 @@ set_range(int range[], const char *str)
         return -1;
 
     /*
-     *  XXX
-     *  transform
+     * XXX
+     * transform
      *   FROM  1-offset and closed bound    [X,Y] => do i = X, Y.
      *   TO    0-offset and semi-open bound [X,Y) => for (i = X; i < Y; i++).
      */

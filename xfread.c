@@ -1,12 +1,12 @@
 /*
- *  xfread.c
+ * xfread.c
  */
 #include "internal.h"
 #include <sys/types.h>
 #include <stdio.h>
 
 /*
- *  To distinguish I/O error and file-format error (unexpected EOF).
+ * To distinguish I/O error and file-format error (unexpected EOF).
  */
 int
 xfread(void *ptr, size_t size, size_t nmemb, FILE *fp)

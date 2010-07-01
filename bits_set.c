@@ -1,5 +1,5 @@
 /*
- *  bits_set.c
+ * bits_set.c
  */
 #include "internal.h"
 

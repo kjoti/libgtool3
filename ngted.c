@@ -1,5 +1,5 @@
 /*
- *  ngted.c -- gtool3 header editor.
+ * ngted.c -- gtool3 header editor.
  */
 #include "internal.h"
 
@@ -221,7 +221,7 @@ set_miss(GT3_HEADER *head, struct edit_command *ec)
 
 
 /*
- *  change ASTR[1-3] and AEND[1-3], while the axis-length is conserved.
+ * change ASTR[1-3] and AEND[1-3], while the axis-length is conserved.
  */
 static void
 change_axis_range(GT3_HEADER *head, struct edit_command *ec)
@@ -400,7 +400,7 @@ setup_edit_func_str(struct edit_command *ec, const char *args)
     int i;
 
     /*
-     *  check forbidden operation.
+     * check forbidden operation.
      */
     for (i = 0; i < sizeof forbidden_addr / sizeof(int); i++)
         if (ec->addr == forbidden_addr[i]) {
@@ -469,7 +469,7 @@ setup_edit_func_str(struct edit_command *ec, const char *args)
 
 
 /*
- *  setup new edit-command.
+ * setup new edit-command.
  */
 static struct edit_command *
 new_command(const char *str)
@@ -521,7 +521,7 @@ new_command(const char *str)
     temp->next = NULL;
 
     /*
-     *  setup edit function.
+     * setup edit function.
      */
     curr++;
     type = itemtype[addr];
@@ -556,7 +556,7 @@ edit(GT3_File *fp, struct edit_command *clist)
     memcpy(&head_copy, &head, GT3_HEADER_SIZE);
 
     /*
-     *  do edit.
+     * do edit.
      */
     while (clist) {
         (*clist->func)(&head, clist);

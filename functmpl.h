@@ -1,5 +1,5 @@
 /*
- *  functmpl.h
+ * functmpl.h
  */
 #include <math.h>
 

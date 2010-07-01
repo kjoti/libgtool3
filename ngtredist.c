@@ -1,5 +1,5 @@
 /*
- *  ngtredist.c -- redistribute gtool3-files.
+ * ngtredist.c -- redistribute gtool3-files.
  */
 #include "internal.h"
 

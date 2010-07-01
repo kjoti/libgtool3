@@ -1,5 +1,5 @@
 /*
- *  write.c  -- writing data in GT3_Var.
+ * write.c  -- writing data in GT3_Var.
  */
 #include "internal.h"
 
@@ -137,7 +137,7 @@ masked_count(const void *ptr, size_t size, size_t nelems, double miss)
 
 
 /*
- *  write MASK (common to MR4, MR8, MRX).
+ * write MASK (common to MR4, MR8, MRX).
  */
 int
 write_mask(const void *ptr2,
@@ -196,20 +196,20 @@ write_mr4(const void *ptr2,
     float copied[BUFLEN];
 
     /*
-     *  write the # of not-missing value.
+     * write the # of not-missing value.
      */
     cnt = (uint32_t)masked_count(ptr2, size, nelems, miss);
     if (write_words_into_record(&cnt, 1, fp) < 0)
         return -1;
 
     /*
-     *  write MASK.
+     * write MASK.
      */
     if (write_mask(ptr2, size, nelems, 1, miss, fp) < 0)
         return -1;
 
     /*
-     *  write DATA-BODY.
+     * write DATA-BODY.
      */
     if (write_record_sep(sizeof(float) * cnt, fp) < 0)
         return -1;
@@ -248,20 +248,20 @@ write_mr8(const void *ptr2,
 
 
     /*
-     *  write the # of not-missing value.
+     * write the # of not-missing value.
      */
     cnt = (uint32_t)masked_count(ptr2, size, nelems, miss);
     if (write_words_into_record(&cnt, 1, fp) < 0)
         return -1;
 
     /*
-     *  write MASK.
+     * write MASK.
      */
     if (write_mask(ptr2, size, nelems, 1, miss, fp) < 0)
         return -1;
 
     /*
-     *  write DATA-BODY.
+     * write DATA-BODY.
      */
     if (write_record_sep(sizeof(double) * cnt, fp) < 0)
         return -1;

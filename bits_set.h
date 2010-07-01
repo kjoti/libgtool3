@@ -1,5 +1,5 @@
 /*
- *  bits_set.h
+ * bits_set.h
  */
 #ifndef BITS_SET__H
 #define BITS_SET__H
@@ -13,7 +13,7 @@ struct bits_set {
 };
 
 /*
- *  bits_set manipulation (using uint32_t)
+ * bits_set manipulation (using uint32_t)
  */
 #define BS_SET(bs, x)  { (bs).set[(x) >> 5] |=  (1U << ((x) & 31));  }
 #define BS_CLS(bs, x)  { (bs).set[(x) >> 5] &= ~(1U << ((x) & 31));  }

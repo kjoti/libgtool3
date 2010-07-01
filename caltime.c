@@ -1,5 +1,5 @@
 /*
- *  caltime.c
+ * caltime.c
  */
 #include <assert.h>
 #include <stdio.h>
@@ -65,9 +65,9 @@ mon_offset(int yr, int mo, const int **mtbl)
 
 
 /*
- *  The number of days between two years ('from' and 'to') in Gregorian.
+ * The number of days between two years ('from' and 'to') in Gregorian.
  *
- *  e.g.)
+ * e.g.)
  *     ndays_in_years(2000, 2001) returns 366.
  *     ndays_in_years(2000, 2002) returns 731.
  *     ndyas_in_years(2000, 2400) returns 146097.
@@ -94,7 +94,7 @@ ndays_in_years(int from, int to)
 }
 
 /*
- *  for 365_day (no leap)
+ * for 365_day (no leap)
  */
 static int
 mon_offset_365(int yr, int mo, const int **mtbl)
@@ -115,7 +115,7 @@ ndays_in_years_365(int from, int to)
 }
 
 /*
- *  for 366_day (all leap)
+ * for 366_day (all leap)
  */
 static int
 mon_offset_366(int yr, int mo, const int **mtbl)
@@ -136,7 +136,7 @@ ndays_in_years_366(int from, int to)
 }
 
 /*
- *  for 360_day (ideal calendar)
+ * for 360_day (ideal calendar)
  */
 static int
 mon_offset_360(int yr, int mo, const int **mtbl)
@@ -157,7 +157,7 @@ ndays_in_years_360(int from, int to)
 }
 
 /*
- *  for Julian
+ * for Julian
  */
 static int
 mon_offset_jul(int yr, int mo, const int **mtbl)
@@ -189,7 +189,7 @@ ndays_in_years_jul(int from, int to)
 
 
 /*
- *  day_of_year: 1st Jan == 0
+ * day_of_year: 1st Jan == 0
  */
 int
 ct_day_of_year(const caltime *date)
@@ -200,7 +200,7 @@ ct_day_of_year(const caltime *date)
 
 
 /*
- *  add 'num' days to current date ('date').
+ * add 'num' days to current date ('date').
  */
 caltime *
 ct_add_days(caltime *date, int num)
@@ -216,7 +216,7 @@ ct_add_days(caltime *date, int num)
 
     if (total < 0 || total >= mtbl[12]) {
         /*
-         *  changing current year.
+         * changing current year.
          */
         int nyr;
 
@@ -334,13 +334,13 @@ ct_verify_date(int type, int yr, int mo, int dy)
 
 
 /*
- *  set 'struct caltime'.
+ * set 'struct caltime'.
  *
- *  ex).
+ * ex).
  *    ct_init_caltime(&date, CALTIME_GREGORIAN, 1900, 1, 1)
  *    => 1st Jan, 1900 00:00:00
  *
- *  ct_init_caltime() returns 0 on successful end, otherwise -1.
+ * ct_init_caltime() returns 0 on successful end, otherwise -1.
  */
 int
 ct_init_caltime(caltime *date, int type, int yr, int mo, int dy)
@@ -385,9 +385,9 @@ ct_set_time(caltime *date, int hour, int min, int sec)
 
 
 /*
- *  ct_cmp() compares 'date1' and 'date2'.
+ * ct_cmp() compares 'date1' and 'date2'.
  *
- *  Return value:
+ * Return value:
  *     0  if date1 == date2
  *     1  if date1 >  date2
  *    -1  if date1 <  date2
@@ -451,10 +451,10 @@ ct_equal(const caltime *date1, const caltime *date2)
 
 
 /*
- *  ct_diff_days() returns the difference of the date.
+ * ct_diff_days() returns the difference of the date.
  *
- *  NOTE: ct_diff_days() does not take the time into account.
- *  e.g.,
+ * NOTE: ct_diff_days() does not take the time into account.
+ * e.g.,
  *     date1="1999-12-31 12:00:00" and date2=2000-1-1 00:00:00",
  *     => return 1 (not 0).
  */
@@ -554,8 +554,8 @@ main(int argc, char **argv)
     assert(ndays_in_years_jul(100, 200) == 365 * 100 + 25);
 
     /*
-     *  2038 problem test
-     *  time_t 0x7fffffff == Tue Jan 19 03:14:07 2038 (UTC)
+     * 2038 problem test
+     * time_t 0x7fffffff == Tue Jan 19 03:14:07 2038 (UTC)
      */
     {
         caltime temp, temp2;
@@ -574,7 +574,7 @@ main(int argc, char **argv)
     }
 
     /*
-     *  add & sub test.
+     * add & sub test.
      */
     {
         caltime date;

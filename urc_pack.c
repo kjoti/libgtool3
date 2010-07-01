@@ -1,5 +1,5 @@
 /*
- *  urc_pack.c -- gtool URC format pack/unpack routine.
+ * urc_pack.c -- gtool URC format pack/unpack routine.
  */
 #include "internal.h"
 
@@ -48,7 +48,7 @@ scalefac(double rmin, double rmax,
 
 
 /*
- *  calculate three parameters for URC-packing.
+ * calculate three parameters for URC-packing.
  */
 void
 calc_urc_param(const float *data, int len, double miss,
@@ -84,7 +84,7 @@ calc_urc_param(const float *data, int len, double miss,
 
 
 /*
- *  packing data in URC version1 (deprecated).
+ * packing data in URC version1 (deprecated).
  */
 void
 urc1_packing(uint32_t *packed,
@@ -114,7 +114,7 @@ urc1_packing(uint32_t *packed,
 
 
 /*
- *  packing data in URC version2.
+ * packing data in URC version2.
  */
 void
 urc2_packing(uint32_t *packed,
@@ -176,7 +176,7 @@ urc2_pack(const float *data, int len, double miss,
 
 
 /*
- *  unpack data in URC version 1 (obsoleted).
+ * unpack data in URC version 1 (obsoleted).
  */
 void
 urc1_unpack(const uint32_t *packed, int packed_len,
@@ -221,7 +221,7 @@ urc1_unpack(const uint32_t *packed, int packed_len,
 
 
 /*
- *  unpack data in URC version 2.
+ * unpack data in URC version 2.
  */
 void
 urc2_unpack(const uint32_t *packed, int packed_len,

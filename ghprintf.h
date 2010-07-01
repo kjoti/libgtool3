@@ -1,5 +1,5 @@
 /*
- *  ghprintf.h
+ * ghprintf.h
  */
 #ifndef GHPRINTF_H
 #define GHPRINTF_H

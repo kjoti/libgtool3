@@ -1,5 +1,5 @@
 /*
- *  split.c -- splits a string into substrings by white-space characters.
+ * split.c -- splits a string into substrings by white-space characters.
  */
 #include <ctype.h>
 #include <string.h>
@@ -11,16 +11,16 @@
 #endif
 
 /*
- *  split() splits a string into substrings,
- *  which are separated by any white-space characters.
- *  These substrings are stored in the specified buffer('buf').
- *  The maximum length of each substring is 'maxlen - 1',
- *  and the number of substring is up to 'maxnum'.
+ * split() splits a string into substrings,
+ * which are separated by any white-space characters.
+ * These substrings are stored in the specified buffer('buf').
+ * The maximum length of each substring is 'maxlen - 1',
+ * and the number of substring is up to 'maxnum'.
  *
- *  'buf' must have at least "maxlen * maxnum" space.
+ * 'buf' must have at least "maxlen * maxnum" space.
  *
- *  split() returns the number of substring in successful end.
- *  If overflow error is occurred, -1 is returned.
+ * split() returns the number of substring in successful end.
+ * If overflow error is occurred, -1 is returned.
  */
 int
 split(char *buf, int maxlen, int maxnum,

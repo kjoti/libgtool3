@@ -1,5 +1,5 @@
 /*
- *  ngtsumm.c -- print data summary.
+ * ngtsumm.c -- print data summary.
  */
 #include "internal.h"
 
@@ -294,8 +294,8 @@ set_range(int range[], const char *str)
         return -1;
 
     /*
-     *  XXX
-     *  transform
+     * XXX
+     * transform
      *   FROM  1-offset and closed bound    [X,Y] => do i = X, Y.
      *   TO    0-offset and semi-open bound [X,Y) => for (i = X; i < Y; i++).
      */

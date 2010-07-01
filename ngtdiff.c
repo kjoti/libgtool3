@@ -1,5 +1,5 @@
 /*
- *  ngtdiff.c -- Compare files.
+ * ngtdiff.c -- Compare files.
  */
 #include "internal.h"
 
@@ -223,11 +223,11 @@ diff_var(GT3_Varbuf *var1, GT3_Varbuf *var2)
     GT3_decodeHeaderInt(&joff, &head1, "ASTR2");
     GT3_decodeHeaderInt(&koff, &head1, "ASTR3");
     /*
-     *  check data shape
+     * check data shape
      */
     sameshape = is_same_shape(&head1, &head2);
 
-    /*  overwrite ignored item in GT3_HEADER */
+    /* overwrite ignored item in GT3_HEADER */
     for (i = 0; i < 64; i++)
         if (ignored_item[i]) {
             memset(head1.h + i * ELEMLEN, ' ', ELEMLEN);
@@ -246,7 +246,7 @@ diff_var(GT3_Varbuf *var1, GT3_Varbuf *var2)
     }
 
     /*
-     *  Compare Data body.
+     * Compare Data body.
      */
     z1 = min(max(var1->fp->dimlen[2], var2->fp->dimlen[2]), zrange[1]);
     for (z = zrange[0]; z < z1; z++) {
@@ -348,9 +348,9 @@ diff_var(GT3_Varbuf *var1, GT3_Varbuf *var2)
 
 
 /*
- *  diff_file() compares two GTOOL3-files.
+ * diff_file() compares two GTOOL3-files.
  *
- *  Return value:
+ * Return value:
  *    0  no difference
  *    1  if difference
  *   -1  error
@@ -430,8 +430,8 @@ set_range(int range[], const char *str)
         return -1;
 
     /*
-     *  XXX
-     *  transform
+     * XXX
+     * transform
      *   FROM  1-offset and closed bound    [X,Y] => do i = X, Y.
      *   TO    0-offset and semi-open bound [X,Y) => for (i = X; i < Y; i++).
      */

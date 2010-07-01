@@ -1,5 +1,5 @@
 /*
- *  mask.c -- mask for MR4, MR8, and MRX.
+ * mask.c -- mask for MR4, MR8, and MRX.
  */
 #include "internal.h"
 
@@ -26,7 +26,7 @@ getbit(const uint32_t *mask, unsigned i)
 
 
 /*
- *  allocate a new GT3_Datamask.
+ * allocate a new GT3_Datamask.
  */
 GT3_Datamask *
 GT3_newMask(void)
@@ -123,7 +123,7 @@ GT3_getMaskValue(const GT3_Datamask *mask, int i)
 
 
 /*
- *  load mask data from MR4 or MR8.
+ * load mask data from MR4 or MR8.
  */
 int
 GT3_loadMask(GT3_Datamask *mask, GT3_File *fp)
@@ -159,7 +159,7 @@ GT3_loadMask(GT3_Datamask *mask, GT3_File *fp)
 
 
 /*
- *  load mask data from MRX.
+ * load mask data from MRX.
  */
 int
 GT3_loadMaskX(GT3_Datamask *mask, int zpos, GT3_File *fp)

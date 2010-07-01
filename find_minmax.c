@@ -1,5 +1,5 @@
 /*
- *  find_minmax.c
+ * find_minmax.c
  */
 #include <stdlib.h>
 #include "find_minmax.h"

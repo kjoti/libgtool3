@@ -1,5 +1,5 @@
 /*
- *  error.c -- error message stack
+ * error.c -- error message stack
  */
 #include "internal.h"
 
@@ -19,7 +19,7 @@ static char *progname = NULL;
 
 
 /*
- *  ring.
+ * ring.
  */
 #define MSGBUF_LEN 256
 #define NUM_ESTACK 16

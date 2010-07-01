@@ -1,5 +1,5 @@
 /*
- *  int_pack.c -- pack N-bit integers into a 32-bit integer array.
+ * int_pack.c -- pack N-bit integers into a 32-bit integer array.
  */
 #include <assert.h>
 
@@ -20,10 +20,10 @@ pack32_len(size_t siz, unsigned nbit)
 
 
 /*
- *  pack N-bit integers into a 32-bit integers array.
- *  'N' is between 1 and 31.
+ * pack N-bit integers into a 32-bit integers array.
+ * 'N' is between 1 and 31.
  *
- *  retrun the length of packed array.
+ * retrun the length of packed array.
  */
 size_t
 pack_bits_into32(uint32_t *packed,
@@ -94,8 +94,8 @@ unpack_bits_from32(unsigned *data,
 
 
 /*
- *  pack boolean flags (stored in an array of unsigned char)
- *  into an 32-bit unsigned integer array.
+ * pack boolean flags (stored in an array of unsigned char)
+ * into an 32-bit unsigned integer array.
  */
 size_t
 pack_bools_into32(uint32_t *packed,
@@ -153,7 +153,7 @@ test(void)
     unsigned nbit;
 
     /*
-     *  16-bit packing.
+     * 16-bit packing.
      */
     nbit = 16;
     data[0] = 0xffff;
@@ -167,7 +167,7 @@ test(void)
     assert(packed[1] == 0xddddcccc);
 
     /*
-     *  12-bit packing
+     * 12-bit packing
      */
     nbit = 12;
     data[0] = 0xfff;
@@ -191,7 +191,7 @@ test(void)
     assert(packed[3] == 0x77700000);
 
     /*
-     *  4-bit packing
+     * 4-bit packing
      */
     nbit = 4;
     data[0] = 0xf;
@@ -208,7 +208,7 @@ test(void)
     assert(packed[0] == 0xffefcfdf);
 
     /*
-     *  1-bit packing
+     * 1-bit packing
      */
     nbit = 1;
     data[0] = 1;

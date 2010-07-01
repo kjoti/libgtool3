@@ -1,5 +1,5 @@
 /*
- *  gtdim.c -- gtool3 axes
+ * gtdim.c -- gtool3 axes
  */
 #include "internal.h"
 
@@ -16,15 +16,15 @@
 #include "debug.h"
 
 /*
- *  'GTAX_PATH' is introduced.
+ * 'GTAX_PATH' is introduced.
  *
- *  It is a set of directories where GTAXLOC.* files are searched.
- *  Directories are separated with ':'.
+ * It is a set of directories where GTAXLOC.* files are searched.
+ * Directories are separated with ':'.
  */
 #define PATH_SEP ':'
 
 /*
- *  default axis dir, e.g., '/usr/local/share/gtool3/gt3'
+ * default axis dir, e.g., '/usr/local/share/gtool3/gt3'
  */
 static const char *default_dir = DEFAULT_GTAXDIR;
 
@@ -50,7 +50,7 @@ parse_axisname(const char *name, char *base,
         p++;
 
     /*
-     *  copy basename (at most 16 letters).
+     * copy basename (at most 16 letters).
      */
     cnt = 0;
     while (*p != '\0' && !isdigit(*p) && cnt++ < 16)
@@ -58,7 +58,7 @@ parse_axisname(const char *name, char *base,
     *base = '\0';
 
     /*
-     *  get size.
+     * get size.
      */
     if (isdigit(*p)) {
         *len = (int)strtol(p, &endptr, 10);
@@ -72,7 +72,7 @@ parse_axisname(const char *name, char *base,
         rval = -1;
 
     /*
-     *  optional suffix
+     * optional suffix
      */
     *flag = 0;
     *idiv = 1;
@@ -134,11 +134,11 @@ latitude_mosaic(double *grid, const double *wght, int len, int idiv)
     }
 
     /*
-     *  cell boundaries in mu-grids [-1, 1].
-     *  mu = cos(theta), where theta is the zenith angle [0, pi]
-     *  (0: north pole, pi: south pole).
+     * cell boundaries in mu-grids [-1, 1].
+     * mu = cos(theta), where theta is the zenith angle [0, pi]
+     * (0: north pole, pi: south pole).
      *
-     *  cf. ${AGCM}/src/physics/pmisc.F (MKLATM1)
+     * cf. ${AGCM}/src/physics/pmisc.F (MKLATM1)
      */
     wsum = wght[0];
     for (i = 1; i < half; i++) {
@@ -147,7 +147,7 @@ latitude_mosaic(double *grid, const double *wght, int len, int idiv)
     }
 
     /*
-     *  mu -> theta -> latitude(in radian) -> latitude(in degree)
+     * mu -> theta -> latitude(in radian) -> latitude(in degree)
      */
     bnd[0] = -90.; /* south pole */
     for (i = 1; i < half; i++)
@@ -155,8 +155,8 @@ latitude_mosaic(double *grid, const double *wght, int len, int idiv)
     bnd[half] = (len % 2 == 0) ? .0 : -bnd[half - 1];
 
     /*
-     *  interpolation
-     *  cf. ${AGCM}/src/physics/pmisc.F (SETLOM)
+     * interpolation
+     * cf. ${AGCM}/src/physics/pmisc.F (SETLOM)
      */
     rdiv = 1. / (2. * idiv);
     for (i = 0; i < idiv * len / 2; i++) {
@@ -200,9 +200,9 @@ make_glon(int len, int idiv, unsigned flag)
     int mlen;
 
     /*
-     *  XXX
-     *  Cyclic axes need additional one more grid point,
-     *  which is identical to the first grid (grid[0]).
+     * XXX
+     * Cyclic axes need additional one more grid point,
+     * which is identical to the first grid (grid[0]).
      */
     mlen = len * idiv + 1;
 
@@ -312,7 +312,7 @@ make_ggla(int len, int idiv, unsigned flag)
     }
 
     /*
-     *  get Gauss-Legendre
+     * get Gauss-Legendre
      */
     gauss_legendre(grid, wght, len);
 
@@ -322,9 +322,9 @@ make_ggla(int len, int idiv, unsigned flag)
         }
     } else {
         /*
-         *  convert from "mu = cos(theta)" to latitude (in degree).
+         * convert from "mu = cos(theta)" to latitude (in degree).
          *
-         *  -1.0 => -90.0, 1.0 => +90.0
+         * -1.0 => -90.0, 1.0 => +90.0
          */
         for (i = 0; i < len / 2; i++) {
             grid[i] = 90. * M_2_PI * asin(grid[i]);
@@ -338,8 +338,8 @@ make_ggla(int len, int idiv, unsigned flag)
     assert(grid[len-1] > -90. && grid[len-1] < 90.);
 
     /*
-     *  The "GGLA" is directed from north to south.
-     *  It is opposite to the mu [-1, 1].
+     * The "GGLA" is directed from north to south.
+     * It is opposite to the mu [-1, 1].
      */
     if ((flag & INVERT_FLAG) == 0)
         invert(grid, mlen);
@@ -425,7 +425,7 @@ make_num(int len, int idiv, unsigned flag)
 
 
 /*
- *  open GTAXLOC.* or GTAXWGT.* file in pathlist (:-separated).
+ * open GTAXLOC.* or GTAXWGT.* file in pathlist (:-separated).
  */
 static GT3_File *
 open_axisfile2(const char *name, const char *pathlist, const char *kind)
@@ -466,7 +466,7 @@ open_axisfile2(const char *name, const char *pathlist, const char *kind)
 
 
 /*
- *  open GTAXLOC.* or GTAXWGT.* file.
+ * open GTAXLOC.* or GTAXWGT.* file.
  */
 static GT3_File *
 open_axisfile(const char *name, const char *kind)
@@ -479,7 +479,7 @@ open_axisfile(const char *name, const char *kind)
         return NULL;
 
     /*
-     *  1) 'GTAX_PATH'
+     * 1) 'GTAX_PATH'
      */
     gtax_path = getenv("GTAX_PATH");
     if (gtax_path) {
@@ -489,7 +489,7 @@ open_axisfile(const char *name, const char *kind)
     }
 
     /*
-     *  2) current directory if GTAX_PATH is not set.
+     * 2) current directory if GTAX_PATH is not set.
      */
     if (!gtax_path) {
         snprintf(path, sizeof path, "%s.%s", kind, name);
@@ -501,7 +501,7 @@ open_axisfile(const char *name, const char *kind)
     }
 
     /*
-     *  3) GTAXDIR if GTAX_PATH is not set.
+     * 3) GTAXDIR if GTAX_PATH is not set.
      */
     if (!gtax_path && (gtax_dir = getenv("GTAXDIR")) != NULL) {
         snprintf(path, sizeof path, "%s/%s.%s", gtax_dir, kind, name);
@@ -513,7 +513,7 @@ open_axisfile(const char *name, const char *kind)
     }
 
     /*
-     *  4) default directory.
+     * 4) default directory.
      */
     snprintf(path, sizeof path, "%s/%s.%s", default_dir, kind, name);
     fp = GT3_open(path);
@@ -523,7 +523,7 @@ open_axisfile(const char *name, const char *kind)
 
 
 /*
- *  setup GT3_Dim by loading GTAXLOC.* file.
+ * setup GT3_Dim by loading GTAXLOC.* file.
  */
 GT3_Dim *
 GT3_loadDim(const char *name)
@@ -546,7 +546,7 @@ GT3_loadDim(const char *name)
     }
 
     /*
-     *  get properties.
+     * get properties.
      */
     (void)GT3_copyHeaderItem(kind, 2, &head, "DSET");
     cyclic = (kind[0] == 'C') ? 1 : 0;
@@ -659,8 +659,8 @@ GT3_getDimlen(const char *name)
 
 
 /*
- *  GT3_getDim() constructs GT3_Dim by its name.
- *  If the name is well-known, built-in generator is called.
+ * GT3_getDim() constructs GT3_Dim by its name.
+ * If the name is well-known, built-in generator is called.
  */
 GT3_Dim *
 GT3_getDim(const char *name)
@@ -686,7 +686,7 @@ GT3_freeDim(GT3_Dim *dim)
 
 
 /*
- *  for GT3_DimBound ...
+ * for GT3_DimBound ...
  */
 static int
 cellbnd_glon(double *bnd, int len, int idiv, unsigned flag)
@@ -719,7 +719,7 @@ cellbnd_glon(double *bnd, int len, int idiv, unsigned flag)
 
 
 /*
- *  bnd must have the space of (len * idiv + 1).
+ * bnd must have the space of (len * idiv + 1).
  */
 static int
 cellbnd_ggla(double *bnd, int len, int idiv, unsigned flag)
@@ -736,7 +736,7 @@ cellbnd_ggla(double *bnd, int len, int idiv, unsigned flag)
     mid = (len + 1) / 2;
 
     /*
-     *  \mu = cos \theta: [-1, +1]  from South to North.
+     * \mu = cos \theta: [-1, +1]  from South to North.
      */
     gauss_legendre(grid, wght, len);
 
@@ -748,7 +748,7 @@ cellbnd_ggla(double *bnd, int len, int idiv, unsigned flag)
     }
 
     /*
-     *  \mu -> latitude (in degree)
+     * \mu -> latitude (in degree)
      */
     bnd[0] = -90.0;             /* south pole */
     for (i = 1; i < mid; i++)
@@ -756,7 +756,7 @@ cellbnd_ggla(double *bnd, int len, int idiv, unsigned flag)
     bnd[mid * idiv] = (len % 2 == 0) ? 0. : -bnd[(mid-1) * idiv];
 
     /*
-     *  mosaic
+     * mosaic
      */
     bndlen = len * idiv + 1;
     if (idiv > 1) {
@@ -834,9 +834,9 @@ weight_glon(double *temp, int len, int idiv, unsigned flag)
 #define sindeg(x) sin(M_PI * x  / 180.)
 
 /*
- *  get GGLA*'s weight.
+ * get GGLA*'s weight.
  *
- *  weight_ggla(wgth, 160, 2, 0) for "GGLA160x2"
+ * weight_ggla(wgth, 160, 2, 0) for "GGLA160x2"
  */
 static double *
 weight_ggla(double *weight, int len, int idiv, unsigned flag)
@@ -897,7 +897,7 @@ weight_latitude(double *wght, const double *lat, int len)
     int i, len2;
 
     /*
-     *  we need half only.
+     * we need half only.
      */
     len2 = (len + 1) / 2;
     bnd = (double *)tiny_alloc(bnd_, sizeof bnd_,
@@ -946,7 +946,7 @@ weight_glat(double *wght, int len, int idiv, unsigned flag)
 
 
 /*
- *  get weights of a specified axis by loading GTAXWGT.* file.
+ * get weights of a specified axis by loading GTAXWGT.* file.
  */
 double *
 GT3_loadDimWeight(const char *name)
@@ -974,7 +974,7 @@ final:
 
 
 /*
- *  get weights of a specifed axis (by name).
+ * get weights of a specifed axis (by name).
  */
 double *
 GT3_getBuiltinDimWeight(const char *name)
@@ -1019,7 +1019,7 @@ GT3_getBuiltinDimWeight(const char *name)
 
 
 /*
- *  get weights of a specifed axis (by name).
+ * get weights of a specifed axis (by name).
  */
 double *
 GT3_getDimWeight(const char *name)
@@ -1032,7 +1032,7 @@ GT3_getDimWeight(const char *name)
 
 
 /*
- *  write GTAXLOC.* file into a file-stream.
+ * write GTAXLOC.* file into a file-stream.
  */
 int
 GT3_writeDimFile(FILE *fp, const GT3_Dim *dim, const char *fmt)
@@ -1065,7 +1065,7 @@ GT3_writeDimFile(FILE *fp, const GT3_Dim *dim, const char *fmt)
 
 
 /*
- *  write GTAXWGT.* file into a file-stream.
+ * write GTAXWGT.* file into a file-stream.
  */
 int
 GT3_writeWeightFile(FILE *fp, const GT3_Dim *dim, const char *fmt)

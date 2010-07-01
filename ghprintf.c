@@ -1,5 +1,5 @@
 /*
- *  ghprintf.c - printf-like function with GT3HEADER.
+ * ghprintf.c - printf-like function with GT3HEADER.
  */
 #include <assert.h>
 #include <ctype.h>
@@ -32,7 +32,7 @@ static GT3_Duration date_shift = { -1, GT3_UNIT_SEC };
 
 
 /*
- *  copy a format element into fmt->fmt
+ * copy a format element into fmt->fmt
  */
 static int
 get_format_element(format_element *fmt, const char *input, char **endptr)
@@ -212,7 +212,7 @@ gh_snprintf(char *str, size_t size, const char *format,
 
 
 /*
- *  turn on/off "-1sec shift".
+ * turn on/off "-1sec shift".
  */
 void
 ghprintf_shift(int onoff)

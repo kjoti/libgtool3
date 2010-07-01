@@ -1,5 +1,5 @@
 /*
- *  file.c -- support GTOOL3-formatted file.
+ * file.c -- support GTOOL3-formatted file.
  */
 #include "internal.h"
 
@@ -40,7 +40,7 @@ get_dimsize(int dim[], const GT3_HEADER *hh)
 
 
 /*
- *  chunk size of UR4(size==4) or UR8(size==8).
+ * chunk size of UR4(size==4) or UR8(size==8).
  */
 static size_t
 chunk_size_std(size_t nelem, size_t size)
@@ -52,7 +52,7 @@ chunk_size_std(size_t nelem, size_t size)
 
 
 /*
- *  chunk size of URC or URC2.
+ * chunk size of URC or URC2.
  */
 static size_t
 chunk_size_urc(size_t nelem, int nz)
@@ -63,7 +63,7 @@ chunk_size_urc(size_t nelem, int nz)
 
 
 /*
- *  chunk size of URX.
+ * chunk size of URX.
  */
 static size_t
 chunk_size_urx(size_t nelem, int nz, int nbit)
@@ -76,10 +76,10 @@ chunk_size_urx(size_t nelem, int nz, int nbit)
 
 
 /*
- *  chunk size of MR4 or MR8.
+ * chunk size of MR4 or MR8.
  *
- *  FIXME: It is assumed that the current file position is next to
- *  GTOOL3 header record.
+ * FIXME: It is assumed that the current file position is next to
+ * GTOOL3 header record.
  */
 static size_t
 chunk_size_mask(size_t nelem, size_t size, GT3_File *fp)
@@ -98,10 +98,10 @@ chunk_size_mask(size_t nelem, size_t size, GT3_File *fp)
 
 
 /*
- *  chunk size of MRX.
+ * chunk size of MRX.
  *
- *  FIXME: It is assumed that the current file position is next to
- *  GTOOL3 header record.
+ * FIXME: It is assumed that the current file position is next to
+ * GTOOL3 header record.
  */
 static size_t
 chunk_size_maskx(size_t nelem, int nz, int nbit, GT3_File *fp)
@@ -124,8 +124,8 @@ chunk_size_maskx(size_t nelem, int nz, int nbit, GT3_File *fp)
 
 
 /*
- *  chunk_size() returns a current chunk-size.
- *  The chunk comprises the gtool3-header and the data-body.
+ * chunk_size() returns a current chunk-size.
+ * The chunk comprises the gtool3-header and the data-body.
  */
 static size_t
 chunk_size(GT3_File *fp)
@@ -183,8 +183,9 @@ chunk_size(GT3_File *fp)
     return siz;
 }
 
+
 /*
- *  Updates GT3_File with a header (when going into a new chunk).
+ * Updates GT3_File with a header (when going into a new chunk).
  */
 static int
 update(GT3_File *fp, const GT3_HEADER *headp)
@@ -211,7 +212,7 @@ update(GT3_File *fp, const GT3_HEADER *headp)
     }
 
     /*
-     *  updates GT3_File member.
+     * updates GT3_File member.
      */
     fp->fmt = fmt;
     fp->dimlen[0] = dim[0];
@@ -263,7 +264,7 @@ read_header(GT3_HEADER *header, FILE *fp)
 
 
 /*
- *  offset of each z-slice indexed 'zpos'.
+ * offset of each z-slice indexed 'zpos'.
  */
 static off_t
 zslice_offset(GT3_File *fp, int zpos)
@@ -499,9 +500,9 @@ GT3_openRW(const char *path)
 
 
 /*
- *  GT3_openHistFile() opens a gtool3 file as a history-file
- *  with simplified check.
- *  If the file is not a history-file, this operation fails.
+ * GT3_openHistFile() opens a gtool3 file as a history-file
+ * with simplified check.
+ * If the file is not a history-file, this operation fails.
  */
 GT3_File *
 GT3_openHistFile(const char *path)
@@ -512,9 +513,8 @@ GT3_openHistFile(const char *path)
         return NULL;
 
     /*
-     *  check if this is a uniform-file, whose all chunks
-     *  are in the same size.
-     *
+     * check if this is a uniform-file, whose all chunks
+     * are in the same size.
      */
     if (gp->size % gp->chsize == 0) {
         gp->mode |= GT3_CONST_CHUNK_SIZE;
@@ -558,7 +558,7 @@ GT3_next(GT3_File *fp)
     }
 
     /*
-     *  update GT3_File and verify next chunk.
+     * update GT3_File and verify next chunk.
      */
     broken = 0;
     if (nextoff < fp->size) { /* not EOF yet */
@@ -574,7 +574,7 @@ GT3_next(GT3_File *fp)
     }
 
     /*
-     *  if next chunk is broken, back to previous chunk.
+     * If next chunk is broken, back to previous chunk.
      */
     if (broken) {
         GT3_seek(fp, 0, SEEK_CUR);
@@ -634,7 +634,7 @@ GT3_seek(GT3_File *fp, int dest, int whence)
     int num;
 
     /*
-     *  chunk number of dest
+     * chunk number of dest
      */
     switch (whence) {
     case SEEK_SET:
@@ -658,9 +658,9 @@ GT3_seek(GT3_File *fp, int dest, int whence)
     }
 
     /*
-     *  check range.
-     *  If this file is not a history-file and 'num_chunk' is
-     *  still unknown, we cannot detect the over-running.
+     * Check range.
+     * If this file is not a history-file and 'num_chunk' is
+     * still unknown, we cannot detect the over-running.
      */
     if (dest < 0 || (fp->num_chunk != CHNUM_UNKNOWN && dest > fp->num_chunk)) {
         gt3_error(GT3_ERR_INDEX, "GT3_seek() %d", dest);

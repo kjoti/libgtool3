@@ -1,5 +1,5 @@
 /*
- *  caltime.h
+ * caltime.h
  */
 #ifndef CALTIME__H
 #define CALTIME__H
@@ -19,7 +19,7 @@ struct caltime {
 typedef struct caltime caltime;
 
 /*
- *  calendar type
+ * calendar type
  */
 enum {
     CALTIME_GREGORIAN,  /* proleptic_gregorian */
@@ -31,14 +31,14 @@ enum {
 };
 
 /*
- *  init & set
+ * init & set
  */
 int ct_init_caltime(caltime *date, int type, int yr, int mo, int dy);
 int ct_set_date(caltime *date, int yr, int mo, int dy);
 int ct_set_time(caltime *date, int hour, int min, int sec);
 
 /*
- *  operators (+)
+ * operators (+)
  */
 caltime* ct_add_years(caltime *date, int year);
 caltime* ct_add_months(caltime *date, int month);
@@ -48,7 +48,7 @@ caltime* ct_add_minutes(caltime *date, int min);
 caltime* ct_add_seconds(caltime *date, int sec);
 
 /*
- *  operators (==, <, >)
+ * operators (==, <, >)
  */
 int ct_cmp(const caltime *date1, const caltime *date2);
 int ct_cmpto(const caltime *date, int, int, int, int, int, int);
@@ -56,14 +56,14 @@ int ct_eqdate(const caltime *date, int yr, int mo, int day);
 int ct_equal(const caltime *date1, const caltime *date2);
 
 /*
- *  difference
+ * difference
  */
 int ct_diff_days(const caltime *date2, const caltime *date1);
 double ct_diff_daysd(const caltime *date2, const caltime *date1);
 double ct_diff_seconds(const caltime *date2, const caltime *date1);
 
 /*
- *  utils
+ * utils
  */
 int ct_verify_date(int type, int yr, int mo, int dy);
 int ct_day_of_year(const caltime *date);

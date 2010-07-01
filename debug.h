@@ -1,5 +1,5 @@
 /*
- *  debug.h -- macros for debug print
+ * debug.h -- macros for debug print
  */
 
 #ifndef DEBUG__H

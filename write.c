@@ -1,5 +1,5 @@
 /*
- *  write.c  -- writing data in GT3_Var.
+ * write.c  -- writing data in GT3_Var.
  */
 #include "internal.h"
 
@@ -133,7 +133,7 @@ write_urc_zslice(const float *data, int len, double miss,
     calc_urc_param(data, len, miss, &rmin, &fac_e, &fac_d, &ne, &nd);
 
     /*
-     *  three packing parameters (REF, ND, and NE)
+     * three packing parameters (REF, ND, and NE)
      */
     ref = rmin * fac_d;
     memcpy(parambuf,       siz8, 4); /* REF head */
@@ -167,14 +167,14 @@ write_urc_zslice(const float *data, int len, double miss,
     }
 
     /*
-     *  data body
+     * data body
      */
     maxelem = sizeof packed / 2;
     while (len > 0) {
         len_pack = (len > maxelem) ? maxelem : len;
 
         /*
-         *  2-byte packing
+         * 2-byte packing
          */
         packing(packed, data, len_pack, miss, rmin, fac_e, fac_d);
 
@@ -240,7 +240,7 @@ write_urc_via_double(const double *input, int len, int nz, double miss,
 
 
 /*
- *  GT3_output_format() gives actual output format from user-specified name.
+ * GT3_output_format() gives actual output format from user-specified name.
  */
 int
 GT3_output_format(char *dfmt, const char *str)
@@ -251,7 +251,7 @@ GT3_output_format(char *dfmt, const char *str)
         fmt = GT3_FMT_URC1;     /* deprecated format */
     else if (strcmp(str, "URC") == 0)
         /*
-         *  "URC" specified by user is treated as "URC2".
+         * "URC" specified by user is treated as "URC2".
          */
         fmt = GT3_FMT_URC;
     else
@@ -266,7 +266,7 @@ GT3_output_format(char *dfmt, const char *str)
 
 
 /*
- *  GT3_write() writes data into a stream.
+ * GT3_write() writes data into a stream.
  *
  *  ptr:    a pointer to data.
  *  type:   element type (GT3_TYPE_FLOAT or GT3_TYPE_DOUBLE)
@@ -324,15 +324,15 @@ GT3_write(const void *ptr, int type,
         }
 
     /*
-     *  copy the gtool3-header and modify it.
+     * copy the gtool3-header and modify it.
      */
     GT3_copyHeader(&head, headin);
     GT3_setHeaderString(&head, "DFMT", fmtstr);
     GT3_setHeaderInt(&head, "SIZE", nx * ny * nz);
 
     /*
-     *  set "AEND1", "AEND2", and "AEND3".
-     *  "ASTR[1-3]" is determined by 'headin'.
+     * set "AEND1", "AEND2", and "AEND3".
+     * "ASTR[1-3]" is determined by 'headin'.
      */
     dim[0] = nx;
     dim[1] = ny;
@@ -347,13 +347,13 @@ GT3_write(const void *ptr, int type,
     }
 
     /*
-     *  write gtool header.
+     * write gtool header.
      */
     if (write_bytes_into_record(&head.h, GT3_HEADER_SIZE, fp) < 0)
         return -1;
 
     /*
-     *  write data-body.
+     * write data-body.
      */
     asize = nx * ny * nz;
     zsize = nx * ny;

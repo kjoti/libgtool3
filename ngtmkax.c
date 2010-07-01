@@ -1,5 +1,5 @@
 /*
- *  ngtmkax.c -- make builtin-axis files.
+ * ngtmkax.c -- make builtin-axis files.
  */
 #include "internal.h"
 
@@ -34,7 +34,7 @@ make_axisfile(const char *name, const char *outdir, const char *fmt)
     }
 
     /*
-     *  write GTAXLOC.*
+     * write GTAXLOC.*
      */
     snprintf(path, sizeof path, "%s/GTAXLOC.%s", outdir, name);
     if ((fp = fopen(path, "wb")) == NULL) {
@@ -49,7 +49,7 @@ make_axisfile(const char *name, const char *outdir, const char *fmt)
     fclose(fp);
 
     /*
-     *  write GTAXWGT.*
+     * write GTAXWGT.*
      */
     snprintf(path, sizeof path, "%s/GTAXWGT.%s", outdir, name);
     if ((fp = fopen(path, "wb")) == NULL) {

@@ -1,5 +1,5 @@
 /*
- *  write-ury.c  -- writing data in URY/MRY.
+ * write-ury.c  -- writing data in URY/MRY.
  */
 #include "internal.h"
 
@@ -105,7 +105,7 @@ write_ury(const void *ptr,
         goto error;
 
     /*
-     *  determine scaling parameters (auto-scaling)
+     * determine scaling parameters (auto-scaling)
      */
     if (size == 4) {
         const float *data = ptr;
@@ -124,7 +124,7 @@ write_ury(const void *ptr,
     }
 
     /*
-     *  write scaling parameters
+     * write scaling parameters
      */
     if (write_dwords_into_record(dma, 2 * nz, fp) < 0)
         goto error;
@@ -133,13 +133,13 @@ write_ury(const void *ptr,
     packed_len = pack32_len(zelem, nbits);
 
     /*
-     *  write a header of data-body.
+     * write a header of data-body.
      */
     if (write_record_sep(4 * packed_len * nz, fp) < 0)
         goto error;
 
     /*
-     *  write data-body (packed)
+     * write data-body (packed)
      */
     for (i = 0; i < nz; i++) {
         ptr2 = (const char *)ptr + i *zelem * size;
@@ -265,7 +265,7 @@ write_mry(const void *ptr2,
     imiss = (1U << nbits) - 1;
 
     /*
-     *  write packed array.
+     * write packed array.
      */
     if (write_record_sep(4 * plen_all, fp) < 0)
         goto error;

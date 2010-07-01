@@ -1,5 +1,5 @@
 /*
- *  talloc.c
+ * talloc.c
  */
 #include "talloc.h"
 
@@ -7,25 +7,23 @@
 /*
  * usage:
  *
- *  int
- *  foo(int len, ...)
- *  {
- *      int buf[16];
- *      int *bufp;
+ * int
+ * foo(int len, ...)
+ * {
+ *     int buf[16];
+ *     int *bufp;
  *
- *      bufp = (int *)tiny_alloc(buf, sizeof buf, sizeof(int) * len);
- *      if (bufp == NULL) {
- *          perrro(NULL);
+ *     bufp = (int *)tiny_alloc(buf, sizeof buf, sizeof(int) * len);
+ *     if (bufp == NULL) {
+ *         perrro(NULL);
  *
- *      }
- *      do_something(bufp);
+ *     }
+ *     do_something(bufp);
  *
- *      tiny_free(bufp, buf);
- *      return ...;
- *  }
+ *     tiny_free(bufp, buf);
+ *     return ...;
+ * }
  */
-
-
 void *
 tiny_alloc(void *tiny, size_t tiny_size, size_t size)
 {

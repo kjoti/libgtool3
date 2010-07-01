@@ -1,5 +1,5 @@
 /*
- *  vcat.c -- virtually concatenated file.
+ * vcat.c -- virtually concatenated file.
  */
 #include "internal.h"
 
@@ -65,8 +65,8 @@ find_range(int value, const int *bnd, size_t nrange)
 
 
 /*
- *  select_file() pickup an appropriate file from files in GT3_VCatFile,
- *  and seek to an appropriate position(chunk) in the file.
+ * select_file() pickup an appropriate file from files in GT3_VCatFile,
+ * and seek to an appropriate position(chunk) in the file.
  */
 static GT3_File *
 select_file(GT3_VCatFile *vf, int tpos)
@@ -106,7 +106,7 @@ select_file(GT3_VCatFile *vf, int tpos)
 
 
 /*
- *  create new GT3_VCatFile type.
+ * create new GT3_VCatFile type.
  */
 GT3_VCatFile *
 GT3_newVCatFile(void)

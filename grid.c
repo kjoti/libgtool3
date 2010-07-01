@@ -1,5 +1,5 @@
 /*
- *  grid.c
+ * grid.c
  */
 #include "internal.h"
 

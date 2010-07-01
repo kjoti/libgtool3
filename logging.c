@@ -1,5 +1,5 @@
 /*
- *  logging.c
+ * logging.c
  */
 #include <errno.h>
 #include <string.h>

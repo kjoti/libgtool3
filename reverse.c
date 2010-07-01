@@ -1,11 +1,11 @@
 /*
- *  reverse.c -- reversing byte-order.
+ * reverse.c -- reversing byte-order.
  */
 #include "internal.h"
 
 
 /*
- *  reverse_words() reverses the byte-order of words (32-bit).
+ * reverse_words() reverses the byte-order of words (32-bit).
  */
 void *
 reverse_words(void *vptr, int nwords)
@@ -24,7 +24,7 @@ reverse_words(void *vptr, int nwords)
 
 
 /*
- *  reverse_dwords() reverses the byte-order of double words (64-bit).
+ * reverse_dwords() reverses the byte-order of double words (64-bit).
  */
 void *
 reverse_dwords(void *vptr, int nwords)

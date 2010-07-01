@@ -1,5 +1,5 @@
 /*
- *  header.c
+ * header.c
  */
 #include "internal.h"
 
@@ -21,7 +21,7 @@
 #endif
 
 /*
- *  Gtool3 header items.
+ * Gtool3 header items.
  */
 #define G_(X) X
 enum {
@@ -51,7 +51,7 @@ enum {
 };
 
 /*
- *  Dictionary of elements in the gtool-header.
+ * Dictionary of elements in the gtool-header.
  */
 struct ElemDict {
     const char *name;
@@ -67,7 +67,7 @@ struct ElemDict {
 #define cpMISS  "  -9.9900000E+02"
 #define DATE_FORMAT "%0*d%02d%02d %02d%02d%02d "
 
-/*  XXX This MUST be sorted by its name. */
+/* XXX This MUST be sorted by its name. */
 static struct ElemDict elemdict[] = {
     { "AEND1",  30, IT_INT,   NULL               },
     { "AEND2",  33, IT_INT,   NULL               },
@@ -492,7 +492,7 @@ GT3_mergeHeader(GT3_HEADER *dest, const GT3_HEADER *src)
 
     for (id = 0; id < NUM_ELEM; id++) {
         /*
-         *  special treatment for "TITLE".
+         * special treatment for "TITLE".
          */
         if (id == TITL1 + 1)
             continue;

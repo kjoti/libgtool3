@@ -1,5 +1,5 @@
 /*
- *  scaling.c
+ * scaling.c
  */
 #include <sys/types.h>
 
@@ -148,7 +148,7 @@ step_size(double minv, double maxv, unsigned num)
 
 
 /*
- *  offset & scale.
+ * offset & scale.
  */
 void
 scaling_parameters(double *dma, double dmin, double dmax, int num)
@@ -181,7 +181,7 @@ scaling_parameters(double *dma, double dmin, double dmax, int num)
 #if 0
     {
         /*
-         *  XXX: To pass test3() in certain environments.
+         * XXX: To pass test3() in certain environments.
          */
         float dx;
 

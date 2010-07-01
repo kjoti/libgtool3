@@ -1,5 +1,5 @@
 /*
- *  ngthead.c -- display a header info
+ * ngthead.c -- display a header info
  */
 #include "internal.h"
 

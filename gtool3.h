@@ -1,5 +1,5 @@
 /*
- *  gtool3.h -- a header file for libgtool3
+ * gtool3.h -- a header file for libgtool3
  */
 #ifndef GTOOL3__H
 #define GTOOL3__H
@@ -19,7 +19,7 @@ extern "C" {
 #endif
 
 /*
- *  GTOOL3 header type
+ * GTOOL3 header type
  */
 #define GT3_HEADER_SIZE 1024
 typedef struct {
@@ -28,8 +28,7 @@ typedef struct {
 
 
 /*
- *  GTOOL3 format types
- *
+ * GTOOL3 format types
  */
 #define GT3_FMT_MBIT 8U
 #define GT3_FMT_MASK ((1U << GT3_FMT_MBIT) - 1U)
@@ -61,7 +60,7 @@ enum {
 };
 
 /*
- *  Error codes in libgtool3
+ * Error codes in libgtool3
  */
 enum {
     GT3_ERR_NONE = 0,           /* no error */
@@ -97,7 +96,7 @@ typedef struct GT3_DimBound GT3_DimBound;
 
 
 /*
- *  Mask for MR4, MR8, and MRX.
+ * Mask for MR4, MR8, and MRX.
  */
 struct GT3_Datamask {
     size_t nelem;               /* # of elements (current) */
@@ -112,7 +111,7 @@ struct GT3_Datamask {
 typedef struct GT3_Datamask GT3_Datamask;
 
 /*
- *  Gtool-formatted file.
+ * Gtool-formatted file.
  */
 struct GT3_File {
     char *path;                 /* pathname */
@@ -140,7 +139,7 @@ typedef struct GT3_File GT3_File;
 
 
 /*
- *  Buffer to read data from GT3_File.
+ * Buffer to read data from GT3_File.
  */
 struct GT3_Varbuf {
     GT3_File *fp;               /* associated gtool3 file */
@@ -156,7 +155,7 @@ struct GT3_Varbuf {
 typedef struct GT3_Varbuf GT3_Varbuf;
 
 /*
- *  for Date(Time), TimeDuration...
+ * for Date(Time), TimeDuration...
  */
 struct GT3_Date {
     /* This struct contains no calendar type. */
@@ -174,7 +173,7 @@ struct GT3_Duration {
 typedef struct GT3_Duration GT3_Duration;
 
 /*
- *  Virtually concatenated file.
+ * Virtually concatenated file.
  */
 struct GT3_VCatFile {
     int num_files;              /* N: the number of files */
@@ -209,7 +208,7 @@ enum {
 };
 
 /*
- *  prototype declarations
+ * prototype declarations
  */
 /* file.c */
 int GT3_readHeader(GT3_HEADER *header, GT3_File *fp);

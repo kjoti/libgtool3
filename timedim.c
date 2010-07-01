@@ -1,5 +1,5 @@
 /*
- *  timedim.c -- for GT3_Date type
+ * timedim.c -- for GT3_Date type
  */
 #include "internal.h"
 
@@ -15,7 +15,7 @@
 
 
 /*
- *  convert data-type from 'GT3_Date' to 'caltime'.
+ * convert data-type from 'GT3_Date' to 'caltime'.
  */
 static int
 conv_date_to_ct(struct caltime *p, const GT3_Date *date, int ctype)
@@ -233,8 +233,8 @@ guess_calendar(double sec, const GT3_Date *date)
     };
 
     /*
-     *  At first time, we assume that the original date is
-     *  1st Jan, B.C.1 (0-1-1 00:00:00).
+     * At first time, we assume that the original date is
+     * 1st Jan, B.C.1 (0-1-1 00:00:00).
      */
     for (i = 0; i < sizeof ctab / sizeof ctab[0]; i++) {
         ct_init_caltime(&orig, ctab[i], 0, 1, 1);
@@ -254,7 +254,7 @@ guess_calendar(double sec, const GT3_Date *date)
     }
 
     /*
-     *  compute the origin reversely.
+     * compute the origin reversely.
      */
     if (ct == CALTIME_DUMMY) {
         int ndays, nsec;
@@ -282,8 +282,8 @@ guess_calendar(double sec, const GT3_Date *date)
 
 
 /*
- *  GT3_guessCalendarHeader() guess a calendar from a header
- *  and return a calendar type (GT3_CAL_XXX).
+ * GT3_guessCalendarHeader() guess a calendar from a header
+ * and return a calendar type (GT3_CAL_XXX).
  */
 int
 GT3_guessCalendarHeader(const GT3_HEADER *head)
@@ -321,7 +321,7 @@ GT3_guessCalendarHeader(const GT3_HEADER *head)
 
 
 /*
- *  GT3_guessCalendarFile() returns a calendar type (GT3_CAL_XXX),
+ * GT3_guessCalendarFile() returns a calendar type (GT3_CAL_XXX),
  */
 int
 GT3_guessCalendarFile(const char *path)
@@ -347,7 +347,7 @@ GT3_guessCalendarFile(const char *path)
 
 
 /*
- *  calculate time-duration between 'date1' and 'date2'.
+ * calculate time-duration between 'date1' and 'date2'.
  */
 int
 GT3_calcDuration(GT3_Duration *dur,
@@ -390,7 +390,7 @@ GT3_calcDuration(GT3_Duration *dur,
 
     if (flag & 5U) {
         /*
-         *  we need a calendar to compute the duration.
+         * we need a calendar to compute the duration.
          */
         struct caltime ctdate1, ctdate2;
 
@@ -424,10 +424,10 @@ GT3_calcDuration(GT3_Duration *dur,
 
 
 /*
- *  get time duration between "DATE1" and "DATE2".
+ * get time duration between "DATE1" and "DATE2".
  *
- *  XXX: use "DATE1" and "DATE2" instead of "TDUR",
- *  which is inaccurate in some case.
+ * XXX: use "DATE1" and "DATE2" instead of "TDUR",
+ * which is inaccurate in some case.
  */
 int
 GT3_getDuration(GT3_Duration *dur, GT3_File *fp, int calendar)
@@ -456,7 +456,7 @@ GT3_getDuration(GT3_Duration *dur, GT3_File *fp, int calendar)
 
     if (calendar == GT3_CAL_DUMMY && (flag & 5U)) {
         /*
-         *  Guess calendar-type from "TIME" and "DATE".
+         * Guess calendar-type from "TIME" and "DATE".
          */
         calendar = GT3_guessCalendarHeader(&head);
         if (calendar < 0 || calendar == GT3_CAL_DUMMY)
@@ -468,9 +468,9 @@ GT3_getDuration(GT3_Duration *dur, GT3_File *fp, int calendar)
 
 
 /*
- *  Check GT3_Date
+ * Check GT3_Date
  *
- *  Return value:
+ * Return value:
  *     0: valid date
  *    -1: invalid date
  */
@@ -534,7 +534,7 @@ main(int argc, char **argv)
     }
 
     /*
-     *  test of GT3_midDate().
+     * test of GT3_midDate().
      */
     {
         GT3_Date date1, date2, date;
@@ -560,7 +560,7 @@ main(int argc, char **argv)
     }
 
     /*
-     *  test of GT3_midDate() (part 2)
+     * test of GT3_midDate() (part 2)
      */
     {
         GT3_Date date1, date2, date;
@@ -579,7 +579,7 @@ main(int argc, char **argv)
     }
 
     /*
-     *  test of GT3_getTime()
+     * test of GT3_getTime()
      */
     {
         GT3_Date date, origin;
@@ -597,7 +597,7 @@ main(int argc, char **argv)
     }
 
     /*
-     *  test of GT3_calcDuration()
+     * test of GT3_calcDuration()
      */
     {
         GT3_Date date1, date2;
@@ -677,7 +677,7 @@ main(int argc, char **argv)
     }
 
     /*
-     *  test of GT3_addDuration()
+     * test of GT3_addDuration()
      */
     {
         GT3_Date date;
@@ -713,7 +713,7 @@ main(int argc, char **argv)
     }
 
     /*
-     *  test of GT3_checkDate().
+     * test of GT3_checkDate().
      */
     {
         GT3_Date date;

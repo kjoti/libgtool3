@@ -1,5 +1,5 @@
 /*
- *  gauss-legendre.c -- Gaussian Quadratures
+ * gauss-legendre.c -- Gaussian Quadratures
  */
 #include <math.h>
 
@@ -52,12 +52,12 @@ gauss_legendre(double sol[], double wght[], int nth)
 
 
 /*
- *  P_n(x): n-th Legendre polynomial function.
+ * P_n(x): n-th Legendre polynomial function.
  *
- *  P_n(x) = 2 x P_{n-1}(x) - P_{n-2}(x) - (x P_{n-1}(x) - P_{n-2}(x)) / n
+ * P_n(x) = 2 x P_{n-1}(x) - P_{n-2}(x) - (x P_{n-1}(x) - P_{n-2}(x)) / n
  *
- *  x   range: -1 <= x <= 1
- *  nth range: 0, 1, 2, ...
+ * x   range: -1 <= x <= 1
+ * nth range: 0, 1, 2, ...
  */
 double
 legendre_poly(double x, int nth)

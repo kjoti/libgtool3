@@ -75,7 +75,7 @@ NAME(void *ptr, const GT3_Varbuf *var, const struct range *range) \
 
 
 /*
- *   for float
+ * for float
  */
 FUNCTMPL_PACK(float, pack_float)
 FUNCTMPL_MINVAL(double, float, minvalf)
@@ -84,7 +84,7 @@ FUNCTMPL_AVR(double, float, averagef)
 FUNCTMPL_SDEVIATION(double, float, std_deviationf)
 
 /*
- *  for double
+ * for double
  */
 FUNCTMPL_PACK(double, pack_double)
 FUNCTMPL_MINVAL(double, double, minval)
@@ -105,7 +105,7 @@ print_caption(const char *name)
 
 
 /*
- *  sumup statistical data in z-planes.
+ * sumup statistical data in z-planes.
  */
 static void
 sumup_stat(struct statics *stat, const struct statics sz[], int len)
@@ -269,7 +269,7 @@ ngtstat_var(GT3_Varbuf *varbuf)
         }
 
         /*
-         *  (re)allocate work buffer.
+         * (re)allocate work buffer.
          */
         if (varbuf->bufsize > worksize) {
             free(work);

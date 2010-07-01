@@ -1,6 +1,6 @@
 # -*- Makefile -*-
 #
-#  Makefile for FreeBSD/i386
+# Makefile for FreeBSD/i386
 #
 .SUFFIXES:
 .SUFFIXES: .c .o .So

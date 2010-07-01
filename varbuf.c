@@ -1,5 +1,5 @@
 /*
- *  varbuf.c -- Buffer to read data from GT3_File.
+ * varbuf.c -- Buffer to read data from GT3_File.
  */
 #include "internal.h"
 
@@ -18,8 +18,8 @@
 #define RESERVE_SIZE (640*320)
 
 /*
- *  status staff for GT3_Varbuf.
- *  This is not accessible from clients.
+ * status staff for GT3_Varbuf.
+ * This is not accessible from clients.
  */
 struct varbuf_status {
     GT3_HEADER head;
@@ -117,7 +117,7 @@ read_UR8(GT3_Varbuf *var, int zpos, size_t skip, size_t nelem, FILE *fp)
 
 
 /*
- *  common to MR4 and MR8.
+ * common to MR4 and MR8.
  */
 static int
 read_MRN_pre(void *temp,
@@ -135,7 +135,7 @@ read_MRN_pre(void *temp,
         return -1;
 
     /*
-     *  load mask data.
+     * load mask data.
      */
     if (GT3_loadMask(mask, var->fp) != 0)
         return -1;
@@ -143,7 +143,7 @@ read_MRN_pre(void *temp,
     GT3_updateMaskIndex(mask);
 
     /*
-     *  seek to the begging of the data-body.
+     * seek to the begging of the data-body.
      */
     idx0 = zpos * var->dimlen[0] * var->dimlen[1] + skip;
     off = var->fp->off + 6 * sizeof(fort_size_t)
@@ -157,7 +157,7 @@ read_MRN_pre(void *temp,
         return -1;
 
     /*
-     *  nread: the # of MASK-ON elements to read.
+     * nread: the # of MASK-ON elements to read.
      */
     nread = mask->index[idx0 + nelem] - mask->index[idx0];
     assert(nread <= nelem);
@@ -285,7 +285,7 @@ update_varbuf(GT3_Varbuf *vbuf, GT3_File *fp)
     }
 
     /*
-     *  set missing value.
+     * set missing value.
      */
     if (GT3_decodeHeaderDouble(&missd, &head, "MISS") < 0) {
         gt3_error(GT3_ERR_HEADER, "MISS");
@@ -300,7 +300,7 @@ update_varbuf(GT3_Varbuf *vbuf, GT3_File *fp)
     newsize = elsize * ((dim[0] * dim[1] + 1) & ~1U);
     if (newsize > vbuf->bufsize) {
         /*
-         *  reallocation of data buffer.
+         * reallocation of data buffer.
          */
         if ((data = realloc(vbuf->data, newsize)) == NULL) {
             gt3_error(SYSERR, NULL);
@@ -320,7 +320,7 @@ update_varbuf(GT3_Varbuf *vbuf, GT3_File *fp)
         status = (varbuf_status *)vbuf->stat_;
 
     /*
-     *  clear 'status'.
+     * clear 'status'.
      */
     if (resize_bits_set(&status->y, dim[1] + 1) < 0) {
         gt3_error(SYSERR, NULL);
@@ -332,7 +332,7 @@ update_varbuf(GT3_Varbuf *vbuf, GT3_File *fp)
     status->z  = -1;
 
     /*
-     *  all checks passed.
+     * all checks passed.
      */
     vbuf->fp   = fp;
     vbuf->type = type;
@@ -405,7 +405,7 @@ GT3_freeVarbuf(GT3_Varbuf *var)
 
 
 /*
- *  Use GT3_reattachVarbuf() if possible.
+ * Use GT3_reattachVarbuf() if possible.
  */
 GT3_Varbuf *
 GT3_getVarbuf2(GT3_Varbuf *old, GT3_File *fp)
@@ -450,7 +450,7 @@ GT3_readVarZ(GT3_Varbuf *var, int zpos)
     }
 
     /*
-     *  check if cached.
+     * check if cached.
      */
     if (stat->ch == var->fp->curr
         && stat->z == zpos
@@ -501,7 +501,7 @@ GT3_readVarZY(GT3_Varbuf *var, int zpos, int ypos)
     }
 
     /*
-     *  In some format, use GT3_readVarZ().
+     * In some format, use GT3_readVarZ().
      */
     fmt = (int)(var->fp->fmt & GT3_FMT_MASK);
     for (i = 0; i < sizeof supported / sizeof(int); i++)
@@ -511,13 +511,13 @@ GT3_readVarZY(GT3_Varbuf *var, int zpos, int ypos)
         return GT3_readVarZ(var, zpos);
 
     /*
-     *  for small buffer-size.
+     * for small buffer-size.
      */
     if (var->dimlen[0] * var->dimlen[1] < 1024)
         return GT3_readVarZ(var, zpos);
 
     /*
-     *  check if cached.
+     * check if cached.
      */
     if (stat->ch == var->fp->curr
         && stat->z  == zpos
@@ -537,7 +537,7 @@ GT3_readVarZY(GT3_Varbuf *var, int zpos, int ypos)
     }
 
     /*
-     *  set flags
+     * set flags
      */
     if (stat->z != zpos || stat->ch != var->fp->curr) {
         BS_CLSALL(stat->y);
@@ -577,19 +577,19 @@ GT3_readVar(double *rval, GT3_Varbuf *var, int x, int y, int z)
 
 
 /*
- *  NOTE
- *  GT3_{copy,get}XXX() functions do not update GT3_Varbuf.
+ * NOTE
+ * GT3_{copy,get}XXX() functions do not update GT3_Varbuf.
  */
 
 /*
- *  GT3_copyVarDouble() copies data stored in GT3_Varbuf into 'buf'.
+ * GT3_copyVarDouble() copies data stored in GT3_Varbuf into 'buf'.
  *
- *  This function does not guarantee that GT3_Varbuf is filled.
- *  Users are responsible for calling GT3_readZ() to read data.
+ * This function does not guarantee that GT3_Varbuf is filled.
+ * Users are responsible for calling GT3_readZ() to read data.
  *
- *  return value: The number of copied elements.
+ * return value: The number of copied elements.
  *
- *  example:
+ * example:
  *   GT3_copyVarDouble(buf, buflen, var, 0, 1);
  *   -> all z-slice data are copied.
  *
@@ -646,8 +646,8 @@ GT3_copyVarDouble(double *buf, size_t buflen,
 
 
 /*
- *  copy data stored in GT3_Varbuf into the float buffer.
- *  See also GT3_copyVarDouble().
+ * Copy data stored in GT3_Varbuf into the float buffer.
+ * See also GT3_copyVarDouble().
  */
 int
 GT3_copyVarFloat(float *buf, size_t buflen,
@@ -726,7 +726,7 @@ GT3_getVarAttrDouble(double *attr, const GT3_Varbuf *var, const char *key)
 
 
 /*
- *  replace an associated file in Varbuf.
+ * Replace an associated file in Varbuf.
  */
 int
 GT3_reattachVarbuf(GT3_Varbuf *var, GT3_File *fp)

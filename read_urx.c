@@ -1,5 +1,5 @@
 /*
- *  read_urx.c -- read URX & MRX.
+ * read_urx.c -- read URX & MRX.
  */
 #include "internal.h"
 
@@ -19,7 +19,7 @@
 #define RESERVE_NZ   256
 
 /*
- *  read packed data in URX-format and decode them.
+ * read packed data in URX-format and decode them.
  */
 static int
 read_urx_packed(double *outp,
@@ -82,8 +82,8 @@ read_urx_packed(double *outp,
 
 
 /*
- *  XXX: 'skip' and 'nelem' are ignored for now.
- *  read_URX() reads all data in a z-plane.
+ * XXX: 'skip' and 'nelem' are ignored for now.
+ * read_URX() reads all data in a z-plane.
  */
 int
 read_URX(GT3_Varbuf *var, int zpos, size_t skip, size_t nelem, FILE *fp)
@@ -101,7 +101,7 @@ read_URX(GT3_Varbuf *var, int zpos, size_t skip, size_t nelem, FILE *fp)
     nbits = (unsigned)var->fp->fmt >> GT3_FMT_MBIT;
 
     /*
-     *  read packing parameters for URX.
+     * read packing parameters for URX.
      */
     off = var->fp->off + GT3_HEADER_SIZE + 2 * sizeof(fort_size_t);
     if (fseeko(fp, off, SEEK_SET) < 0)
@@ -110,14 +110,14 @@ read_URX(GT3_Varbuf *var, int zpos, size_t skip, size_t nelem, FILE *fp)
         return -1;
 
     /*
-     *  skip to zpos.
+     * skip to zpos.
      */
     off = sizeof(fort_size_t) + 4 * zpos * pack32_len(zelems, nbits);
     if (fseeko(fp, off, SEEK_CUR) < 0)
         return -1;
 
     /*
-     *  read packed DATA-BODY in zpos.
+     * read packed DATA-BODY in zpos.
      */
     if (read_urx_packed(var->data, zelems, nbits, dma, var->miss, fp) < 0)
         return -1;
@@ -142,7 +142,7 @@ read_MRX(GT3_Varbuf *var, int zpos, size_t skip, size_t nelem, FILE *fp)
     double *data = data_buf;
 
     /*
-     *  read MASK.
+     * read MASK.
      */
     mask = var->fp->mask;
     if (!mask && (mask = GT3_newMask()) == NULL)
@@ -183,7 +183,7 @@ read_MRX(GT3_Varbuf *var, int zpos, size_t skip, size_t nelem, FILE *fp)
     nbits = (unsigned)var->fp->fmt >> GT3_FMT_MBIT;
 
     /*
-     *  skip to zpos.
+     * skip to zpos.
      */
     for (skip2 = sizeof(fort_size_t), i = 0; i < zpos; i++)
         skip2 += 4 * pack32_len(nnn[i], nbits);
@@ -191,7 +191,7 @@ read_MRX(GT3_Varbuf *var, int zpos, size_t skip, size_t nelem, FILE *fp)
         goto error;
 
     /*
-     *  read packed data and decode them.
+     * read packed data and decode them.
      */
     if ((data = tiny_alloc(data_buf,
                            sizeof data_buf,
@@ -200,7 +200,7 @@ read_MRX(GT3_Varbuf *var, int zpos, size_t skip, size_t nelem, FILE *fp)
         goto error;
 
     /*
-     *  unmask.
+     * unmask.
      */
     assert(var->type == GT3_TYPE_DOUBLE);
     outp = var->data;

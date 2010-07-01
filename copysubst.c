@@ -1,5 +1,5 @@
 /*
- *  copysubst.c
+ * copysubst.c
  */
 #include <string.h>
 

@@ -1,5 +1,5 @@
 /*
- *  get_ints.c
+ * get_ints.c
  */
 #include <string.h>
 #include <stdlib.h>
@@ -7,23 +7,23 @@
 #include "myutils.h"
 
 /*
- *  get_ints() fetches integers in a string which are separated
- *  by a delimiter(4th argument).
+ * get_ints() fetches integers in a string which are separated
+ * by a delimiter(4th argument).
  *
- *  get_ints() returns one more 'the number of delimiters' on success,
- *  and -1 if an error occurs.
+ * get_ints() returns one more 'the number of delimiters' on success,
+ * and -1 if an error occurs.
  *
- *  Example) In case of maxnum=3, delim=':'.
+ * Example) In case of maxnum=3, delim=':'.
  *
- *  str    RetVal vals[]
- *  -------------------------------
- *  ""     1      (?,?,?)    '?' means an original value in vals[].
- *  "10"   1      (10,?,?)
- *  ":10"  2      (?,10)
- *  "10:"  2      (10,?,?)
- *  ":"    2      (?,?,?)
- *  "1:10" 2      (1,10,?)
- *  "::2"  3      (?,?,2)
+ *   str    RetVal vals[]
+ *   -------------------------------
+ *   ""     1      (?,?,?)    '?' means an original value in vals[].
+ *   "10"   1      (10,?,?)
+ *   ":10"  2      (?,10)
+ *   "10:"  2      (10,?,?)
+ *   ":"    2      (?,?,?)
+ *   "1:10" 2      (1,10,?)
+ *   "::2"  3      (?,?,2)
  */
 int
 get_ints(int vals[], int maxnum, const char *str, char delim)
