@@ -122,16 +122,21 @@ sumup_stat(struct statics *stat, const struct statics sz[], int len)
     }
 
     if (stat->count > 0) {
-        double var = 0.;
-        double adiff;
-
         stat->avr /= stat->count;
-        for (i = 0; i < len; i++) {
-            adiff = stat->avr - sz[i].avr;
-            var += sz[i].count * (sz[i].sd * sz[i].sd + adiff * adiff);
+
+        if (stat->min == stat->max) {
+            stat->sd = 0.;
+        } else {
+            double var = 0.;
+            double adiff;
+
+            for (i = 0; i < len; i++) {
+                adiff = stat->avr - sz[i].avr;
+                var += sz[i].count * (sz[i].sd * sz[i].sd + adiff * adiff);
+            }
+            var /= stat->count;
+            stat->sd = sqrt(var);
         }
-        var /= stat->count;
-        stat->sd = sqrt(var);
     }
 }
 
