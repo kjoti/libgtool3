@@ -165,14 +165,18 @@ ngtstat_plane(struct statics *stat, const GT3_Varbuf *varbuf,
 
     len = pack_func(work, varbuf, range);
 
-    avr_func(&avr, work, len);
-    sd_func(&sd, work, avr, len);
-
+    stat->min = min_func(work, len);
+    stat->max = max_func(work, len);
+    if (stat->min == stat->max) {
+        avr = stat->min;
+        sd  = 0.;
+    } else {
+        avr_func(&avr, work, len);
+        sd_func(&sd, work, avr, len);
+    }
     stat->count = len;
     stat->avr   = avr;
     stat->sd    = sd;
-    stat->min   = min_func(work, len);
-    stat->max   = max_func(work, len);
 }
 
 
