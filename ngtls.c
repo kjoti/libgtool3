@@ -120,7 +120,7 @@ print_item3(int cnt, GT3_File *fp)
 
 
 int
-print_list(const char *path, struct sequence *seq)
+print_list(const char *path, struct sequence *seq, int name_flag)
 {
     GT3_File *fp;
     int stat, rval = 0;
@@ -129,6 +129,8 @@ print_list(const char *path, struct sequence *seq)
         GT3_printErrorMessages(stderr);
         return -1;
     }
+    if (name_flag)
+        printf("# Filename: %s\n", path);
 
     if (seq == NULL)
         while (!GT3_eof(fp)) {
@@ -181,6 +183,7 @@ usage(void)
         "    -h          print help message\n"
         "    -n          print axis-length instead of axis-name\n"
         "    -u          print title and unit\n"
+        "    -v          print filename\n"
         "    -t LIST     specify data No.\n";
 
     fprintf(stderr, "%s\n", GT3_version());
@@ -192,11 +195,12 @@ int
 main(int argc, char **argv)
 {
     int ch, rval;
+    int name_flag = 0;
     struct sequence *seq = NULL;
 
     print_item = print_item1;
 
-    while ((ch = getopt(argc, argv, "nht:u")) != -1)
+    while ((ch = getopt(argc, argv, "nht:uv")) != -1)
         switch (ch) {
         case 'n':
             print_item = print_item2;
@@ -208,6 +212,10 @@ main(int argc, char **argv)
 
         case 'u':
             print_item = print_item3;
+            break;
+
+        case 'v':
+            name_flag = 1;
             break;
 
         case 'h':
@@ -225,7 +233,7 @@ main(int argc, char **argv)
     while (argc > 0 && *argv) {
         if (seq)
             reinitSeq(seq, 1, 0x7fffffff);
-        if (print_list(*argv, seq) < 0)
+        if (print_list(*argv, seq, name_flag) < 0)
             rval = 1;
 
         --argc;
