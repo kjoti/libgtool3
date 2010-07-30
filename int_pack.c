@@ -126,8 +126,6 @@ pack_bools_into32(uint32_t *packed,
 
 #ifdef TEST_MAIN
 #include <stdio.h>
-
-
 void
 test0(void)
 {
@@ -167,28 +165,42 @@ test(void)
     assert(packed[1] == 0xddddcccc);
 
     /*
+     * 16-bit packing(2).
+     */
+    nbit = 16;
+    data[0] = 0xfedc;
+    data[1] = 0xba98;
+    data[2] = 0x7654;
+    data[3] = 0x3210;
+
+    len = pack_bits_into32(packed, data, 4, nbit);
+    assert(len == 2);
+    assert(packed[0] == 0xfedcba98);
+    assert(packed[1] == 0x76543210);
+
+    /*
      * 12-bit packing
      */
     nbit = 12;
-    data[0] = 0xfff;
-    data[1] = 0xeee;
-    data[2] = 0xddd;
-    data[3] = 0xccc;
-    data[4] = 0xbbb;
-    data[5] = 0xaaa;
-    data[6] = 0x999;
-    data[7] = 0x888;
-    data[8] = 0x777;
+    data[0] = 0xfed;
+    data[1] = 0xcba;
+    data[2] = 0x987;
+    data[3] = 0x654;
+    data[4] = 0x321;
+    data[5] = 0x012;
+    data[6] = 0x345;
+    data[7] = 0x678;
+    data[8] = 0x9ab;
 
     len = pack_bits_into32(packed, data, 8, nbit);
     assert(len == 3);
-    assert(packed[0] == 0xfffeeedd);
-    assert(packed[1] == 0xdcccbbba);
-    assert(packed[2] == 0xaa999888);
+    assert(packed[0] == 0xfedcba98);
+    assert(packed[1] == 0x76543210);
+    assert(packed[2] == 0x12345678);
 
     len = pack_bits_into32(packed, data, 9, nbit);
     assert(len == 4);
-    assert(packed[3] == 0x77700000);
+    assert(packed[3] == 0x9ab00000);
 
     /*
      * 4-bit packing
