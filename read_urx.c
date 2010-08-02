@@ -1,5 +1,7 @@
 /*
  * read_urx.c -- read URX & MRX.
+ *
+ * URY/MRY have been deprecated. Use URY or MRY.
  */
 #include "internal.h"
 
@@ -150,7 +152,6 @@ read_MRX(GT3_Varbuf *var, int zpos, size_t skip, size_t nelem, FILE *fp)
     if (GT3_loadMaskX(mask, zpos, var->fp) != 0)
         return -1;
     var->fp->mask = mask;
-
 
     if ((nnn = (int *)tiny_alloc(nnn_buf,
                                  sizeof nnn_buf,

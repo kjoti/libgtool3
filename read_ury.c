@@ -124,6 +124,9 @@ read_URY(GT3_Varbuf *var, int zpos, size_t skip, size_t nelem, FILE *fp)
 }
 
 
+/*
+ * Note: 3rd argument (skip) is ignored, which should be zero.
+ */
 int
 read_MRY(GT3_Varbuf *var, int zpos, size_t skip, size_t nelem, FILE *fp)
 {
@@ -148,7 +151,6 @@ read_MRY(GT3_Varbuf *var, int zpos, size_t skip, size_t nelem, FILE *fp)
     if (GT3_loadMaskX(mask, zpos, var->fp) != 0)
         return -1;
     var->fp->mask = mask;
-
 
     if ((nnn = (int *)tiny_alloc(nnn_buf,
                                  sizeof nnn_buf,
