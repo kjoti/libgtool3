@@ -101,26 +101,53 @@ size_t
 pack_bools_into32(uint32_t *packed,
                   const unsigned char *flags, size_t nelems)
 {
-    size_t packed_len;
-    unsigned i, m, num, extr;
+    size_t i, num;
+    unsigned extra;
 
     num = nelems >> 5;
-    extr = nelems & 0x1f;
-    for (i = 0; i < num; i++) {
-        packed[i] = 0;
-        for (m = 0; m < 32; m++)
-            packed[i] |= (*flags++ & 1) << (31U - m);
-    }
-    packed_len = num;
+    extra = nelems & 0x1f;
+    for (i = 0; i < num; i++, flags += 32)
+        packed[i] = (flags[0] & 1U) << 31U
+            | (flags[1] & 1U) << 30U
+            | (flags[2] & 1U) << 29U
+            | (flags[3] & 1U) << 28U
+            | (flags[4] & 1U) << 27U
+            | (flags[5] & 1U) << 26U
+            | (flags[6] & 1U) << 25U
+            | (flags[7] & 1U) << 24U
+            | (flags[8] & 1U) << 23U
+            | (flags[9] & 1U) << 22U
+            | (flags[10] & 1U) << 21U
+            | (flags[11] & 1U) << 20U
+            | (flags[12] & 1U) << 19U
+            | (flags[13] & 1U) << 18U
+            | (flags[14] & 1U) << 17U
+            | (flags[15] & 1U) << 16U
+            | (flags[16] & 1U) << 15U
+            | (flags[17] & 1U) << 14U
+            | (flags[18] & 1U) << 13U
+            | (flags[19] & 1U) << 12U
+            | (flags[20] & 1U) << 11U
+            | (flags[21] & 1U) << 10U
+            | (flags[22] & 1U) << 9U
+            | (flags[23] & 1U) << 8U
+            | (flags[24] & 1U) << 7U
+            | (flags[25] & 1U) << 6U
+            | (flags[26] & 1U) << 5U
+            | (flags[27] & 1U) << 4U
+            | (flags[28] & 1U) << 3U
+            | (flags[29] & 1U) << 2U
+            | (flags[30] & 1U) << 1U
+            | (flags[31] & 1U);
 
-    if (extr) {
+    if (extra) {
         packed[num] = 0;
-        for (m = 0; m < extr; m++)
-            packed[num] |= (*flags++ & 1) << (31U - m);
+        for (i = 0; i < extra; i++)
+            packed[num] |= (flags[i] & 1U) << (31U - i);
 
-        packed_len++;
+        num++;
     }
-    return packed_len;
+    return num;
 }
 
 
@@ -260,60 +287,81 @@ test2(unsigned nbit)
 void
 test3(void)
 {
-    static unsigned char flags[100];
-    static uint32_t packed[4];
-    int i;
-    size_t len;
+    {
+        unsigned char flags[100];
+        uint32_t packed[4];
+        int i;
+        size_t len;
 
-    for (i = 0; i < 100; i++)
-        flags[i] = 1;
+        for (i = 0; i < 100; i++)
+            flags[i] = 1;
 
-    len = pack_bools_into32(packed, flags, 1);
-    assert(len == 1);
-    assert(packed[0] == 0x80000000);
+        len = pack_bools_into32(packed, flags, 1);
+        assert(len == 1);
+        assert(packed[0] == 0x80000000);
 
-    len = pack_bools_into32(packed, flags, 2);
-    assert(len == 1);
-    assert(packed[0] == 0xc0000000);
+        len = pack_bools_into32(packed, flags, 2);
+        assert(len == 1);
+        assert(packed[0] == 0xc0000000);
 
-    len = pack_bools_into32(packed, flags, 3);
-    assert(len == 1);
-    assert(packed[0] == 0xe0000000);
+        len = pack_bools_into32(packed, flags, 3);
+        assert(len == 1);
+        assert(packed[0] == 0xe0000000);
 
-    len = pack_bools_into32(packed, flags, 4);
-    assert(len == 1);
-    assert(packed[0] == 0xf0000000);
+        len = pack_bools_into32(packed, flags, 4);
+        assert(len == 1);
+        assert(packed[0] == 0xf0000000);
 
-    len = pack_bools_into32(packed, flags, 31);
-    assert(len == 1);
-    assert(packed[0] == 0xfffffffe);
+        len = pack_bools_into32(packed, flags, 5);
+        assert(len == 1);
+        assert(packed[0] == 0xf8000000);
 
-    len = pack_bools_into32(packed, flags, 32);
-    assert(len == 1);
-    assert(packed[0] == 0xffffffff);
+        len = pack_bools_into32(packed, flags, 31);
+        assert(len == 1);
+        assert(packed[0] == 0xfffffffe);
 
-    len = pack_bools_into32(packed, flags, 33);
-    assert(len == 2);
-    assert(packed[0] == 0xffffffff);
-    assert(packed[1] == 0x80000000);
+        len = pack_bools_into32(packed, flags, 32);
+        assert(len == 1);
+        assert(packed[0] == 0xffffffff);
 
-    for (i = 0; i < 4; i++)
-        packed[i] = 0;
-    len = pack_bools_into32(packed, flags, 100);
-    assert(len == 4);
-    assert(packed[0] == 0xffffffff);
-    assert(packed[1] == 0xffffffff);
-    assert(packed[2] == 0xffffffff);
-    assert(packed[3] == 0xf0000000);
+        len = pack_bools_into32(packed, flags, 33);
+        assert(len == 2);
+        assert(packed[0] == 0xffffffff);
+        assert(packed[1] == 0x80000000);
 
-    for (i = 0; i < 100; i++)
-        flags[i] = i % 2;
-    len = pack_bools_into32(packed, flags, 100);
-    assert(len == 4);
-    assert(packed[0] == 0x55555555);
-    assert(packed[1] == 0x55555555);
-    assert(packed[2] == 0x55555555);
-    assert(packed[3] == 0x50000000);
+        len = pack_bools_into32(packed, flags, 100);
+        assert(len == 4);
+        assert(packed[0] == 0xffffffff);
+        assert(packed[1] == 0xffffffff);
+        assert(packed[2] == 0xffffffff);
+        assert(packed[3] == 0xf0000000);
+    }
+
+    {
+        unsigned char flags[] = {
+            1, 0, 0, 0,
+            0, 1, 0, 0,
+            0, 0, 1, 0,
+            0, 0, 0, 1,
+            0, 0, 0, 0,
+            1, 1, 0, 0,
+            0, 0, 1, 1,
+            1, 0, 0, 1, /* (1) */
+            0, 0, 0, 1,
+            0, 0, 1, 0,
+            0, 1, 0, 0,
+            1, 0, 0, 0,
+            1, 1, 1, 1
+        };
+        uint32_t packed[2];
+        size_t len;
+
+        len = pack_bools_into32(packed, flags, sizeof flags);
+
+        assert(len = 2);
+        assert(packed[0] == 0x84210c39);
+        assert(packed[1] == 0x1248f000);
+    }
 }
 
 
