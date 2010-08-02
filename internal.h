@@ -8,8 +8,11 @@
 #  include "config.h"
 #endif
 
-#ifdef HAVE_INTTYPES_H
-#  include <inttypes.h>         /* for uint32_t */
+/* for uint32_t */
+#ifdef HAVE_STDINT_H
+#  include <stdint.h>
+#elif defined(HAVE_INTTYPES_H)
+#  include <inttypes.h>
 #endif
 
 #ifndef HAVE_UINT32_T

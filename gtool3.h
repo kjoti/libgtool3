@@ -6,10 +6,13 @@
 
 #include <sys/types.h>
 
-#ifndef HAVE_INTTYPES_H
-typedef unsigned uint32_t;
+/* for uint32_t */
+#ifdef HAVE_STDINT_H
+#  include <stdint.h>
+#elif defined(HAVE_INTTYPES_H)
+#  include <inttypes.h>
 #else
-#include <inttypes.h>
+typedef unsigned uint32_t;
 #endif
 
 #include <stdio.h>
