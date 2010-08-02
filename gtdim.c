@@ -1032,6 +1032,27 @@ GT3_getDimWeight(const char *name)
 
 
 /*
+ * set dummy date/time.
+ *   DATE1, DATE2, DATE: 0-1-1 00:00:00
+ *   TIME: 0
+ *   UTIM: HOUR
+ */
+static void
+set_dummy_datetime(GT3_HEADER *head)
+{
+    GT3_Date date;
+
+    GT3_setDate(&date, 0, 1, 1, 0, 0, 0);
+    GT3_setHeaderDate(head, "DATE1", &date);
+    GT3_setHeaderDate(head, "DATE2", &date);
+    GT3_setHeaderDate(head, "DATE", &date);
+
+    GT3_setHeaderInt(head, "TIME", 0);
+    GT3_setHeaderString(head, "UTIM", "HOUR");
+}
+
+
+/*
  * write GTAXLOC.* file into a file-stream.
  */
 int
@@ -1049,6 +1070,7 @@ GT3_writeDimFile(FILE *fp, const GT3_Dim *dim, const char *fmt)
     GT3_setHeaderDouble(&head, "DMAX", dim->range[1]);
     GT3_setHeaderString(&head, "TITLE", dim->title);
     GT3_setHeaderString(&head, "UNIT", dim->unit);
+    set_dummy_datetime(&head);
 
     if (dim->title
         && (strcmp(dim->title, "longitude") == 0
@@ -1082,6 +1104,7 @@ GT3_writeWeightFile(FILE *fp, const GT3_Dim *dim, const char *fmt)
                         dim->cyclic ? "CAXWGT" : "AXWGT");
     GT3_setHeaderString(&head, "ITEM", dim->name);
     GT3_setHeaderString(&head, "AITM1", dim->name);
+    set_dummy_datetime(&head);
 
     rval = GT3_write(wght, GT3_TYPE_DOUBLE,
                      dim->len, 1, 1,
