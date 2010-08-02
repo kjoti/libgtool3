@@ -127,8 +127,12 @@ read_MRN_pre(void *temp,
 {
     GT3_Datamask *mask;
     size_t nread;
-    int idx0;
+    int idx0, interval;
     off_t off;
+
+    interval = var->dimlen[0];
+    /* assert(skip % interval == 0); */
+    /* assert(nelem % interval == 0); */
 
     mask = var->fp->mask;
     if (!mask && (mask = GT3_newMask()) == NULL)
@@ -140,12 +144,14 @@ read_MRN_pre(void *temp,
     if (GT3_loadMask(mask, var->fp) != 0)
         return -1;
     var->fp->mask = mask;
-    GT3_updateMaskIndex(mask);
+
+    if (GT3_updateMaskIndex(mask, interval) < 0)
+        return -1;
 
     /*
      * seek to the begging of the data-body.
      */
-    idx0 = zpos * var->dimlen[0] * var->dimlen[1] + skip;
+    idx0 = zpos * var->dimlen[1] + skip / interval;
     off = var->fp->off + 6 * sizeof(fort_size_t)
         + GT3_HEADER_SIZE       /* header */
         + 4                     /* NNN */
@@ -159,7 +165,7 @@ read_MRN_pre(void *temp,
     /*
      * nread: the # of MASK-ON elements to read.
      */
-    nread = mask->index[idx0 + nelem] - mask->index[idx0];
+    nread = mask->index[idx0 + nelem / interval] - mask->index[idx0];
     assert(nread <= nelem);
 
     if (xfread(temp, size, nread, var->fp->fp) < 0)
@@ -179,11 +185,13 @@ read_MR4(GT3_Varbuf *var, int zpos, size_t skip, size_t nelem, FILE *fp)
     int i, n;
 
     assert(var->type == GT3_TYPE_FLOAT);
-    masked = (float *)tiny_alloc(masked_buf,
-                                 sizeof masked_buf,
-                                 sizeof(float) * nelem);
-    if (!masked)
+
+    if ((masked = (float *)tiny_alloc(masked_buf,
+                                      sizeof masked_buf,
+                                      sizeof(float) * nelem)) == NULL) {
+        gt3_error(SYSERR, NULL);
         return -1;
+    }
 
     if ((nread = read_MRN_pre(masked, var, sizeof(float),
                               zpos, skip, nelem)) < 0) {
@@ -223,11 +231,12 @@ read_MR8(GT3_Varbuf *var, int zpos, size_t skip, size_t nelem, FILE *fp)
 
     assert(var->type == GT3_TYPE_DOUBLE);
 
-    temp = (double *)tiny_alloc(temp_buf,
-                               sizeof temp_buf,
-                               sizeof(double) * nelem);
-    if (!temp)
+    if ((temp = (double *)tiny_alloc(temp_buf,
+                                     sizeof temp_buf,
+                                     sizeof(double) * nelem)) == NULL) {
+        gt3_error(SYSERR, NULL);
         return -1;
+    }
 
     if ((nread = read_MRN_pre(temp, var, sizeof(double),
                               zpos, skip, nelem)) < 0) {

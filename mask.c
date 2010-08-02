@@ -43,6 +43,7 @@ GT3_newMask(void)
     mask->reserved = 0;
     mask->mask = NULL;
     mask->index = NULL;
+    mask->index_len = 0;
     return mask;
 }
 
@@ -55,6 +56,7 @@ GT3_freeMask(GT3_Datamask *ptr)
 
     reset_mask(ptr);
     ptr->reserved = 0;
+    ptr->index_len = 0;
     ptr->mask = NULL;
     ptr->index = NULL;
 }
@@ -64,9 +66,7 @@ int
 GT3_setMaskSize(GT3_Datamask *ptr, size_t nelem)
 {
     uint32_t *mask = NULL;
-    int *idx = NULL;
-    size_t mlen;                /* mask size per z-plane */
-
+    size_t mlen;
 
     if (ptr->reserved >= nelem) {
         ptr->nelem = nelem;
@@ -75,10 +75,7 @@ GT3_setMaskSize(GT3_Datamask *ptr, size_t nelem)
 
     GT3_freeMask(ptr);
     mlen = (nelem + 31) / 32;
-    if ((mask = (uint32_t *)malloc(sizeof(uint32_t) * mlen)) == NULL
-        || (idx  = (int *)malloc(sizeof(int) * (nelem + 1))) == NULL) {
-        free(idx);
-        free(mask);
+    if ((mask = (uint32_t *)malloc(sizeof(uint32_t) * mlen)) == NULL) {
         gt3_error(SYSERR, NULL);
         return -1;
     }
@@ -88,29 +85,47 @@ GT3_setMaskSize(GT3_Datamask *ptr, size_t nelem)
     ptr->nelem = nelem;
     ptr->reserved = nelem;
     ptr->mask = mask;
-    ptr->index = idx;
     return 0;
 }
 
 
-void
-GT3_updateMaskIndex(GT3_Datamask *mask)
+int
+GT3_updateMaskIndex(GT3_Datamask *mask, int interval)
 {
-    int i;
-    int idx = 0;
+    int i, j, m, idx;
+    size_t idxlen;
 
     assert(mask->loaded != -1);
     if (mask->indexed)
-        return;                 /* no need to update */
+        return 0;                 /* no need to update */
 
-    for (i = 0; i < mask->nelem; i++) {
-        mask->index[i] = idx;
+    if (interval <= 0 || mask->nelem % interval != 0)
+        return -1;
 
-        if (getbit(mask->mask, i))
-            idx++;
+    idxlen = mask->nelem / interval + 1;
+    if (idxlen > mask->index_len) {
+        int *ptr;
+
+        if ((ptr = malloc(sizeof(int) * idxlen)) == NULL) {
+            gt3_error(SYSERR, NULL);
+            return -1;
+        }
+        free(mask->index);
+        mask->index = ptr;
+        mask->index_len = idxlen;
     }
-    mask->index[mask->nelem] = idx;
+
+    for (j = 0, idx = 0; j < idxlen - 1; j++) {
+        mask->index[j] = idx;
+
+        for (m = 0, i = j * interval; m < interval; m++)
+            if (getbit(mask->mask, i + m))
+                idx++;
+    }
+
+    mask->index[idxlen - 1] = idx;
     mask->indexed = 1;
+    return 0;
 }
 
 
@@ -159,7 +174,7 @@ GT3_loadMask(GT3_Datamask *mask, GT3_File *fp)
 
 
 /*
- * load mask data from MRX.
+ * load mask data from MRY/MRX.
  */
 int
 GT3_loadMaskX(GT3_Datamask *mask, int zpos, GT3_File *fp)
@@ -168,7 +183,6 @@ GT3_loadMaskX(GT3_Datamask *mask, int zpos, GT3_File *fp)
 
     /* FIXME: It is assumed that zpos is not so large. */
     assert(zpos >= 0 && zpos < (1U << 16));
-
 
     if (mask->loaded == (fp->curr << 16 | zpos))
         return 0;

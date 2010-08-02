@@ -106,7 +106,8 @@ struct GT3_Datamask {
 
     int loaded;                 /* the chunk number mask is loaded */
     int indexed;                /* Index up-to-date?  */
-    int *index;                 /* sizeof(int) * (nelem + 1) */
+    int *index;
+    size_t index_len;           /* length of index */
 };
 typedef struct GT3_Datamask GT3_Datamask;
 
@@ -247,7 +248,7 @@ int GT3_reattachVarbuf(GT3_Varbuf *var, GT3_File *fp);
 GT3_Datamask *GT3_newMask(void);
 void GT3_freeMask(GT3_Datamask *ptr);
 int GT3_setMaskSize(GT3_Datamask *ptr, size_t nelem);
-void GT3_updateMaskIndex(GT3_Datamask *mask);
+int GT3_updateMaskIndex(GT3_Datamask *mask, int interval);
 int GT3_getMaskValue(const GT3_Datamask *mask, int i);
 int GT3_loadMask(GT3_Datamask *mask, GT3_File *fp);
 int GT3_loadMaskX(GT3_Datamask *mask, int zpos, GT3_File *fp);
