@@ -104,8 +104,6 @@ test1(void)
     DateIterator it;
     GT3_Date initial, step;
     GT3_Date last;
-    int cnt;
-
 
     GT3_setDate(&initial, 2000, 1, 1, 0, 0, 0);
     GT3_setDate(&last,    2001, 1, 1, 0, 0, 0);
