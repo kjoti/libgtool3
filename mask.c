@@ -89,6 +89,9 @@ GT3_setMaskSize(GT3_Datamask *ptr, size_t nelem)
 }
 
 
+/*
+ * XXX: Mask index are used only when MR4/MR8.
+ */
 int
 GT3_updateMaskIndex(GT3_Datamask *mask, int interval)
 {

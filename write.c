@@ -367,7 +367,7 @@ GT3_write(const void *ptr, int type,
             break;
         case GT3_FMT_URC:
             rval = write_urc_via_double(ptr, zsize, nz, miss,
-                                       urc2_packing, fp);
+                                        urc2_packing, fp);
             break;
         case GT3_FMT_URC1:
             rval = write_urc_via_double(ptr, zsize, nz, miss,
