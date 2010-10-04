@@ -45,6 +45,8 @@ struct statics {
     double min, max;            /* min & max */
 };
 
+static void (*print_stat)(const struct statics *,
+                          int, int,const GT3_HEADER *);
 
 #define FUNCTMPL_PACK(TYPE, NAME) \
 int \
@@ -93,17 +95,6 @@ FUNCTMPL_AVR(double, double, average)
 FUNCTMPL_SDEVIATION(double, double, std_deviation)
 
 
-static void
-print_caption(const char *name)
-{
-    const char *z = each_plane ? "Z" : "";
-
-    printf("# Filename: %s\n", name);
-    printf("# %3s %-8s %3s %11s %11s %11s %11s %10s\n",
-           "No.", "ITEM", z, "AVE", "SD", "MIN", "MAX", "NUM");
-}
-
-
 /*
  * sumup statistical data in z-planes.
  */
@@ -142,9 +133,9 @@ sumup_stat(struct statics *stat, const struct statics sz[], int len)
 
 
 static void
-ngtstat_plane(struct statics *stat, const GT3_Varbuf *varbuf,
-              void *work,
-              const struct range *range)
+calc_stat(struct statics *stat, const GT3_Varbuf *varbuf,
+          void *work,
+          const struct range *range)
 {
     double avr = 0., sd = 0.;
     int len;
@@ -186,8 +177,8 @@ ngtstat_plane(struct statics *stat, const GT3_Varbuf *varbuf,
 
 
 static void
-print_stat(const struct statics *stat, int num, int tidx,
-           const GT3_HEADER *head)
+print_stat1(const struct statics *stat, int num, int tidx,
+            const GT3_HEADER *head)
 {
     char prefix[32], item[17];
     int i;
@@ -221,6 +212,78 @@ print_stat(const struct statics *stat, int num, int tidx,
                stat_all.max,
                stat_all.count);
     }
+}
+
+
+static void
+print_stat2(const struct statics *stat, int num, int tidx,
+            const GT3_HEADER *head)
+{
+    char prefix[32], item[17];
+    int i;
+    double smin, smax;
+
+    item[0] = '\0';
+    GT3_copyHeaderItem(item, sizeof item, head, "ITEM");
+    snprintf(prefix, sizeof prefix, "%5d %-8s", tidx, item);
+
+    if (each_plane) {
+        for (i = 0; i < num; i++) {
+            smin = -0.;
+            smax = 0.;
+            if (stat[i].sd > 0.) {
+                smin = (stat[i].min - stat[i].avr) / stat[i].sd;
+                smax = (stat[i].max - stat[i].avr) / stat[i].sd;
+            }
+
+            printf("%14s %3d %11.5g %11.5g %+11.4g %+11.4g %10d\n",
+                   prefix,
+                   stat[i].zidx,
+                   stat[i].avr,
+                   stat[i].sd,
+                   smin,
+                   smax,
+                   stat[i].count);
+        }
+    }
+
+    if (!each_plane || num > 1) {
+        struct statics stat_all;
+
+        memset(&stat_all, 0, sizeof(struct statics));
+        sumup_stat(&stat_all, stat, num);
+
+        smin = -0.;
+        smax = 0.;
+        if (stat_all.sd > 0.) {
+            smin = (stat_all.min - stat_all.avr) / stat_all.sd;
+            smax = (stat_all.max - stat_all.avr) / stat_all.sd;
+        }
+        printf("%14s ALL %11.5g %11.5g %+11.4g %+11.4g %10d\n",
+               prefix,
+               stat_all.avr,
+               stat_all.sd,
+               smin,
+               smax,
+               stat_all.count);
+    }
+}
+
+
+static void
+print_caption(const char *name)
+{
+    const char *z = each_plane ? "Z" : "";
+    char *label1 = "MIN";
+    char *label2 = "MAX";
+
+    if (print_stat == print_stat2) {
+        label1 = "MIN(sigma)";
+        label2 = "MAX(sigma)";
+    }
+    printf("# Filename: %s\n", name);
+    printf("# %3s %-8s %3s %11s %11s %11s %11s %10s\n",
+           "No.", "ITEM", z, "AVE", "SD", label1, label2, "NUM");
 }
 
 
@@ -289,7 +352,7 @@ ngtstat_var(GT3_Varbuf *varbuf)
         }
 
         stat[n].zidx = z + astr3;
-        ngtstat_plane(stat + n, varbuf, work, range);
+        calc_stat(stat + n, varbuf, work, range);
     }
 
     print_stat(stat, znum, varbuf->fp->curr + 1, &head);
@@ -356,6 +419,7 @@ usage(void)
         "Options:\n"
         "    -h        print help message\n"
         "    -a        display total info of all Z-planes\n"
+        "    -s        use sigma for min/max\n"
         "    -t LIST   specify data No.\n"
         "    -x RANGE  specify X-range\n"
         "    -y RANGE  specify Y-range\n"
@@ -378,10 +442,16 @@ main(int argc, char **argv)
 
     open_logging(stderr, PROGNAME);
     GT3_setProgname(PROGNAME);
-    while ((ch = getopt(argc, argv, "hat:x:y:z:")) != -1)
+
+    print_stat = print_stat1;
+
+    while ((ch = getopt(argc, argv, "hast:x:y:z:")) != -1)
         switch (ch) {
         case 'a':
             each_plane = 0;
+            break;
+        case 's':
+            print_stat = print_stat2;
             break;
         case 't':
             if ((seq = initSeq(optarg, 1, 0x7fffffff)) == NULL) {
