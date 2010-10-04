@@ -254,8 +254,7 @@ ngtstat_var(GT3_Varbuf *varbuf)
 
     if (znum > max_num_plane) {
         free(stat);
-        if ((stat = (struct statics *)
-             malloc(sizeof(struct statics) * znum)) == NULL) {
+        if ((stat = malloc(sizeof(struct statics) * znum)) == NULL) {
             logging(LOG_SYSERR, NULL);
             return -1;
         }
