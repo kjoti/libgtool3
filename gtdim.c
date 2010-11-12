@@ -523,6 +523,29 @@ open_axisfile(const char *name, const char *kind)
 
 
 /*
+ * Usually using GT3_getDim() is recommended to get grid coordinates.
+ * It is rare to need access to axis file itself.
+ *
+ * If a file is not found, return NULL.
+ */
+GT3_File *
+GT3_openAxisFile(const char *name)
+{
+    return open_axisfile(name, "GTAXLOC");
+}
+
+
+/*
+ * Usually using GT3_getDimWeight() is recommended to get weights.
+ */
+GT3_File *
+GT3_openWeightFile(const char *name)
+{
+    return open_axisfile(name, "GTAXWGT");
+}
+
+
+/*
  * setup GT3_Dim by loading GTAXLOC.* file.
  */
 GT3_Dim *

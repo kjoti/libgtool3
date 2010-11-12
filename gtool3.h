@@ -269,6 +269,8 @@ int GT3_writeDimFile(FILE *fp, const GT3_Dim *dim, const char *fmt);
 int GT3_writeWeightFile(FILE *fp, const GT3_Dim *dim, const char *fmt);
 GT3_DimBound *GT3_getDimBound(const char *name);
 void GT3_freeDimBound(GT3_DimBound *dimbnd);
+GT3_File *GT3_openAxisFile(const char *name);
+GT3_File *GT3_openWeightFile(const char *name);
 
 /* header.c */
 char *GT3_copyHeaderItem(char *buf, int len, const GT3_HEADER *h,
