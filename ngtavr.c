@@ -190,7 +190,7 @@ integrate(double *vsum, double *tsum,
             }
             z = g_zseq->curr - 1;
         } else
-            z = n;
+            z = g_zrange.str + n;
 
         if (GT3_readVarZ(var, z) < 0) {
             GT3_printErrorMessages(stderr);
