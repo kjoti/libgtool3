@@ -238,7 +238,8 @@ conv_file(const char *path, const char *fmt, FILE *output,
 {
     GT3_File *fp;
     GT3_Varbuf *var;
-    int rval, stat;
+    file_iterator it;
+    int rval = -1, stat;
 
     if ((fp = GT3_open(path)) == NULL
         || (var = GT3_getVarbuf(fp)) == NULL) {
@@ -246,34 +247,20 @@ conv_file(const char *path, const char *fmt, FILE *output,
         return -1;
     }
 
+    setup_file_iterator(&it, fp, seq);
+    while ((stat = iterate_chunk2(&it)) != ITER_END) {
+        if (stat == ITER_ERROR || stat == ITER_ERRORCHUNK)
+            goto finish;
+        if (stat == ITER_OUTRANGE)
+            continue;
+
+        if (conv_chunk(output, fmt, var, fp) < 0)
+            goto finish;
+    }
     rval = 0;
-    if (seq == NULL)
-        while (!GT3_eof(fp)) {
-            if (conv_chunk(output, fmt, var, fp) < 0) {
-                rval = -1;
-                break;
-            }
-            if (GT3_next(fp) < 0) {
-                GT3_printErrorMessages(stderr);
-                rval = -1;
-                break;
-            }
-        }
-    else
-        while ((stat = iterate_chunk(fp, seq)) != ITER_END) {
-            if (stat == ITER_ERROR || stat == ITER_ERRORCHUNK) {
-                rval = -1;
-                break;
-            }
-            if (stat == ITER_OUTRANGE)
-                continue;
 
-            if (conv_chunk(output, fmt, var, fp) < 0) {
-                rval = -1;
-                break;
-            }
-        }
-
+finish:
+    GT3_freeVarbuf(var);
     GT3_close(fp);
     return rval;
 }
@@ -387,9 +374,8 @@ main(int argc, char **argv)
         outpath = argv[1];
 
     if (identical_file(argv[0], outpath) == 1) {
-        logging(LOG_ERR,
-                "\"%s\" and \"%s\" are identical.",
-                argv[0], outpath);
+        logging(LOG_ERR, "\"%s\" is identical to \"%s\".",
+                outpath, argv[0]);
         exit(1);
     }
 

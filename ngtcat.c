@@ -348,9 +348,10 @@ set_range(int range[], const char *str)
 
 
 int
-gtcat_cyclic(int num, char *path[], struct sequence *seq)
+gtcat_cyclic(int num, char *path[], struct sequence *seqin)
 {
     GT3_File *fp;
+    struct sequence *seq;
     int i, last, stat, errflag;
 
     if (num < 1)
@@ -360,7 +361,8 @@ gtcat_cyclic(int num, char *path[], struct sequence *seq)
         GT3_printErrorMessages(stderr);
         return -1;
     }
-    reinitSeq(seq, 1, last);
+
+    seq = initSeq(seqin ? seqin->spec : ":", 1, last);
 
     errflag = 0;
     while (nextSeq(seq) == 1 && errflag == 0) {
@@ -388,6 +390,8 @@ gtcat_cyclic(int num, char *path[], struct sequence *seq)
             GT3_close(fp);
         }
     }
+    freeSeq(seq);
+    free(seq);
     return errflag ? -1 : 0;
 }
 
@@ -396,36 +400,30 @@ int
 gtcat(const char *path, struct sequence *seq)
 {
     GT3_File *fp;
-    int stat, rval;
+    file_iterator it;
+    int stat, rval = -1;
 
     if ((fp = GT3_open(path)) == NULL) {
         GT3_printErrorMessages(stderr);
         return -1;
     }
 
-    rval = 0;
-    while ((stat = iterate_chunk(fp, seq)) != ITER_END) {
+    setup_file_iterator(&it, fp, seq);
+    while ((stat = iterate_chunk2(&it)) != ITER_END) {
+        if (stat == ITER_ERROR || stat == ITER_ERRORCHUNK)
+            goto finish;
         if (stat == ITER_OUTRANGE)
             continue;
-
-        if (stat == ITER_ERROR) {
-            logging(LOG_ERR, "%s: Invalid -t argument", seq->it);
-            break;
-        }
-
-        if (stat == ITER_ERRORCHUNK) {
-            rval = -1;
-            break;
-        }
 
         if (mcopy(output_stream, fp) < 0) {
             GT3_printErrorMessages(stderr);
             logging(LOG_SYSERR, NULL);
-            rval = -1;
-            break;
+            goto finish;
         }
     }
+    rval = 0;
 
+finish:
     GT3_close(fp);
     return rval;
 }
@@ -511,10 +509,6 @@ main(int argc, char **argv)
             exit(1);
             break;
         }
-
-    if (!seq)
-        seq = initSeq(":", 1, 0x7fffffff);
-
     argc -= optind;
     argv += optind;
 
@@ -526,7 +520,8 @@ main(int argc, char **argv)
             if (gtcat(*argv, seq) < 0)
                 rval = 1;
 
-            reinitSeq(seq, 1, 0x7fffffff);
+            if (seq)
+                reinitSeq(seq, 1, 0x7fffffff);
         }
 
     return rval;

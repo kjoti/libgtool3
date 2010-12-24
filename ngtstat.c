@@ -365,7 +365,8 @@ ngtstat(const char *path, struct sequence *seq)
 {
     GT3_File *fp;
     GT3_Varbuf *var;
-    int stat, rval = 0;
+    file_iterator it;
+    int stat, rval = -1;
 
     if ((fp = GT3_open(path)) == NULL) {
         GT3_printErrorMessages(stderr);
@@ -373,35 +374,24 @@ ngtstat(const char *path, struct sequence *seq)
     }
 
     if ((var = GT3_getVarbuf(fp)) == NULL) {
-        GT3_close(fp);
         GT3_printErrorMessages(stderr);
-        return -1;
+        goto finish;
     }
 
     print_caption(path);
-    if (seq == NULL)
-        while (!GT3_eof(fp)) {
-            if (ngtstat_var(var) < 0)
-                rval = -1;
+    setup_file_iterator(&it, fp, seq);
+    while ((stat = iterate_chunk2(&it)) != ITER_END) {
+        if (stat == ITER_ERROR || stat == ITER_ERRORCHUNK)
+            goto finish;
+        if (stat == ITER_OUTRANGE)
+            continue;
 
-            if (GT3_next(fp) < 0) {
-                GT3_printErrorMessages(stderr);
-                rval = -1;
-                break;
-            }
-        }
-    else
-        while ((stat = iterate_chunk(fp, seq)) != ITER_END) {
-            if (stat == ITER_ERROR || stat == ITER_ERRORCHUNK)
-                break;
+        if (ngtstat_var(var) < 0)
+            goto finish;
+    }
+    rval = 0;
 
-            if (stat == ITER_OUTRANGE)
-                continue;
-
-            if (ngtstat_var(var) < 0)
-                rval = -1;
-        }
-
+finish:
     GT3_freeVarbuf(var);
     GT3_close(fp);
     return rval;

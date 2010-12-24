@@ -483,6 +483,7 @@ ngtavr_seq(struct average *avr, const char *path, struct sequence *seq)
 {
     static GT3_Varbuf *var = NULL;
     GT3_File *fp;
+    file_iterator it;
     int rval = -1;
     int stat;
 
@@ -508,27 +509,15 @@ ngtavr_seq(struct average *avr, const char *path, struct sequence *seq)
         GT3_reattachVarbuf(var, fp);
     }
 
-    if (!seq) {
-        while (!GT3_eof(fp)) {
-            if (integrate_chunk(avr, var) < 0)
-                goto finish;
+    setup_file_iterator(&it, fp, seq);
+    while ((stat = iterate_chunk2(&it)) != ITER_END) {
+        if (stat == ITER_ERROR || stat == ITER_ERRORCHUNK)
+            goto finish;
+        if (stat == ITER_OUTRANGE)
+            continue;
 
-            if (GT3_next(fp) < 0) {
-                GT3_printErrorMessages(stderr);
-                goto finish;
-            }
-        }
-    } else {
-        while ((stat = iterate_chunk(fp, seq)) != ITER_END) {
-            if (stat == ITER_ERROR || stat == ITER_ERRORCHUNK)
-                goto finish;
-
-            if (stat == ITER_OUTRANGE)
-                continue;
-
-            if (integrate_chunk(avr, var) < 0)
-                goto finish;
-        }
+        if (integrate_chunk(avr, var) < 0)
+            goto finish;
     }
     rval = 0;
 

@@ -580,6 +580,7 @@ edit_file(const char *path, struct edit_command *list,
           struct sequence *tseq)
 {
     GT3_File *fp;
+    file_iterator it;
     int rval = 0;
     int stat;
 
@@ -588,38 +589,21 @@ edit_file(const char *path, struct edit_command *list,
         return -1;
     }
 
-    if (!tseq) {
-        while (!GT3_eof(fp)) {
-            if (edit(fp, list) < 0) {
-                rval = -1;
-                break;
-            }
-            if (GT3_next(fp) < 0) {
-                GT3_printErrorMessages(stderr);
-                rval = -1;
-                break;
-            }
+    setup_file_iterator(&it, fp, tseq);
+    while ((stat = iterate_chunk2(&it)) != ITER_END) {
+        if (stat == ITER_ERROR || stat == ITER_ERRORCHUNK) {
+            rval = -1;
+            break;
         }
-    } else {
-        while ((stat = iterate_chunk(fp, tseq)) != ITER_END) {
-            if (stat == ITER_ERROR) {
-                rval = -1;
-                break;
-            }
-            if (stat == ITER_OUTRANGE)
-                continue;
+        if (stat == ITER_OUTRANGE)
+            continue;
 
-            if (stat == ITER_ERRORCHUNK) {
-                rval = -1;
-                break;
-            }
-
-            if (edit(fp, list) < 0) {
-                rval = -1;
-                break;
-            }
+        if (edit(fp, list) < 0) {
+            rval = -1;
+            break;
         }
     }
+
     GT3_close(fp);
     return rval;
 }

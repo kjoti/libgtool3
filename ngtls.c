@@ -124,6 +124,7 @@ print_list(const char *path, struct sequence *seq, int name_flag)
 {
     GT3_File *fp;
     int stat, rval = 0;
+    file_iterator it;
 
     if ((fp = GT3_open(path)) == NULL) {
         GT3_printErrorMessages(stderr);
@@ -132,41 +133,27 @@ print_list(const char *path, struct sequence *seq, int name_flag)
     if (name_flag)
         printf("# Filename: %s\n", path);
 
-    if (seq == NULL)
-        while (!GT3_eof(fp)) {
-            if ((*print_item)(fp->curr + 1, fp) < 0) {
-                print_error(fp->curr + 1);
-                rval = -1;
-                break;
-            }
-
-            if (GT3_next(fp) < 0) {
-                print_error(fp->curr + 2);
-                rval = -1;
-                break;
-            }
+    setup_file_iterator(&it, fp, seq);
+    while ((stat = iterate_chunk2(&it)) != ITER_END) {
+        if (stat == ITER_ERROR) {
+            rval = -1;
+            break;
         }
-    else
-        while ((stat = iterate_chunk(fp, seq)) != ITER_END) {
-            if (stat == ITER_ERROR) {
-                rval = -1;
-                break;
-            }
-            if (stat == ITER_OUTRANGE)
-                continue;
+        if (stat == ITER_OUTRANGE)
+            continue;
 
-            if (stat == ITER_ERRORCHUNK) {
-                print_error(fp->curr + 1);
-                rval = -1;
-                break;
-            }
-
-            if ((*print_item)(fp->curr + 1, fp) < 0) {
-                print_error(fp->curr + 1);
-                rval = -1;
-                break;
-            }
+        if (stat == ITER_ERRORCHUNK) {
+            print_error(fp->curr + 1);
+            rval = -1;
+            break;
         }
+
+        if ((*print_item)(fp->curr + 1, fp) < 0) {
+            print_error(fp->curr + 1);
+            rval = -1;
+            break;
+        }
+    }
 
     GT3_close(fp);
     return rval;

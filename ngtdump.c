@@ -63,20 +63,32 @@ int
 dump_info(GT3_File *fp, const GT3_HEADER *head)
 {
     char hbuf[33];
-    GT3_Date date;
+    int i;
 
     printf("#\n");
-    printf("#       Data No.: %d\n", fp->curr + 1);
-    GT3_copyHeaderItem(hbuf, sizeof hbuf, head, "TITLE");
-    printf("#          TITLE: %s\n", hbuf);
-    GT3_copyHeaderItem(hbuf, sizeof hbuf, head, "UNIT");
-    printf("#           UNIT: %s\n", hbuf);
-    printf("#     Data Shape: %dx%dx%d\n",
-           fp->dimlen[0], fp->dimlen[1], fp->dimlen[2]);
+    printf("# %14s: %d\n", "Data No.", fp->curr + 1);
+    {
+        const char *keys[] = {"DSET", "ITEM",
+                              "TITLE", "UNIT",
+                              "DFMT"};
 
-    if (GT3_decodeHeaderDate(&date, head, "DATE") == 0) {
-        snprintf_date(hbuf, sizeof hbuf, &date);
-        printf("#           DATE: %s\n", hbuf);
+        for (i = 0; i < sizeof keys / sizeof keys[0]; i++) {
+            GT3_copyHeaderItem(hbuf, sizeof hbuf, head, keys[i]);
+            printf("# %14s: %s\n", keys[i], hbuf);
+        }
+    }
+    printf("# %14s: %dx%dx%d\n", "Data Shape",
+           fp->dimlen[0], fp->dimlen[1], fp->dimlen[2]);
+    {
+        const char *keys[] = {"DATE", "DATE1", "DATE2"};
+        GT3_Date date;
+
+        for (i = 0; i < sizeof keys / sizeof keys[0]; i++) {
+            if (GT3_decodeHeaderDate(&date, head, keys[i]) == 0) {
+                snprintf_date(hbuf, sizeof hbuf, &date);
+                printf("# %14s: %s\n", keys[i], hbuf);
+            }
+        }
     }
     printf("#\n");
     return 0;
@@ -238,7 +250,8 @@ ngtdump(const char *path, struct sequence *seq)
     GT3_File *fp;
     GT3_Varbuf *var;
     GT3_HEADER head;
-    int rval = 0;
+    file_iterator it;
+    int rval = -1;
     int stat;
 
     if ((fp = GT3_open(path)) == NULL
@@ -248,43 +261,23 @@ ngtdump(const char *path, struct sequence *seq)
     }
 
     printf("###\n# Filename: %s\n", path);
-    if (seq == NULL) {
-        while (!GT3_eof(fp)) {
-            if (GT3_readHeader(&head, fp) < 0) {
-                GT3_printErrorMessages(stderr);
-                rval = -1;
-                break;
-            }
-            if (dump_info(fp, &head) < 0 || dump_var(var, &head) < 0) {
-                rval = -1;
-                break;
-            }
-            if (GT3_next(fp) < 0) {
-                GT3_printErrorMessages(stderr);
-                rval = -1;
-                break;
-            }
-        }
-    } else {
-        while ((stat = iterate_chunk(fp, seq)) != ITER_END) {
-            if (stat == ITER_ERROR || stat == ITER_ERRORCHUNK) {
-                rval = -1;
-                break;
-            }
-            if (stat == ITER_OUTRANGE)
-                continue;
+    setup_file_iterator(&it, fp, seq);
+    while ((stat = iterate_chunk2(&it)) != ITER_END) {
+        if (stat == ITER_ERROR || stat == ITER_ERRORCHUNK)
+            goto finish;
+        if (stat == ITER_OUTRANGE)
+            continue;
 
-            if (GT3_readHeader(&head, fp) < 0) {
-                GT3_printErrorMessages(stderr);
-                rval = -1;
-                break;
-            }
-            if (dump_info(fp, &head) < 0 || dump_var(var, &head) < 0) {
-                rval = -1;
-                break;
-            }
+        if (GT3_readHeader(&head, fp) < 0) {
+            GT3_printErrorMessages(stderr);
+            goto finish;
         }
+        if (dump_info(fp, &head) < 0 || dump_var(var, &head) < 0)
+            goto finish;
     }
+    rval = 0;
+
+finish:
     GT3_freeVarbuf(var);
     GT3_close(fp);
     return rval;

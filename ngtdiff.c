@@ -361,6 +361,8 @@ diff_file(const char *path1, const char *path2,
 {
     GT3_File *fp1, *fp2;
     GT3_Varbuf *var1, *var2;
+    file_iterator it1, it2;
+    int stat1, stat2;
     int rc, rval = 0;
 
     if (   (fp1 = GT3_open(path1)) == NULL
@@ -370,49 +372,35 @@ diff_file(const char *path1, const char *path2,
         GT3_printErrorMessages(stderr);
         return -1;
     }
-    if (seq1 && seq2) {
-        int stat1, stat2;
 
-        for (;;) {
-            stat1 = iterate_chunk(fp1, seq1);
-            stat2 = iterate_chunk(fp2, seq2);
-            if (stat1 == ITER_END || stat2 == ITER_END)
-                break;
-
-            if (   stat1 == ITER_ERROR || stat1 == ITER_ERRORCHUNK
-                || stat2 == ITER_ERROR || stat2 == ITER_ERRORCHUNK)
-                break;
-
-            if (stat1 == ITER_OUTRANGE || stat2 == ITER_OUTRANGE)
-                continue;
-
-            if ((rc = diff_var(var1, var2)) < 0) {
-                rval = -1;
-                break;
-            }
-            rval |= rc;
+    setup_file_iterator(&it1, fp1, seq1);
+    setup_file_iterator(&it2, fp2, seq2);
+    for (;;) {
+        stat1 = iterate_chunk2(&it1);
+        stat2 = iterate_chunk2(&it2);
+        if (   stat1 == ITER_ERROR || stat1 == ITER_ERRORCHUNK
+            || stat2 == ITER_ERROR || stat2 == ITER_ERRORCHUNK) {
+            rval = -1;
+            break;
         }
-    } else {
-        for (;;) {
-            if ((rc = diff_var(var1, var2)) < 0) {
-                rval = -1;
-                break;
-            }
-            rval |= rc;
 
-            if (GT3_next(fp1) < 0 || GT3_next(fp2) < 0) {
-                GT3_printErrorMessages(stderr);
-                rval = -1;
-                break;
-            }
+        if (stat2 == ITER_END)
+            break;
 
-            if (GT3_eof(fp2))
-                break;
+        if (stat1 == ITER_OUTRANGE || stat2 == ITER_OUTRANGE)
+            continue;
 
-            if (GT3_eof(fp1))
-                GT3_rewind(fp1);
+        if (stat1 == ITER_END) {
+            rewind_file_iterator(&it1);
+            iterate_chunk2(&it1);
         }
+        if ((rc = diff_var(var1, var2)) < 0) {
+            rval = -1;
+            break;
+        }
+        rval |= rc;
     }
+
     GT3_freeVarbuf(var1);
     GT3_freeVarbuf(var2);
     GT3_close(fp1);
@@ -553,18 +541,6 @@ main(int argc, char **argv)
         usage();
         exit(1);
     }
-
-    if (seq1 != NULL && seq2 == NULL)
-        if ((seq2 = initSeq(":", 1, 0x7fffffff)) == NULL) {
-            logging(LOG_SYSERR, NULL);
-            exit(1);
-        }
-
-    if (seq1 == NULL && seq2 != NULL)
-        if ((seq1 = initSeq(":", 1, 0x7fffffff)) == NULL) {
-            logging(LOG_SYSERR, NULL);
-            exit(1);
-        }
 
     rval = diff_file(argv[0], argv[1], seq1, seq2);
     return rval < 0 ? 255 : rval;

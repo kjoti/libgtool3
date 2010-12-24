@@ -20,7 +20,6 @@
 #define PROGNAME "ngtick"
 
 static caltime global_origin;
-static struct sequence *global_timeseq = NULL;
 static int snapshot_flag = 0;
 
 enum {
@@ -112,41 +111,16 @@ modify_date(GT3_HEADER *head,
 }
 
 
-/*
- * Return value:
- *             -1: some error has occurred.
- *       ITER_END: no more timeseq (only when -t option specified)
- *  ITER_CONTINUE: the others
- */
 static int
-get_next(GT3_File *fp)
-{
-    int rval;
-
-    if (!global_timeseq) {
-        if (GT3_next(fp) < 0) {
-            GT3_printErrorMessages(stderr);
-            return -1;
-        }
-        rval = ITER_CONTINUE;
-    } else {
-        while ((rval = iterate_chunk(fp, global_timeseq)) == ITER_OUTRANGE)
-            if (rval == ITER_ERROR || rval == ITER_ERRORCHUNK)
-                return -1;
-    }
-    return rval;
-}
-
-
-static int
-tick(GT3_File *fp, struct caltime *start, int dur, int durunit)
+tick(file_iterator *it, struct caltime *start, int dur, int durunit)
 {
     struct caltime date_bnd[2], date;
     struct caltime *lower, *upper;
     GT3_HEADER head;
+    GT3_File *fp;
     double time_bnd[2], time, tdur, secs;
     int days;
-    int i, it;
+    int i, stat;
 
     date_bnd[0] = *start;
     date_bnd[1] = *start;
@@ -155,15 +129,22 @@ tick(GT3_File *fp, struct caltime *start, int dur, int durunit)
     time_bnd[0] = ct_diff_seconds(&date_bnd[0], &global_origin);
     time_bnd[1] = ct_diff_seconds(&date_bnd[1], &global_origin);
 
+    fp = it->fp;
     for (i = 0; ; i ^= 1) {
         lower = &date_bnd[i];
         upper = &date_bnd[i ^ 1];
 
+        stat = iterate_chunk2(it);
+        if (stat == ITER_END) {
+            *start = *lower;
+            break;
+        }
+        if (stat == ITER_ERROR || stat == ITER_ERRORCHUNK)
+            return -1;
+        if (stat == ITER_OUTRANGE)
+            continue;
+
         if (GT3_readHeader(&head, fp) < 0) {
-            if (GT3_eof(fp)) {
-                *start = *lower;
-                break;
-            }
             GT3_printErrorMessages(stderr);
             return -1;
         }
@@ -205,14 +186,6 @@ tick(GT3_File *fp, struct caltime *start, int dur, int durunit)
          */
         step(lower, 2 * dur, durunit);
         time_bnd[i] = ct_diff_seconds(lower, &global_origin);
-
-        it = get_next(fp);
-        if (it < 0)
-            return -1;
-        if (it == ITER_END) {
-            *start = *upper;
-            break;
-        }
     }
     return 0;
 }
@@ -222,9 +195,11 @@ tick(GT3_File *fp, struct caltime *start, int dur, int durunit)
  * Set "TIME", "DATE", "TDUR", "DATE1", and "DATE2".
  */
 static int
-tick_file(const char *path, caltime *start, int dur, int durunit)
+tick_file(const char *path, caltime *start, int dur, int durunit,
+          struct sequence *seq)
 {
     GT3_File *fp;
+    file_iterator it;
     int rval;
 
     if ((fp = GT3_openRW(path)) == NULL) {
@@ -232,11 +207,8 @@ tick_file(const char *path, caltime *start, int dur, int durunit)
         return -1;
     }
 
-    if (global_timeseq)
-        rval = get_next(fp);
-
-    if (!global_timeseq || rval == ITER_CONTINUE)
-        rval = tick(fp, start, dur, durunit);
+    setup_file_iterator(&it, fp, seq);
+    rval = tick(&it, start, dur, durunit);
 
     GT3_close(fp);
     return rval;
@@ -349,6 +321,7 @@ main(int argc, char **argv)
 {
     int ch;
     caltime start;
+    struct sequence *tseq = NULL;
     int caltype = CALTIME_GREGORIAN;
     int yr, mon, day, sec, tdur, unit;
 
@@ -366,12 +339,14 @@ main(int argc, char **argv)
         case 's':
             snapshot_flag = 1;
             break;
+
         case 't':
-            if ((global_timeseq = initSeq(optarg, 1, 0x7fffffff)) == NULL) {
+            if ((tseq = initSeq(optarg, 1, 0x7fffffff)) == NULL) {
                 logging(LOG_SYSERR, NULL);
                 exit(1);
             }
             break;
+
         case 'h':
         default:
             usage();
@@ -413,12 +388,12 @@ main(int argc, char **argv)
     argc--;
     argv++;
     for (; argc > 0 && *argv; argc--, argv++) {
-        if (tick_file(*argv, &start, tdur, unit) < 0) {
+        if (tick_file(*argv, &start, tdur, unit, tseq) < 0) {
             logging(LOG_ERR, "%s: abnormal end", *argv);
             exit(1);
         }
-        if (global_timeseq)
-            reinitSeq(global_timeseq, 1, 0x7fffffff);
+        if (tseq)
+            reinitSeq(tseq, 1, 0x7fffffff);
     }
     return 0;
 }

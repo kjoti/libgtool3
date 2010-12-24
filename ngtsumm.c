@@ -251,7 +251,8 @@ summ_file(const char *path, struct sequence *seq)
 {
     GT3_File *fp = NULL;
     GT3_Varbuf *var;
-    int stat;
+    file_iterator it;
+    int rval, stat;
 
     if ((fp = GT3_open(path)) == NULL
         || (var = GT3_getVarbuf(fp)) == NULL) {
@@ -261,27 +262,22 @@ summ_file(const char *path, struct sequence *seq)
     }
 
     print_caption(stdout, path);
-    if (seq == NULL)
-        while (!GT3_eof(fp)) {
-            if (print_summary(stdout, var) < 0 || GT3_next(fp) < 0) {
-                GT3_printErrorMessages(stderr);
-                break;
-            }
-        }
-    else
-        while ((stat = iterate_chunk(fp, seq)) != ITER_END) {
-            if (stat == ITER_ERROR || stat == ITER_ERRORCHUNK)
-                break;
+    setup_file_iterator(&it, fp, seq);
+    while ((stat = iterate_chunk2(&it)) != ITER_END) {
+        if (stat == ITER_ERROR || stat == ITER_ERRORCHUNK)
+            goto finish;
+        if (stat == ITER_OUTRANGE)
+            continue;
 
-            if (stat == ITER_OUTRANGE)
-                continue;
+        if (print_summary(stdout, var) < 0)
+            goto finish;
+    }
+    rval = 0;
 
-            print_summary(stdout, var);
-        }
-
+finish:
     GT3_freeVarbuf(var);
     GT3_close(fp);
-    return 0;
+    return rval;
 }
 
 

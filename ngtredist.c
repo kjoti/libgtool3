@@ -234,15 +234,16 @@ redist(const char *path, const char *format, struct sequence *seq)
     GT3_File *fp;
     GT3_HEADER head;
     FILE *output = NULL;
-    int eval, rval = 0;
-    int stat;
+    file_iterator it;
+    int rval = -1;
+    int err, stat;
     int sw = 0;
     char outpath[2][PATH_MAX + 1];
 
 
     if ((fp = GT3_open(path)) == NULL) {
-        eval = GT3_getLastError();
-        if (eval == GT3_ERR_FILE) {
+        err = GT3_getLastError();
+        if (err == GT3_ERR_FILE) {
             logging(LOG_INFO, "Ignore %s", path);
             return 0;
         }
@@ -251,59 +252,54 @@ redist(const char *path, const char *format, struct sequence *seq)
     }
 
     outpath[0][0] = outpath[1][0] = '\0';
-    while ((stat = iterate_chunk(fp, seq)) != ITER_END) {
+    setup_file_iterator(&it, fp, seq);
+    while ((stat = iterate_chunk2(&it)) != ITER_END) {
+        if (stat == ITER_ERROR || stat == ITER_ERRORCHUNK)
+            goto finish;
         if (stat == ITER_OUTRANGE)
             continue;
 
-        if (stat == ITER_ERROR) {
-            logging(LOG_ERR, "%s: Invalid -t argument", seq->it);
-            break;
-        }
-
-        if (stat == ITER_ERRORCHUNK) {
-            rval = -1;
-            break;
-        }
-
         if (GT3_readHeader(&head, fp) < 0) {
             GT3_printErrorMessages(stderr);
-            rval = -1;
-            break;
+            goto finish;
         }
 
-        rval = gh_snprintf(outpath[sw], sizeof outpath[sw], format,
-                           &head, fp->path, fp->curr);
-        if (rval == -2)
-            logging(LOG_ERR, "output filename is too long.");
-        if (rval == -3)
-            logging(LOG_ERR, "%s: invalid format string.", format);
-        if (rval < 0)
-            break;
+        err = gh_snprintf(outpath[sw], sizeof outpath[sw], format,
+                          &head, fp->path, fp->curr);
+        if (err < 0) {
+            switch (err) {
+            case -2:
+                logging(LOG_ERR, "output filename is too long.");
+                break;
+            case -3:
+                logging(LOG_ERR, "%s: invalid format string.", format);
+                break;
+            }
+            goto finish;
+        }
 
         sanitize(outpath[sw]);
-
         if (identical_file(path, outpath[sw]) == 1) {
-            logging(LOG_ERR, "\"%s\" and \"%s\" are identical.",
-                    path, outpath[sw]);
-            rval = -1;
-            break;
+            logging(LOG_ERR, "\"%s\" is identical to \"%s\".",
+                    outpath[sw], path);
+            goto finish;
         }
 
         if (strcmp(outpath[0], outpath[1]) != 0) {
             if (close_file(output) != 0
                 || (output = open_file(outpath[sw])) == NULL) {
                 output = NULL;
-                rval = -1;
-                break;
+                goto finish;
             }
             sw ^= 1;
         }
 
-        if (copy_chunk(output, fp) < 0) {
-            rval = -1;
-            break;
-        }
+        if (copy_chunk(output, fp) < 0)
+            goto finish;
     }
+    rval = 0;
+
+finish:
     close_file(output);
     GT3_close(fp);
     return rval;
@@ -388,19 +384,17 @@ main(int argc, char **argv)
         usage();
         exit(1);
     }
-    if (!seq)
-        seq = initSeq(":", 1, 0x7fffffff);
 
     format = *argv;
     argc--;
     argv++;
-
     for (; argc > 0 && *argv; argc--, argv++) {
         if (redist(*argv, format, seq) < 0) {
             exitval = 1;
             break;
         }
-        reinitSeq(seq, 1, 0x7fffffff);
+        if (seq)
+            reinitSeq(seq, 1, 0x7fffffff);
     }
     return exitval;
 }

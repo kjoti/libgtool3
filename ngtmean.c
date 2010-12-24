@@ -421,8 +421,8 @@ ngtmean(FILE *output, const char *path,
     GT3_File *fp = NULL;
     GT3_Varbuf *vbuf = NULL;
     GT3_HEADER head;
+    file_iterator it;
     int stat, rval = -1;
-
 
     if ((fp = GT3_open(path)) == NULL
         || ((vbuf = GT3_getVarbuf(fp)) == NULL)) {
@@ -430,47 +430,24 @@ ngtmean(FILE *output, const char *path,
         goto finish;
     }
 
-    if (tseq == NULL) {
-        while (!GT3_eof(fp)) {
-            if (GT3_readHeader(&head, fp) < 0) {
-                GT3_printErrorMessages(stderr);
-                goto finish;
-            }
+    setup_file_iterator(&it, fp, tseq);
+    while ((stat = iterate_chunk2(&it)) != ITER_END) {
+        if (stat == ITER_ERROR || stat == ITER_ERRORCHUNK)
+            goto finish;
+        if (stat == ITER_OUTRANGE)
+            continue;
 
-            if (setup_mdata(mdata, fp->dimlen, &head, mode) < 0
-                || realloc_var(mdata) < 0
-                || calc_mean(mdata, vbuf, mode) < 0
-                || modify_head(&head, mdata, mode) < 0
-                || (shift_flag && shift_var(mdata, mode) < 0)
-                || write_mean(output, mdata, &head, mode, fmt) < 0)
-                goto finish;
-
-            if (GT3_next(fp) < 0) {
-                GT3_printErrorMessages(stderr);
-                goto finish;
-            }
+        if (GT3_readHeader(&head, fp) < 0) {
+            GT3_printErrorMessages(stderr);
+            goto finish;
         }
-    } else {
-        while ((stat = iterate_chunk(fp, tseq)) != ITER_END) {
-            if (stat == ITER_ERROR || stat == ITER_ERRORCHUNK)
-                goto finish;
-
-            if (stat == ITER_OUTRANGE)
-                continue;
-
-            if (GT3_readHeader(&head, fp) < 0) {
-                GT3_printErrorMessages(stderr);
-                goto finish;
-            }
-
-            if (setup_mdata(mdata, fp->dimlen, &head, mode) < 0
-                || realloc_var(mdata) < 0
-                || calc_mean(mdata, vbuf, mode) < 0
-                || modify_head(&head, mdata, mode) < 0
-                || (shift_flag && shift_var(mdata, mode) < 0)
-                || write_mean(output, mdata, &head, mode, fmt) < 0)
-                goto finish;
-        }
+        if (setup_mdata(mdata, fp->dimlen, &head, mode) < 0
+            || realloc_var(mdata) < 0
+            || calc_mean(mdata, vbuf, mode) < 0
+            || modify_head(&head, mdata, mode) < 0
+            || (shift_flag && shift_var(mdata, mode) < 0)
+            || write_mean(output, mdata, &head, mode, fmt) < 0)
+            goto finish;
     }
     rval = 0;
 
