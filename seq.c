@@ -138,7 +138,9 @@ nextToken(struct sequence *seq)
     seq->curr = triplet[0];
 
     return ((seq->step > 0 && seq->tail < seq->head)
-            || (seq->step < 0 && seq->tail > seq->head)) ? 0 : 1;
+            || (seq->step < 0 && seq->tail > seq->head))
+        ? nextToken(seq)
+        : 1;
 }
 
 
@@ -210,8 +212,8 @@ countSeq(const struct sequence *seqin)
 #define LAST  100
 
 
-void
-test1(const char *str, int val[], int num)
+static void
+test1_1(const char *str, int val[], int num)
 {
     struct sequence *seq;
     int i, stat;
@@ -229,47 +231,22 @@ test1(const char *str, int val[], int num)
     assert(stat == 0);
     assert(countSeq(seq) == 0);
 
+    /* once more */
     stat = nextSeq(seq);
     assert(stat == 0);
+    assert(countSeq(seq) == 0);
 
     freeSeq(seq);
     free(seq);
 }
 
-void
-test2(const char *str, int val[], int num)
-{
-    struct sequence *seq;
-    int i, cnt, n;
 
-    seq = initSeq(str, FIRST, LAST);
-
-    cnt = 0;
-    while (nextToken(seq)) {
-        if (seq->step == 0) {
-            assert(seq->curr == val[cnt]);
-            cnt++;
-        } else {
-            n = (seq->tail + seq->step - seq->head) / seq->step;
-            for (i = seq->head; n > 0; i += seq->step) {
-                assert(i == val[cnt]);
-                cnt++;
-                n--;
-            }
-        }
-    }
-    /* printf("%d %d\n", cnt, num); */
-    assert(cnt == num);
-    freeSeq(seq);
-    free(seq);
-}
-
-int
-main(int argc, char **argv)
+static void
+test1(void)
 {
     int val[20];
 
-#define TEST test1
+#define TEST test1_1
 
     val[0] = 1;
     val[1] = 10;
@@ -329,6 +306,13 @@ main(int argc, char **argv)
     val[1] = 20;
     val[2] = 30;
     TEST("  10:10 20:20:3 30:30:-1    ", val, 3);
+}
+
+
+int
+main(int argc, char **argv)
+{
+    test1();
     return 0;
 }
-#endif
+#endif /* TEST_MAIN */
