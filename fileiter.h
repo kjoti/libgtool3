@@ -12,5 +12,17 @@ enum {
     ITER_ERRORCHUNK
 };
 
-int iterate_chunk(GT3_File *fp, struct sequence *seq);
+struct file_iterator {
+    GT3_File *fp;
+    struct sequence *seq;
+    unsigned flags_;            /* internal flags */
+};
+
+typedef struct file_iterator file_iterator;
+
+void rewind_file_iterator(file_iterator *it);
+void setup_file_iterator(file_iterator *it, GT3_File *fp,
+                         struct sequence *seq);
+int iterate_chunk2(struct file_iterator *it);
+
 #endif

@@ -6,41 +6,90 @@
 #include "fileiter.h"
 
 
-int
-iterate_chunk(GT3_File *fp, struct sequence *seq)
+void
+setup_file_iterator(file_iterator *it, GT3_File *fp, struct sequence *seq)
 {
-    int stat;
+    it->fp = fp;
+    it->seq = seq;
+    it->flags_ = 0;
+}
 
-    stat = nextSeq(seq);
+
+void
+rewind_file_iterator(file_iterator *it)
+{
+    it->flags_ = 0;
+    if (it->seq == NULL)
+        GT3_rewind(it->fp);
+    else
+        rewindSeq(it->seq);
+}
+
+
+int
+iterate_chunk2(file_iterator *it)
+{
+    int stat, err;
+    int next, nskips;
+    int rval;
+
+    if (it->seq == NULL) {
+        if (it->flags_ && GT3_next(it->fp) < 0) {
+            GT3_printErrorMessages(stderr);
+            return ITER_ERRORCHUNK;
+        }
+        if (GT3_eof(it->fp))
+            return ITER_END;
+
+        it->flags_ = 1;
+        return ITER_CONTINUE;
+    }
+
+    /* using sequence. */
+    stat = nextSeq(it->seq);
     if (stat < 0)
         return ITER_ERROR;
     if (stat == 0)
         return ITER_END;
 
-    if (seq->curr < 0) {
-        stat = GT3_seek(fp, seq->curr, SEEK_END);
-    } else {
-        stat = GT3_seek(fp, seq->curr - 1, SEEK_SET);
-        if (GT3_eof(fp)) {
-            seq->last = fp->num_chunk;
-            if (seq->step > 0 && seq->tail > seq->last)
-                seq->tail = seq->last;
-            return ITER_OUTRANGE;
-        }
-    }
+    if (it->seq->curr < 0)
+        next = it->seq->curr + GT3_getNumChunk(it->fp);
+    else
+        next = it->seq->curr - 1;
 
-    if (stat < 0) {
-        if (GT3_getLastError() != GT3_ERR_INDEX) {
-            GT3_printLastErrorMessage(stderr);
-            return ITER_ERRORCHUNK;
+    if (next < 0) {
+        if (it->seq->step > 0) {
+            nskips = -next / it->seq->step - 1;
+            if (nskips > 0)
+                it->seq->curr += nskips * it->seq->step;
         }
-        if (fp->num_chunk > 0) {
-            seq->last = fp->num_chunk;
-            if (seq->step > 0 && seq->tail > seq->last)
-                seq->tail = seq->last;
-        }
+        if (it->seq->step < 0)
+            it->seq->tail = it->seq->curr;
+
         return ITER_OUTRANGE;
     }
 
-    return ITER_CONTINUE;
+    if (it->fp->num_chunk > 0 && next >= it->fp->num_chunk)
+        return ITER_OUTRANGE;
+
+    rval = ITER_CONTINUE;
+    stat = GT3_seek(it->fp, next, SEEK_SET);
+    if (GT3_eof(it->fp)) {
+        it->seq->last = GT3_getNumChunk(it->fp);
+        if (it->seq->step > 0)
+            it->seq->tail = it->seq->last;
+
+        rval = ITER_OUTRANGE;
+    }
+
+    if (stat < 0) {
+        err = GT3_getLastError();
+        if (err == GT3_ERR_INDEX) {
+            GT3_clearLastError();
+            return ITER_OUTRANGE;
+        }
+        GT3_printErrorMessages(stderr);
+        rval = ITER_ERRORCHUNK;
+    }
+    return rval;
 }
