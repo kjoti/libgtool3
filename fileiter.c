@@ -54,11 +54,10 @@ iterate_file(file_iterator *it)
 
     if (it->seq->curr < 0)
         next = it->seq->curr + GT3_getNumChunk(it->fp);
+    else if (it->seq->curr == 0)
+        return ITER_OUTRANGE;
     else
         next = it->seq->curr - 1;
-
-    if (next == -1)
-        return ITER_OUTRANGE;
 
     rval = ITER_CONTINUE;
     if (it->seq->step != 0) {
