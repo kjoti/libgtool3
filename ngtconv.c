@@ -248,7 +248,7 @@ conv_file(const char *path, const char *fmt, FILE *output,
     }
 
     setup_file_iterator(&it, fp, seq);
-    while ((stat = iterate_chunk2(&it)) != ITER_END) {
+    while ((stat = iterate_file(&it)) != ITER_END) {
         if (stat == ITER_ERROR || stat == ITER_ERRORCHUNK)
             goto finish;
         if (stat == ITER_OUTRANGE)

@@ -376,8 +376,8 @@ diff_file(const char *path1, const char *path2,
     setup_file_iterator(&it1, fp1, seq1);
     setup_file_iterator(&it2, fp2, seq2);
     for (;;) {
-        stat1 = iterate_chunk2(&it1);
-        stat2 = iterate_chunk2(&it2);
+        stat1 = iterate_file(&it1);
+        stat2 = iterate_file(&it2);
         if (   stat1 == ITER_ERROR || stat1 == ITER_ERRORCHUNK
             || stat2 == ITER_ERROR || stat2 == ITER_ERRORCHUNK) {
             rval = -1;
@@ -392,7 +392,7 @@ diff_file(const char *path1, const char *path2,
 
         if (stat1 == ITER_END) {
             rewind_file_iterator(&it1);
-            iterate_chunk2(&it1);
+            iterate_file(&it1);
         }
         if ((rc = diff_var(var1, var2)) < 0) {
             rval = -1;

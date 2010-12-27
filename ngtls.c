@@ -134,7 +134,7 @@ print_list(const char *path, struct sequence *seq, int name_flag)
         printf("# Filename: %s\n", path);
 
     setup_file_iterator(&it, fp, seq);
-    while ((stat = iterate_chunk2(&it)) != ITER_END) {
+    while ((stat = iterate_file(&it)) != ITER_END) {
         if (stat == ITER_ERROR) {
             rval = -1;
             break;

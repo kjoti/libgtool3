@@ -590,7 +590,7 @@ edit_file(const char *path, struct edit_command *list,
     }
 
     setup_file_iterator(&it, fp, tseq);
-    while ((stat = iterate_chunk2(&it)) != ITER_END) {
+    while ((stat = iterate_file(&it)) != ITER_END) {
         if (stat == ITER_ERROR || stat == ITER_ERRORCHUNK) {
             rval = -1;
             break;

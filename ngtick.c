@@ -134,7 +134,7 @@ tick(file_iterator *it, struct caltime *start, int dur, int durunit)
         lower = &date_bnd[i];
         upper = &date_bnd[i ^ 1];
 
-        stat = iterate_chunk2(it);
+        stat = iterate_file(it);
         if (stat == ITER_END) {
             *start = *lower;
             break;
