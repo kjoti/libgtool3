@@ -43,6 +43,114 @@ static struct range g_range[] = {
 static struct sequence *g_zseq = NULL;
 static struct buffer g_buffer;
 
+/*
+ * raw_output: a function for raw binary output.
+ */
+typedef size_t (*output_func)(double *, size_t, FILE *);
+static output_func raw_output = NULL;
+
+
+/*
+ * raw output funcs.
+ */
+static size_t
+fwrite_as_dble(double *ptr, size_t nelems, FILE *fp, int byteswap)
+{
+    if (byteswap)
+        reverse_dwords(ptr, nelems); /* data will be broken. OK. */
+
+    return fwrite(ptr, sizeof(double), nelems, fp);
+}
+
+static size_t
+fwrite_as_dble_little(double *ptr, size_t nelems, FILE *fp)
+{
+    return fwrite_as_dble(ptr, nelems, fp, IS_LITTLE_ENDIAN ? 0 : 1);
+}
+
+static size_t
+fwrite_as_dble_big(double *ptr, size_t nelems, FILE *fp)
+{
+    return fwrite_as_dble(ptr, nelems, fp, IS_LITTLE_ENDIAN ? 1 : 0);
+}
+
+static size_t
+fwrite_as_dble_native(double *ptr, size_t nelems, FILE *fp)
+{
+    return fwrite_as_dble(ptr, nelems, fp, 0);
+}
+
+static size_t
+fwrite_as_float(double *ptr, size_t nelems, FILE *fp, int byteswap)
+{
+#define NBUF (IO_BUF_SIZE >> 2)
+    float buf[NBUF];
+    int i;
+    size_t len, cnt = 0;
+
+    while (nelems > 0) {
+        len = (nelems > NBUF) ? NBUF : nelems;
+
+        for (i = 0; i < len; i++)
+            buf[i] = (float)ptr[i];
+
+        if (byteswap)
+            reverse_words(buf, len);
+
+        if (fwrite(buf, sizeof(float), len, fp) != len)
+            break;
+
+        cnt += len;
+        nelems -= len;
+        ptr += len;
+    }
+    return cnt;
+}
+
+static size_t
+fwrite_as_float_little(double *ptr, size_t nelems, FILE *fp)
+{
+    return fwrite_as_float(ptr, nelems, fp, IS_LITTLE_ENDIAN ? 0 : 1);
+}
+
+static size_t
+fwrite_as_float_big(double *ptr, size_t nelems, FILE *fp)
+{
+    return fwrite_as_float(ptr, nelems, fp, IS_LITTLE_ENDIAN ? 1 : 0);
+}
+
+static size_t
+fwrite_as_float_native(double *ptr, size_t nelems, FILE *fp)
+{
+    return fwrite_as_float(ptr, nelems, fp, 0);
+}
+
+
+static int
+find_raw_format(const char *name)
+{
+    int i;
+    struct output_tab {
+        const char *key;
+        output_func func;
+    };
+    static struct output_tab tab[] = {
+        {"RAW_DOUBLE_LITTLE", fwrite_as_dble_little},
+        {"RAW_DOUBLE_BIG", fwrite_as_dble_big},
+        {"RAW_FLOAT_LITTLE", fwrite_as_float_little},
+        {"RAW_FLOAT_BIG", fwrite_as_float_big},
+        {"RAW_DOUBLE", fwrite_as_dble_native},
+        {"RAW_FLOAT", fwrite_as_float_native}
+    };
+
+    for (i = 0; i < sizeof tab / sizeof tab[0]; i++)
+        if (strcmp(name, tab[i].key) == 0) {
+            raw_output = tab[i].func;
+            return 0;
+        }
+    return -1;
+}
+
 
 /*
  * Return value:
@@ -198,6 +306,19 @@ conv_chunk(FILE *output, const char *dfmt, GT3_Varbuf *var, GT3_File *fp)
         }
     }
 
+    /*
+     * output in raw binary format {4-byte,8-byte} {big,little}.
+     */
+    if (raw_output) {
+        nelems = nx * ny * nz;
+
+        if (raw_output(g_buffer.ptr, nelems, output) != nelems) {
+            logging(LOG_SYSERR, NULL);
+            return -1;
+        }
+        return 0;
+    }
+
     GT3_setHeaderInt(&head, "ASTR1", astr[0] + range[0].str);
     GT3_setHeaderInt(&head, "ASTR2", astr[1] + range[1].str);
     if (g_zseq) {
@@ -326,7 +447,8 @@ main(int argc, char **argv)
             toupper_string(fmt);
             if (strcmp(fmt, "ASIS") != 0
                 && strcmp(fmt, "MASK") != 0
-                && GT3_output_format(dummy, fmt) < 0) {
+                && GT3_output_format(dummy, fmt) < 0
+                && find_raw_format(fmt) < 0) {
                 logging(LOG_ERR, "%s: Unknown format name", fmt);
                 exit(1);
             }
