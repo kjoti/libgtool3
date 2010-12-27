@@ -23,6 +23,6 @@ typedef struct file_iterator file_iterator;
 void rewind_file_iterator(file_iterator *it);
 void setup_file_iterator(file_iterator *it, GT3_File *fp,
                          struct sequence *seq);
-int iterate_chunk2(struct file_iterator *it);
+int iterate_file(struct file_iterator *it);
 
 #endif

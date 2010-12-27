@@ -27,10 +27,10 @@ rewind_file_iterator(file_iterator *it)
 
 
 int
-iterate_chunk2(file_iterator *it)
+iterate_file(file_iterator *it)
 {
     int stat, err;
-    int next, nskips;
+    int next;
     int rval;
 
     if (it->seq == NULL) {
@@ -57,22 +57,34 @@ iterate_chunk2(file_iterator *it)
     else
         next = it->seq->curr - 1;
 
-    if (next < 0) {
-        if (it->seq->step > 0) {
-            nskips = -next / it->seq->step - 1;
-            if (nskips > 0)
-                it->seq->curr += nskips * it->seq->step;
-        }
-        if (it->seq->step < 0)
-            it->seq->tail = it->seq->curr;
-
-        return ITER_OUTRANGE;
-    }
-
-    if (it->fp->num_chunk > 0 && next >= it->fp->num_chunk)
+    if (next == -1)
         return ITER_OUTRANGE;
 
     rval = ITER_CONTINUE;
+    if (it->seq->step != 0) {
+        int nskips = 0;
+
+        if (next < 0) {
+            if (it->seq->step < 0)
+                it->seq->tail = it->seq->curr;
+
+            nskips = -next / it->seq->step - 1;
+            rval = ITER_OUTRANGE;
+        }
+
+        if (it->fp->num_chunk > 0 && next >= it->fp->num_chunk) {
+            nskips = (it->fp->num_chunk - next) / it->seq->step - 1;
+            rval = ITER_OUTRANGE;
+        }
+
+        /* skip meaningless iteration. */
+        if (nskips > 0)
+            it->seq->curr += nskips * it->seq->step;
+
+        if (rval == ITER_OUTRANGE)
+            return rval;
+    }
+
     stat = GT3_seek(it->fp, next, SEEK_SET);
     if (GT3_eof(it->fp)) {
         it->seq->last = GT3_getNumChunk(it->fp);
