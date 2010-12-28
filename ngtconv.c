@@ -83,13 +83,13 @@ fwrite_as_dble_native(double *ptr, size_t nelems, FILE *fp)
 static size_t
 fwrite_as_float(double *ptr, size_t nelems, FILE *fp, int byteswap)
 {
-#define NBUF (IO_BUF_SIZE >> 2)
-    float buf[NBUF];
+#define BUFSIZE (IO_BUF_SIZE >> 2)
+    float buf[BUFSIZE];
     int i;
     size_t len, cnt = 0;
 
     while (nelems > 0) {
-        len = (nelems > NBUF) ? NBUF : nelems;
+        len = (nelems > BUFSIZE) ? BUFSIZE : nelems;
 
         for (i = 0; i < len; i++)
             buf[i] = (float)ptr[i];
@@ -415,8 +415,21 @@ usage(void)
         "    -y RANGE  specify Y-range\n"
         "    -z LIST   specify Z-planes\n";
 
+    const char *formats =
+        "Available formats:\n"
+        "    GTOOL3 formats:\n"
+        "       ur4, ur8, urc mr4, mr8\n"
+        "       ury{01,02,...,31}, mry{01,02,...,31}\n"
+        "\n"
+        "    Raw binary formats:\n"
+        "       raw_float  (native-endian)\n"
+        "       raw_double (native-endian)\n"
+        "       raw_float_little, raw_float_big\n"
+        "       raw_double_little, raw_double_big\n";
+
     fprintf(stderr, "%s\n", GT3_version());
     fprintf(stderr, "%s\n", usage_message);
+    fprintf(stderr, "%s\n", formats);
 }
 
 
@@ -431,6 +444,7 @@ main(int argc, char **argv)
     char *outpath = "gtool.out";
     FILE *output;
     char dummy[17];
+    int rval;
 
     open_logging(stderr, PROGNAME);
     GT3_setProgname(PROGNAME);
@@ -506,6 +520,7 @@ main(int argc, char **argv)
         exit(1);
     }
 
-    return conv_file(argv[0], fmt ? fmt : default_fmt, output, tseq) < 0
-        ? 1 : 0;
+    rval = conv_file(argv[0], fmt ? fmt : default_fmt, output, tseq);
+    fclose(output);
+    return rval < 0 ? 1 : 0;
 }
