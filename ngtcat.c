@@ -415,6 +415,10 @@ gtcat(const char *path, struct sequence *seq)
         if (stat == ITER_OUTRANGE)
             continue;
 
+        if (GT3_seek(fp, 0, SEEK_CUR) < 0) {
+            GT3_printErrorMessages(stderr);
+            goto finish;
+        }
         if (mcopy(output_stream, fp) < 0) {
             GT3_printErrorMessages(stderr);
             logging(LOG_SYSERR, NULL);
