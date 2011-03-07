@@ -8,6 +8,8 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "setmode.h"
+
 #define PROGNAME "ngthead"
 #define ELEMLEN 16
 
@@ -131,7 +133,7 @@ usage(void)
 int
 main(int argc, char **argv)
 {
-    FILE *fp = stdin;
+    FILE *fp = NULL;
     int ch;
 
     while ((ch = getopt(argc, argv, "h")) != -1)
@@ -150,6 +152,10 @@ main(int argc, char **argv)
     if (argc > 0 && (fp = fopen(*argv, "rb")) == NULL) {
         perror(*argv);
         exit(1);
+    }
+    if (!fp) {
+        fp = stdin;
+        SET_BINARY_MODE(stdin);
     }
     if (display(fp) < 0) {
         fprintf(stderr, "%s: invalid input.\n", PROGNAME);

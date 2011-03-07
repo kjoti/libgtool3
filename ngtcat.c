@@ -15,6 +15,7 @@
 #include "fileiter.h"
 #include "myutils.h"
 #include "logging.h"
+#include "setmode.h"
 
 #define PROGNAME "ngtcat"
 
@@ -32,7 +33,7 @@ static int slicing = 0;
 static char *zslice_str = NULL;
 static int global_xrange[] = { 0, 0x7fffffff };
 static int global_yrange[] = { 0, 0x7fffffff };
-static FILE *output_stream;
+static FILE *output_stream = NULL;
 
 
 static int
@@ -465,8 +466,6 @@ main(int argc, char **argv)
     int cyclic = 0;
     int ch, rval = 0;
 
-    output_stream = stdout;
-
     open_logging(stderr, PROGNAME);
     GT3_setProgname(PROGNAME);
     while ((ch = getopt(argc, argv, "cho:t:x:y:z:")) != -1)
@@ -515,6 +514,11 @@ main(int argc, char **argv)
         }
     argc -= optind;
     argv += optind;
+
+    if (!output_stream) {
+        output_stream = stdout;
+        SET_BINARY_MODE(stdout);
+    }
 
     if (cyclic) {
         if (gtcat_cyclic(argc, argv, seq) < 0)
