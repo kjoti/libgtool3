@@ -4,7 +4,7 @@
 #ifndef SETMODE__H
 #define SETMODE__H
 
-#if defined(MSDOS) || defined(CYGWIN) || defined(MINGW)
+#ifdef __MINGW32__
 #  include <fcntl.h>
 #  include <io.h>
 #  include <stdio.h>
