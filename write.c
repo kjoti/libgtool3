@@ -1,5 +1,5 @@
 /*
- * write.c  -- writing data in GT3_Var.
+ * write.c  -- writing data.
  */
 #include "internal.h"
 
