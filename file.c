@@ -445,11 +445,11 @@ static GT3_File *
 open_gt3file(const char *path, const char *mode)
 {
     FILE *fp;
-    struct stat sb;
+    file_stat_t sb;
     GT3_File *gp = NULL;
     GT3_HEADER head;
 
-    if (stat(path, &sb) < 0 || (fp = fopen(path, mode)) == NULL) {
+    if (file_stat(path, &sb) < 0 || (fp = fopen(path, mode)) == NULL) {
         gt3_error(SYSERR, path);
         return NULL;
     }
@@ -722,7 +722,7 @@ main(int argc, char **argv)
     };
     int i, fmt, rval;
     char dfmt[17];
-
+    file_stat_t sb;
 
     for (i = 0; i < sizeof name / sizeof name[0]; i++) {
         fmt = GT3_format(name[i]);
@@ -735,6 +735,10 @@ main(int argc, char **argv)
 
     }
 
+    printf("sizeof sb.st_size: %d\n", sizeof sb.st_size);
+    printf("sizeof(off_t): %d\n", sizeof(off_t));
+    if (sizeof sb.st_size != 8 || sizeof(off_t) != 8)
+        printf("Waring: cannot support a LARGEFILE?");
     return 0;
 }
 #endif

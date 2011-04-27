@@ -38,9 +38,31 @@ typedef unsigned uint32_t;
 #  define IS_LITTLE_ENDIAN 1
 #endif
 
-#ifndef HAVE_FSEEKO
-#  define fseeko fseek
-#  define ftello ftell
+/*
+ * fseeko and ftello
+ */
+#ifdef __MINGW32__
+#  define fseeko fseeko64
+#  define ftello ftello64
+#  define off_t  off64_t
+#else /* !__MINGW32__ */
+#  ifndef HAVE_FSEEKO
+#    define fseeko fseek
+#    define ftello ftell
+#  endif
+#endif /* !__MINGW32__ */
+
+/*
+ * wrapper for stat(2).
+ */
+#include <sys/types.h>
+#include <sys/stat.h>
+#ifdef __MINGW32__
+typedef struct _stati64 file_stat_t;
+#define file_stat(path, sb) _stati64(path, sb)
+#else
+typedef struct stat file_stat_t;
+#define file_stat(path, sb) stat(path, sb)
 #endif
 
 /*
@@ -56,7 +78,6 @@ typedef uint32_t fort_size_t;
  */
 #define getbit_m(m,i) (((m)[(i) >> 5U] >> (31U - ((i) & 0x1fU))) & 1U)
 #define getMaskValue(m, i) getbit_m((m)->mask, i)
-
 
 /*
  * urc_pack.c

@@ -14,6 +14,13 @@
 #include <string.h>
 #include <unistd.h>
 
+#ifdef __MINGW32__
+#  include <io.h>
+#  define MKDIR(p, m) mkdir(p)
+#else
+#  define MKDIR(p, m) mkdir(p, m)
+#endif
+
 #include "gtool3.h"
 #include "seq.h"
 #include "fileiter.h"
@@ -44,9 +51,9 @@ static int dryrun = 0;
 int
 identical_file(const char *path1, const char *path2)
 {
-    struct stat sb1, sb2;
+    file_stat_t sb1, sb2;
 
-    if (stat(path1, &sb1) < 0 || stat(path2, &sb2) < 0)
+    if (file_stat(path1, &sb1) < 0 || file_stat(path2, &sb2) < 0)
         return -1;
 
     return (sb1.st_dev == sb2.st_dev && sb1.st_ino == sb2.st_ino) ? 1 : 0;
@@ -91,7 +98,7 @@ dirname(const char *path)
 int
 build_path(const char *path)
 {
-    struct stat sb;
+    file_stat_t sb;
     char p[PATH_MAX + 1];
     int i, nlevel = 0;
     mode_t mode = 0777;
@@ -107,8 +114,8 @@ build_path(const char *path)
 
         if (*path == '/' || *path == '\0') {
             p[i] = '\0';
-            if (!(stat(p, &sb) == 0 && S_ISDIR(sb.st_mode))) {
-                if (mkdir(p, mode) < 0)
+            if (!(file_stat(p, &sb) == 0 && S_ISDIR(sb.st_mode))) {
+                if (MKDIR(p, mode) < 0)
                     return -1;
                 nlevel++;
             }
@@ -127,12 +134,12 @@ build_path(const char *path)
 static FILE *
 open_file(const char *path)
 {
-    struct stat sb;
+    file_stat_t sb;
     FILE *fp = NULL;
     char *dir;
     char mode[] = "wb";
 
-    if (stat(path, &sb) == 0) {
+    if (file_stat(path, &sb) == 0) {
         if (!S_ISREG(sb.st_mode)) {
             logging(LOG_ERR, "%s: Not a regular file", path);
             return NULL;

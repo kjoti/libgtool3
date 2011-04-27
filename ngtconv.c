@@ -163,9 +163,9 @@ find_raw_format(const char *name)
 static int
 identical_file(const char *path1, const char *path2)
 {
-    struct stat sb1, sb2;
+    file_stat_t sb1, sb2;
 
-    if (stat(path1, &sb1) < 0 || stat(path2, &sb2) < 0)
+    if (file_stat(path1, &sb1) < 0 || file_stat(path2, &sb2) < 0)
         return -1;
 
     return (sb1.st_dev == sb2.st_dev && sb1.st_ino == sb2.st_ino) ? 1 : 0;
