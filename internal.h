@@ -8,17 +8,7 @@
 #  include "config.h"
 #endif
 
-/* for uint32_t */
-#ifdef HAVE_STDINT_H
-#  include <stdint.h>
-#elif defined(HAVE_INTTYPES_H)
-#  include <inttypes.h>
-#endif
-
-#ifndef HAVE_UINT32_T
-typedef unsigned uint32_t;
-#endif
-
+#include <sys/stat.h>
 #include "gtool3.h"
 
 #ifndef DEFAULT_GTAXDIR
@@ -44,7 +34,6 @@ typedef unsigned uint32_t;
 #ifdef __MINGW32__
 #  define fseeko fseeko64
 #  define ftello ftello64
-#  define off_t  off64_t
 #else /* !__MINGW32__ */
 #  ifndef HAVE_FSEEKO
 #    define fseeko fseek
@@ -55,8 +44,6 @@ typedef unsigned uint32_t;
 /*
  * wrapper for stat(2).
  */
-#include <sys/types.h>
-#include <sys/stat.h>
 #ifdef __MINGW32__
 typedef struct _stati64 file_stat_t;
 #define file_stat(path, sb) _stati64(path, sb)

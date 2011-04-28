@@ -17,6 +17,10 @@ typedef unsigned uint32_t;
 
 #include <stdio.h>
 
+#ifdef __MINGW32__
+#  define off_t off64_t
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
