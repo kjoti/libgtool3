@@ -146,7 +146,7 @@ void
 test1(void)
 {
     int rval;
-    struct range r;
+    struct range r = {0, 0};
 
     rval = get_range(&r, ":", 1, 0x7fffffff);
     assert(rval == 0);
@@ -174,7 +174,7 @@ void
 test2(void)
 {
     int rval;
-    struct range r;
+    struct range r = {0, 0};
     struct sequence *seq;
 
     seq = initSeq("1:10", 1, 0x7fffffff);
