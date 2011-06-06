@@ -1,8 +1,18 @@
 /*
- * caltime.h
+ * caltime.h - date and time module supporting some kind of calendars.
+ *
+ * supporting calendars:
+ *     gregorian (proleptic_gregorian)
+ *     noleap
+ *     all_leap
+ *     360_day
+ *     julian
+ *
+ * XXX: 'gregorian' in this module is actually 'proleptic_gregorian',
+ * ignores leap days on October in 1582.
  */
-#ifndef CALTIME__H
-#define CALTIME__H
+#ifndef CALTIME_H
+#define CALTIME_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -12,10 +22,10 @@ struct caltime {
     int caltype;
 
     int year;
-    int month, day;  /* starting with 0 */
-    int sec;         /* seconds since midnight [0-86399] */
+    int month;                  /* XXX: 0-11 (starting with 0) */
+    int day;                    /* XXX: 0-30 (starting with 0) */
+    int sec;                    /* seconds since midnight [0-86399] */
 };
-
 typedef struct caltime caltime;
 
 /*
@@ -69,12 +79,16 @@ int ct_verify_date(int type, int yr, int mo, int dy);
 int ct_day_of_year(const caltime *date);
 int ct_num_days_in_year(const caltime *date);
 int ct_num_days_in_month(const caltime *date);
-int ct_snprint(char *buf, size_t num, const caltime *date);
 
-int ct_supported_caltypes(void);
+/*
+ * strings support.
+ */
+int ct_snprint(char *buf, size_t num, const caltime *date);
+int ct_set_by_string(caltime *date, const char *input, int caltype);
+int ct_calendar_type(const char *name);
 const char *ct_calendar_name(int ctype);
 
 #ifdef __cplusplus
 }
 #endif
-#endif /* !CALTIME__H */
+#endif /* !CALTIME_H */
