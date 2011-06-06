@@ -164,9 +164,12 @@ typedef struct GT3_Varbuf GT3_Varbuf;
 
 /*
  * for Date(Time), TimeDuration...
+ *
+ * GT3_Date does not include any infomation about its calendar.
+ * Original purpose of GT3_Date was a holder of results of
+ * GT3_decodeHeaderDate().
  */
 struct GT3_Date {
-    /* This struct contains no calendar type. */
     int year;
     int mon;                    /* 1-12 */
     int day;                    /* 1-31 */
@@ -194,8 +197,7 @@ struct GT3_VCatFile {
 };
 typedef struct GT3_VCatFile GT3_VCatFile;
 
-
-/* XXX calendar type */
+/* Calendar type */
 enum {
     GT3_CAL_GREGORIAN,
     GT3_CAL_NOLEAP,
@@ -204,7 +206,6 @@ enum {
     GT3_CAL_JULIAN,
     GT3_CAL_DUMMY
 };
-
 
 enum {
     GT3_UNIT_YEAR,
@@ -215,9 +216,6 @@ enum {
     GT3_UNIT_SEC
 };
 
-/*
- * prototype declarations
- */
 /* file.c */
 int GT3_readHeader(GT3_HEADER *header, GT3_File *fp);
 int GT3_isHistfile(GT3_File *fp);
@@ -331,6 +329,7 @@ int GT3_calcDuration(GT3_Duration *dur,
 int GT3_getDuration(GT3_Duration *dur, GT3_File *fp, int calendar);
 int GT3_checkDate(const GT3_Date *date, int calendar);
 const char *GT3_calendar_name(int calendar);
+int GT3_calendar_type(const char *name);
 
 /* vcat.c */
 GT3_VCatFile *GT3_newVCatFile(void);

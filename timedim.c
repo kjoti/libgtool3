@@ -488,6 +488,13 @@ GT3_calendar_name(int calendar)
 }
 
 
+int
+GT3_calendar_type(const char *name)
+{
+    return ct_calendar_type(name);
+}
+
+
 #ifdef TEST_MAIN
 void
 printdate(const GT3_Date *date)
@@ -500,7 +507,6 @@ printdate(const GT3_Date *date)
            date->min,
            date->sec);
 }
-
 
 
 int
@@ -769,6 +775,24 @@ main(int argc, char **argv)
         assert(GT3_checkDate(&date, GT3_CAL_360_DAY) == -1);
         assert(GT3_checkDate(&date, GT3_CAL_NOLEAP) == 0);
         assert(GT3_checkDate(&date, GT3_CAL_ALL_LEAP) == 0);
+    }
+
+    {
+        int ctype[] = {
+            GT3_CAL_NOLEAP,
+            GT3_CAL_GREGORIAN,
+            GT3_CAL_ALL_LEAP,
+            GT3_CAL_360_DAY,
+            GT3_CAL_JULIAN
+        };
+        int i, rval;
+        const char *name;
+
+        for (i = 0; i < sizeof ctype / sizeof ctype[0]; i++) {
+            name = GT3_calendar_name(ctype[i]);
+            rval = GT3_calendar_type(name);
+            assert(rval == ctype[i]);
+        }
     }
     return 0;
 }
