@@ -12,6 +12,8 @@ setup_file_iterator(file_iterator *it, GT3_File *fp, struct sequence *seq)
     it->fp = fp;
     it->seq = seq;
     it->flags_ = 0;
+    if (it->seq && fp->num_chunk > 0)
+        reinitSeq(it->seq, 1, fp->num_chunk);
 }
 
 
