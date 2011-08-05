@@ -365,7 +365,7 @@ main(int argc, char **argv)
 
         if (ngtdump(*argv, seq) < 0) {
             rval = 1;
-            break;
+            continue;
         }
     }
     return rval;
