@@ -358,7 +358,7 @@ test3(void)
 
         len = pack_bools_into32(packed, flags, sizeof flags);
 
-        assert(len = 2);
+        assert(len == 2);
         assert(packed[0] == 0x84210c39);
         assert(packed[1] == 0x1248f000);
     }
