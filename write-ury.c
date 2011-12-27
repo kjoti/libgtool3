@@ -16,7 +16,6 @@
 #include "write-fmt.h"
 
 
-
 static uint32_t
 maxval_uint32(const uint32_t *vals, size_t num)
 {
@@ -196,6 +195,7 @@ write_ury_via_double(const void *ptr,
     return write_ury(ptr, sizeof(double), zelem, nz, nbits, miss, fp);
 }
 
+
 int
 write_ury_via_float(const void *ptr,
                     size_t zelem, size_t nz,
@@ -347,9 +347,9 @@ write_mry_via_double(const void *ptr,
 
 int
 write_mry_via_float(const void *ptr,
-                     size_t zelems, size_t nz,
-                     int nbits, double miss,
-                     FILE *fp)
+                    size_t zelems, size_t nz,
+                    int nbits, double miss,
+                    FILE *fp)
 {
     return write_mry(ptr, sizeof(float), zelems, nz, nbits, miss, fp);
 }
