@@ -7,7 +7,7 @@
 If you do not have the root privilege, specify 'prefix' argument
 to configure script (prefix=/usr/local, by default).
 
-    $ ./configure prefix=(somewhere you can install)
+    $ ./configure --prefix=(somewhere you can install)
 
 
 2) Building without configure script
