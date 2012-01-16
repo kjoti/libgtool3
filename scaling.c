@@ -319,73 +319,6 @@ test2(unsigned nbits)
 }
 
 
-void
-test3(unsigned nbits)
-{
-    double dmin;
-    double dmax;
-    double dma[2];
-    int num;
-    float orig[1], restore[1];
-    unsigned scaled[1];
-    unsigned imiss;
-    double miss = -999.0;
-
-    imiss = (1U << nbits) - 1;
-    num = imiss - 1;
-    if (num < 1)
-        num = 1;
-
-    dmin = -1.;
-    dmax = 1.;
-    orig[0] = 0.f;
-    scaling_parameters(dma, dmin, dmax, num);
-    scalingf(scaled, orig, 1, dma[0], dma[1], imiss, miss);
-    scalingf_rev(restore, scaled, 1, dma[0], dma[1], imiss, miss);
-    assert(restore[0] == 0.f);
-
-    dmin = -1.;
-    dmax = 100.;
-    orig[0] = 0.f;
-    scaling_parameters(dma, dmin, dmax, num);
-    scalingf(scaled, orig, 1, dma[0], dma[1], imiss, miss);
-    scalingf_rev(restore, scaled, 1, dma[0], dma[1], imiss, miss);
-    assert(restore[0] == 0.f);
-
-    dmin = -100.;
-    dmax = 1.;
-    orig[0] = 0.f;
-    scaling_parameters(dma, dmin, dmax, num);
-    scalingf(scaled, orig, 1, dma[0], dma[1], imiss, miss);
-    scalingf_rev(restore, scaled, 1, dma[0], dma[1], imiss, miss);
-    assert(restore[0] == 0.f);
-
-    dmin = 0.;
-    dmax = 1000.;
-    orig[0] = 0.f;
-    scaling_parameters(dma, dmin, dmax, num);
-    scalingf(scaled, orig, 1, dma[0], dma[1], imiss, miss);
-    scalingf_rev(restore, scaled, 1, dma[0], dma[1], imiss, miss);
-    assert(restore[0] == 0.f);
-
-    dmin = -1000.;
-    dmax = 0.;
-    orig[0] = 0.f;
-    scaling_parameters(dma, dmin, dmax, num);
-    scalingf(scaled, orig, 1, dma[0], dma[1], imiss, miss);
-    scalingf_rev(restore, scaled, 1, dma[0], dma[1], imiss, miss);
-    assert(restore[0] == 0.f);
-
-    dmin = 0.;
-    dmax = 0.;
-    orig[0] = 0.f;
-    scaling_parameters(dma, dmin, dmax, num);
-    scalingf(scaled, orig, 1, dma[0], dma[1], imiss, miss);
-    scalingf_rev(restore, scaled, 1, dma[0], dma[1], imiss, miss);
-    assert(restore[0] == 0.f);
-}
-
-
 int
 main(int argc, char **argv)
 {
@@ -396,9 +329,6 @@ main(int argc, char **argv)
 
     for (n = 1; n < 32; n++)
         test2(n);
-
-    for (n = 7; n < 32; n++)
-        test3(n);
     return 0;
 }
 #endif
