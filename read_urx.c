@@ -22,16 +22,17 @@
 
 
 static int
-get_zero_index(int *index, double off, double scale, int count)
+get_zero_index(int *index, double off, double scale, int max_count)
 {
     const double eps = 1e-7;
-    int i;
+    double c;
 
     if (off != 0. && scale != 0.) {
-        i = (int)floor(-off / scale + 0.5);
+        c = floor(-off / scale + 0.5);
 
-        if (i > 0 && i <= count && fabs(off + i * scale) < eps * fabs(scale)) {
-            *index = i;
+        if (c > 0. && c < max_count
+            && fabs(off + c * scale) < eps * fabs(scale)) {
+            *index = (int)c;
             return 1;
         }
     }
