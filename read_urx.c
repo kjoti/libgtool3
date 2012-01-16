@@ -20,6 +20,25 @@
 #define RESERVE_SIZE (640*320)
 #define RESERVE_NZ   256
 
+
+static int
+get_zero_index(int *index, double off, double scale, int count)
+{
+    const double eps = 1e-7;
+    int i;
+
+    if (off != 0. && scale != 0.) {
+        i = (int)floor(-off / scale + 0.5);
+
+        if (i > 0 && i <= count && fabs(off + i * scale) < eps * fabs(scale)) {
+            *index = i;
+            return 1;
+        }
+    }
+    return 0;
+}
+
+
 /*
  * read packed data in URX-format and decode them.
  */
@@ -34,6 +53,7 @@ read_urx_packed(double *outp,
 #define URXBUFSIZ 1024
     uint32_t packed[32 * URXBUFSIZ];
     unsigned idata[32 * URXBUFSIZ];
+    int use_zero_index, zero_index = 0;
     uint32_t imiss;
     double scale;
     size_t npack_per_read, ndata_per_read;
@@ -48,6 +68,8 @@ read_urx_packed(double *outp,
 
     nrest = nelems;
     nrest_packed = pack32_len(nelems, nbits);
+
+    use_zero_index = get_zero_index(&zero_index, dma[0], scale, imiss - 1);
 
     while (nrest > 0) {
         npack = nrest_packed > npack_per_read
@@ -68,10 +90,16 @@ read_urx_packed(double *outp,
 
         unpack_bits_from32(idata, ndata, packed, nbits);
 
-        for (i = 0; i < ndata; i++)
-            outp[i] = (idata[i] != imiss)
-                ? dma[0] + idata[i] * scale
-                : miss;
+        if (use_zero_index)
+            for (i = 0; i < ndata; i++)
+                outp[i] = (idata[i] != imiss)
+                    ? scale * ((int)idata[i] - zero_index)
+                    : miss;
+        else
+            for (i = 0; i < ndata; i++)
+                outp[i] = (idata[i] != imiss)
+                    ? dma[0] + idata[i] * scale
+                    : miss;
 
         outp += ndata;
         nrest -= ndata;
