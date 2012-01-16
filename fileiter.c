@@ -28,6 +28,9 @@ rewind_file_iterator(file_iterator *it)
 }
 
 
+/*
+ * step a forward in the iteration.
+ */
 int
 iterate_file(file_iterator *it)
 {

@@ -1,5 +1,5 @@
 /*
- * caltime.c - date and time module supporting some kind of calendars.
+ * caltime.c - date and time module supporting some kinds of calendars.
  *
  * supporting calendars:
  *     gregorian (proleptic_gregorian)
