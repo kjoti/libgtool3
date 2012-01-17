@@ -164,12 +164,15 @@ is_blank2(const char *buf, size_t len)
 
 
 char *
-GT3_copyHeaderItem(char *buf, int buflen, const GT3_HEADER *header,
+GT3_copyHeaderItem(char *buf, size_t buflen, const GT3_HEADER *header,
                    const char *key)
 {
     const char *strp, *last;
     char *q;
     struct ElemDict *p;
+
+    if (buflen == 0)
+        return NULL;
 
     p = lookup_name(key);
     if (p == NULL) {

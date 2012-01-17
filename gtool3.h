@@ -275,7 +275,7 @@ GT3_File *GT3_openAxisFile(const char *name);
 GT3_File *GT3_openWeightFile(const char *name);
 
 /* header.c */
-char *GT3_copyHeaderItem(char *buf, int len, const GT3_HEADER *h,
+char *GT3_copyHeaderItem(char *buf, size_t len, const GT3_HEADER *h,
                          const char *key);
 int GT3_decodeHeaderInt(int *rval, const GT3_HEADER *h, const char *key);
 int GT3_decodeHeaderDouble(double *rval, const GT3_HEADER *h, const char *key);
