@@ -21,6 +21,13 @@
 
 static caltime global_origin;
 static int snapshot_flag = 0;
+static int dryrun_mode = 0;
+static struct message_buffer message_buffer;
+
+struct message_buffer {
+    int num;
+    char buf[8][64];
+};
 
 enum {
     UNIT_MIN,
@@ -40,6 +47,7 @@ usage(void)
         "\n"
         "Options:\n"
         "    -h        print help message\n"
+        "    -n        dryrun mode\n"
         "    -s        specify a snapshot\n"
         "    -c CAL    specify a calendar\n"
         "    -t LIST   specify data No.\n"
@@ -49,6 +57,34 @@ usage(void)
     fprintf(stderr, "%s\n", GT3_version());
     fprintf(stderr, "Usage: %s [options] time-def [files...]\n", PROGNAME);
     fprintf(stderr, "%s\n", messages);
+}
+
+
+static void
+put_message(const char *key, const char *oldvalue, const char *newvalue)
+{
+    snprintf(&message_buffer.buf[message_buffer.num][0],
+             sizeof message_buffer.buf[message_buffer.num],
+             "%8s: (%16s) -> (%16s)",
+             key, oldvalue, newvalue);
+    message_buffer.num++;
+}
+
+
+static void
+reset_message_buffer(void)
+{
+    message_buffer.num = 0;
+}
+
+
+static void
+print_message_buffer(void)
+{
+    int i;
+
+    for (i = 0; i < message_buffer.num; i++)
+        printf("%s\n", message_buffer.buf[i]);
 }
 
 
@@ -79,35 +115,63 @@ step(caltime *date, int n, int unit)
 static char *
 date_str(char *buf, const caltime *date)
 {
-    int yr, hh, mm, ss;
+    int hh, mm, ss;
 
-    hh = date->sec / 3600.;
+    hh = date->sec / 3600;
     mm = (date->sec - 3600 * hh) / 60;
     ss = (date->sec - 3600 * hh - 60 *mm);
 
-    yr = (date->year > 9999) ? 9999 : date->year;
-    snprintf(buf, 16, "%04d%02d%02d %02d%02d%02d",
-             yr, date->month + 1, date->day + 1,
+    /* yr = (date->year > 9999) ? 9999 : date->year; */
+    snprintf(buf, 17, "%04d%02d%02d %02d%02d%02d",
+             date->year, date->month + 1, date->day + 1,
              hh, mm, ss);
     return buf;
 }
 
 
-static void
-modify_date(GT3_HEADER *head,
-            const caltime *lower, const caltime *upper,
-            const caltime *date,
-            double time, double tdur)
+static char *
+int_str(char *buf, int value)
 {
-    char str[16];
+    snprintf(buf, 17, "%d", value);
+    return buf;
+}
 
-    GT3_setHeaderString(head, "UTIM", "HOUR");
-    GT3_setHeaderInt(head, "TIME", (int)(time / 3600.));
-    GT3_setHeaderInt(head, "TDUR", (int)(tdur / 3600.));
 
-    GT3_setHeaderString(head, "DATE",  date_str(str, date));
-    GT3_setHeaderString(head, "DATE1", date_str(str, lower));
-    GT3_setHeaderString(head, "DATE2", date_str(str, upper));
+static int
+modify_field(GT3_HEADER *head, const char *key, const char *value)
+{
+    char buf[17];
+    int rval = 0;
+
+    GT3_copyHeaderItem(buf, sizeof buf, head, key);
+    if (strcmp(buf, value) != 0) {
+        if (dryrun_mode)
+            put_message(key, buf, value);
+
+        GT3_setHeaderString(head, key, value);
+        rval = 1;
+    }
+    return rval;
+}
+
+
+static int
+modify_items(GT3_HEADER *head,
+             const caltime *lower, const caltime *upper,
+             const caltime *date,
+             double time, double tdur)
+{
+    char str[17];
+    int rval = 0;
+
+    rval += modify_field(head, "UTIM", "HOUR");
+    rval += modify_field(head, "TIME", int_str(str, time / 3600.));
+    rval += modify_field(head, "TDUR", int_str(str, tdur / 3600.));
+
+    rval += modify_field(head, "DATE",  date_str(str, date));
+    rval += modify_field(head, "DATE1", date_str(str, lower));
+    rval += modify_field(head, "DATE2", date_str(str, upper));
+    return rval;
 }
 
 
@@ -117,10 +181,10 @@ tick(file_iterator *it, struct caltime *start, int dur, int durunit)
     struct caltime date_bnd[2], date;
     struct caltime *lower, *upper;
     GT3_HEADER head;
-    GT3_File *fp;
     double time_bnd[2], time, tdur, secs;
     int days;
     int i, stat;
+    int modified, print_filename = 0;
 
     date_bnd[0] = *start;
     date_bnd[1] = *start;
@@ -129,7 +193,6 @@ tick(file_iterator *it, struct caltime *start, int dur, int durunit)
     time_bnd[0] = ct_diff_seconds(&date_bnd[0], &global_origin);
     time_bnd[1] = ct_diff_seconds(&date_bnd[1], &global_origin);
 
-    fp = it->fp;
     for (i = 0; ; i ^= 1) {
         lower = &date_bnd[i];
         upper = &date_bnd[i ^ 1];
@@ -144,10 +207,12 @@ tick(file_iterator *it, struct caltime *start, int dur, int durunit)
         if (stat == ITER_OUTRANGE)
             continue;
 
-        if (GT3_readHeader(&head, fp) < 0) {
+        if (GT3_readHeader(&head, it->fp) < 0) {
             GT3_printErrorMessages(stderr);
             return -1;
         }
+
+        reset_message_buffer();
 
         /*
          * calculate the midpoint of the time_bnd[].
@@ -156,7 +221,7 @@ tick(file_iterator *it, struct caltime *start, int dur, int durunit)
             time = time_bnd[i ^ 1]; /* use upper */
 
             /* modify the header */
-            modify_date(&head, upper, upper, upper, time, 0.);
+            modified = modify_items(&head, upper, upper, upper, time, 0.);
         } else {
             time = 0.5 * (time_bnd[0] + time_bnd[1]);
             tdur = time_bnd[i ^ 1] - time_bnd[i];
@@ -169,14 +234,28 @@ tick(file_iterator *it, struct caltime *start, int dur, int durunit)
             ct_add_seconds(&date, (int)secs);
 
             /* modify the header */
-            modify_date(&head, lower, upper, &date, time, tdur);
+            modified = modify_items(&head, lower, upper, &date, time, tdur);
+        }
+
+        /*
+         * print notice.
+         */
+        if (modified && dryrun_mode) {
+            if (!print_filename) {
+                printf("# Filename: %s\n", it->fp->path);
+                print_filename = 1;
+            }
+            printf("# No. %d:\n", it->fp->curr + 1);
+            print_message_buffer();
         }
 
         /*
          * rewrite the modified header.
          */
-        if (fseeko(fp->fp, fp->off + 4, SEEK_SET) < 0
-            || fwrite(head.h, 1, GT3_HEADER_SIZE, fp->fp) != GT3_HEADER_SIZE) {
+        if (!dryrun_mode && modified
+            && (fseeko(it->fp->fp, it->fp->off + 4, SEEK_SET) < 0
+                || fwrite(head.h, 1, GT3_HEADER_SIZE, it->fp->fp)
+                != GT3_HEADER_SIZE)) {
             logging(LOG_SYSERR, NULL);
             return -1;
         }
@@ -202,7 +281,7 @@ tick_file(const char *path, caltime *start, int dur, int durunit,
     file_iterator it;
     int rval;
 
-    if ((fp = GT3_openRW(path)) == NULL) {
+    if ((fp = dryrun_mode ? GT3_open(path) : GT3_openRW(path)) == NULL) {
         GT3_printErrorMessages(stderr);
         return -1;
     }
@@ -212,28 +291,6 @@ tick_file(const char *path, caltime *start, int dur, int durunit,
 
     GT3_close(fp);
     return rval;
-}
-
-
-static int
-get_calendar(const char *name)
-{
-    struct { const char *key; int value; } tab[] = {
-        { "gregorian",  CALTIME_GREGORIAN },
-        { "360_day",    CALTIME_360_DAY   },
-        { "noleap",     CALTIME_NOLEAP    },
-        { "365_day",    CALTIME_NOLEAP    },
-        { "all_leap",   CALTIME_ALLLEAP   },
-        { "366_day",    CALTIME_ALLLEAP   },
-        { "julian",     CALTIME_JULIAN    }
-    };
-    int i;
-
-    for (i = 0; i < sizeof tab / sizeof tab[0]; i++)
-        if (strcmp(name, tab[i].key) == 0)
-            return tab[i].value;
-
-    return -1;
 }
 
 
@@ -327,13 +384,17 @@ main(int argc, char **argv)
 
     open_logging(stderr, PROGNAME);
     GT3_setProgname(PROGNAME);
-    while ((ch = getopt(argc, argv, "c:hst:")) != -1)
+    while ((ch = getopt(argc, argv, "c:nhst:")) != -1)
         switch (ch) {
         case 'c':
-            if ((caltype = get_calendar(optarg)) < 0) {
+            if ((caltype = ct_calendar_type(optarg)) == CALTIME_DUMMY) {
                 logging(LOG_ERR, "%s: Unknown calendar name.", optarg);
                 exit(1);
             }
+            break;
+
+        case 'n':
+            dryrun_mode = 1;
             break;
 
         case 's':
@@ -359,7 +420,7 @@ main(int argc, char **argv)
 
     /*
      * The origin of the time-axis is set to 0-1-1 (1st Jan, B.C. 1).
-     * in most GTOOL3-files.
+     * It's default value.
      */
     ct_init_caltime(&global_origin, caltype, 0, 1, 1);
 
