@@ -12,7 +12,8 @@
 #include "seq.h"
 #include "fileiter.h"
 
-
+static int fast_mode = 0;
+static int print_fileinfo = 0;
 static int (*print_item)(int cnt, GT3_File *fp);
 
 
@@ -120,17 +121,17 @@ print_item3(int cnt, GT3_File *fp)
 
 
 int
-print_list(const char *path, struct sequence *seq, int name_flag)
+print_list(const char *path, struct sequence *seq)
 {
     GT3_File *fp;
     int stat, rval = 0;
     file_iterator it;
 
-    if ((fp = GT3_open(path)) == NULL) {
+    if ((fp = fast_mode ? GT3_openHistFile(path) : GT3_open(path)) == NULL) {
         GT3_printErrorMessages(stderr);
         return -1;
     }
-    if (name_flag)
+    if (print_fileinfo)
         printf("# Filename: %s\n", path);
 
     setup_file_iterator(&it, fp, seq);
@@ -167,6 +168,7 @@ usage(void)
         "Usage: ngtls [options] [files...]\n"
         "\n"
         "Options:\n"
+        "    -c          fast access mode\n"
         "    -h          print help message\n"
         "    -n          print axis-length instead of axis-name\n"
         "    -u          print title and unit\n"
@@ -182,13 +184,16 @@ int
 main(int argc, char **argv)
 {
     int ch, rval;
-    int name_flag = 0;
     struct sequence *seq = NULL;
 
     print_item = print_item1;
 
-    while ((ch = getopt(argc, argv, "nht:uv")) != -1)
+    while ((ch = getopt(argc, argv, "cnht:uv")) != -1)
         switch (ch) {
+        case 'c':
+            fast_mode = 1;
+            break;
+
         case 'n':
             print_item = print_item2;
             break;
@@ -202,7 +207,7 @@ main(int argc, char **argv)
             break;
 
         case 'v':
-            name_flag = 1;
+            print_fileinfo = 1;
             break;
 
         case 'h':
@@ -220,7 +225,7 @@ main(int argc, char **argv)
     while (argc > 0 && *argv) {
         if (seq)
             reinitSeq(seq, 1, 0x7fffffff);
-        if (print_list(*argv, seq, name_flag) < 0)
+        if (print_list(*argv, seq) < 0)
             rval = 1;
 
         --argc;
