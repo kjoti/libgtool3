@@ -142,37 +142,37 @@ GT3_copyDate(GT3_Date *dest, const GT3_Date *src)
 
 
 void
-GT3_addDuration(GT3_Date *date, const GT3_Duration *dur, int calendar)
+GT3_addDuration2(GT3_Date *date, const GT3_Duration *dur,
+                 int ntimes, int calendar)
 {
     struct caltime temp;
-
 
     if (conv_date_to_ct(&temp, date, calendar) < 0)
         return;
 
     switch (dur->unit) {
     case GT3_UNIT_YEAR:
-        ct_add_years(&temp, dur->value);
-
+        ct_add_years(&temp, ntimes * dur->value);
         break;
+
     case GT3_UNIT_MON:
-        ct_add_months(&temp, dur->value);
+        ct_add_months(&temp, ntimes * dur->value);
         break;
 
     case GT3_UNIT_DAY:
-        ct_add_days(&temp, dur->value);
+        ct_add_days(&temp, ntimes * dur->value);
         break;
 
     case GT3_UNIT_HOUR:
-        ct_add_hours(&temp, dur->value);
+        ct_add_hours(&temp, ntimes * dur->value);
         break;
 
     case GT3_UNIT_MIN:
-        ct_add_minutes(&temp, dur->value);
+        ct_add_minutes(&temp, ntimes * dur->value);
         break;
 
     case GT3_UNIT_SEC:
-        ct_add_seconds(&temp, dur->value);
+        ct_add_seconds(&temp, ntimes * dur->value);
         break;
 
     default:
@@ -180,6 +180,13 @@ GT3_addDuration(GT3_Date *date, const GT3_Duration *dur, int calendar)
         break;
     }
     conv_ct_to_date(date, &temp);
+}
+
+
+void
+GT3_addDuration(GT3_Date *date, const GT3_Duration *dur, int calendar)
+{
+    GT3_addDuration2(date, dur, 1, calendar);
 }
 
 
@@ -579,6 +586,12 @@ main(int argc, char **argv)
 
         GT3_setDate(&date1, 1999, 12, 31, 23, 59, 59);
         GT3_setDate(&date2, 2000,  1,  1, 0, 0, 1);
+
+        GT3_midDate(&date, &date1, &date2, GT3_CAL_GREGORIAN);
+        assert(GT3_cmpDate(&date, 2000, 1, 1, 0, 0, 0) == 0);
+
+        GT3_setDate(&date1, 2000,  1,  1, 0, 0, 1);
+        GT3_setDate(&date2, 1999, 12, 31, 23, 59, 59);
 
         GT3_midDate(&date, &date1, &date2, GT3_CAL_GREGORIAN);
         assert(GT3_cmpDate(&date, 2000, 1, 1, 0, 0, 0) == 0);
