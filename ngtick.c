@@ -1,5 +1,5 @@
 /*
- * ngtick.c -- set time-dimension.
+ * ngtick.c -- set date/time in GTOOL3 files.
  */
 #include "internal.h"
 
@@ -12,14 +12,19 @@
 
 #include "gtool3.h"
 #include "seq.h"
-#include "caltime.h"
 #include "myutils.h"
 #include "fileiter.h"
 #include "logging.h"
 
 #define PROGNAME "ngtick"
 
-static caltime global_origin;
+/*
+ * 'basetime' is a date/time of the origin of time-axis.
+ */
+static GT3_Date basetime;
+static int calendar = GT3_CAL_GREGORIAN;
+static int date_validated = 0;
+
 static int snapshot_flag = 0;
 static int dryrun_mode = 0;
 static struct message_buffer message_buffer;
@@ -27,14 +32,6 @@ static struct message_buffer message_buffer;
 struct message_buffer {
     int num;
     char buf[8][64];
-};
-
-enum {
-    UNIT_MIN,
-    UNIT_HOUR,
-    UNIT_DAY,
-    UNIT_MON,
-    UNIT_YEAR
 };
 
 
@@ -88,43 +85,13 @@ print_message_buffer(void)
 }
 
 
-static caltime *
-step(caltime *date, int n, int unit)
-{
-    switch (unit) {
-    case UNIT_MIN:
-        ct_add_seconds(date, 60 * n);
-        break;
-    case UNIT_HOUR:
-        ct_add_hours(date, n);
-        break;
-    case UNIT_DAY:
-        ct_add_days(date, n);
-        break;
-    case UNIT_MON:
-        ct_add_months(date, n);
-        break;
-    case UNIT_YEAR:
-        ct_add_months(date, 12 * n);
-        break;
-    }
-    return date;
-}
-
-
 static char *
-date_str(char *buf, const caltime *date)
+date_str(char *buf, const GT3_Date *date)
 {
-    int hh, mm, ss;
-
-    hh = date->sec / 3600;
-    mm = (date->sec - 3600 * hh) / 60;
-    ss = (date->sec - 3600 * hh - 60 *mm);
-
     /* yr = (date->year > 9999) ? 9999 : date->year; */
     snprintf(buf, 17, "%04d%02d%02d %02d%02d%02d",
-             date->year, date->month + 1, date->day + 1,
-             hh, mm, ss);
+             date->year, date->mon, date->day,
+             date->hour, date->min, date->sec);
     return buf;
 }
 
@@ -157,16 +124,17 @@ modify_field(GT3_HEADER *head, const char *key, const char *value)
 
 static int
 modify_items(GT3_HEADER *head,
-             const caltime *lower, const caltime *upper,
-             const caltime *date,
+             const GT3_Date *lower,
+             const GT3_Date *upper,
+             const GT3_Date *date,
              double time, double tdur)
 {
     char str[17];
     int rval = 0;
 
     rval += modify_field(head, "UTIM", "HOUR");
-    rval += modify_field(head, "TIME", int_str(str, time / 3600.));
-    rval += modify_field(head, "TDUR", int_str(str, tdur / 3600.));
+    rval += modify_field(head, "TIME", int_str(str, (int)time));
+    rval += modify_field(head, "TDUR", int_str(str, (int)tdur));
 
     rval += modify_field(head, "DATE",  date_str(str, date));
     rval += modify_field(head, "DATE1", date_str(str, lower));
@@ -175,23 +143,29 @@ modify_items(GT3_HEADER *head,
 }
 
 
-static int
-tick(file_iterator *it, struct caltime *start, int dur, int durunit)
+static double
+get_time(const GT3_Date *date)
 {
-    struct caltime date_bnd[2], date;
-    struct caltime *lower, *upper;
+    return GT3_getTime(date, &basetime, GT3_UNIT_HOUR, calendar);
+}
+
+
+static int
+tick(file_iterator *it, GT3_Date *start, const GT3_Duration *intv)
+{
+    GT3_Date date_bnd[2], date;
+    GT3_Date *lower, *upper;
     GT3_HEADER head;
-    double time_bnd[2], time, tdur, secs;
-    int days;
+    double time_bnd[2], time, tdur;
     int i, stat;
     int modified, print_filename = 0;
 
     date_bnd[0] = *start;
     date_bnd[1] = *start;
-    step(&date_bnd[1], dur, durunit);
+    GT3_addDuration2(&date_bnd[1], intv, 1, calendar);
 
-    time_bnd[0] = ct_diff_seconds(&date_bnd[0], &global_origin);
-    time_bnd[1] = ct_diff_seconds(&date_bnd[1], &global_origin);
+    time_bnd[0] = get_time(&date_bnd[0]);
+    time_bnd[1] = get_time(&date_bnd[1]);
 
     for (i = 0; ; i ^= 1) {
         lower = &date_bnd[i];
@@ -226,12 +200,7 @@ tick(file_iterator *it, struct caltime *start, int dur, int durunit)
             time = 0.5 * (time_bnd[0] + time_bnd[1]);
             tdur = time_bnd[i ^ 1] - time_bnd[i];
 
-            date = *lower;
-            secs = 0.5 * tdur;
-            days = (int)(secs / (24. * 3600));
-            secs -= 24 * 3600 * days;
-            ct_add_days(&date, days);
-            ct_add_seconds(&date, (int)secs);
+            GT3_midDate(&date, lower, upper, calendar);
 
             /* modify the header */
             modified = modify_items(&head, lower, upper, &date, time, tdur);
@@ -263,8 +232,8 @@ tick(file_iterator *it, struct caltime *start, int dur, int durunit)
         /*
          * make a step forward.
          */
-        step(lower, 2 * dur, durunit);
-        time_bnd[i] = ct_diff_seconds(lower, &global_origin);
+        GT3_addDuration2(lower, intv, 2, calendar);
+        time_bnd[i] = get_time(lower);
     }
     return 0;
 }
@@ -274,21 +243,53 @@ tick(file_iterator *it, struct caltime *start, int dur, int durunit)
  * Set "TIME", "DATE", "TDUR", "DATE1", and "DATE2".
  */
 static int
-tick_file(const char *path, caltime *start, int dur, int durunit,
+tick_file(const char *path, GT3_Date *start, const GT3_Duration *intv,
           struct sequence *seq)
 {
     GT3_File *fp;
     file_iterator it;
-    int rval;
+    int ctype, rval = 0;
 
     if ((fp = dryrun_mode ? GT3_open(path) : GT3_openRW(path)) == NULL) {
         GT3_printErrorMessages(stderr);
         return -1;
     }
 
-    setup_file_iterator(&it, fp, seq);
-    rval = tick(&it, start, dur, durunit);
+    if (calendar == GT3_CAL_DUMMY) {
+        /*
+         * determine the calendar from input file.
+         */
+        ctype = GT3_guessCalendarFile(path);
+        if (ctype < 0)
+            GT3_printErrorMessages(stderr);
+        if (ctype < 0 || ctype == GT3_CAL_DUMMY) {
+            logging(LOG_WARN,
+                    "The input file does not have correct DATE/TIME."
+                    " So the calendar type cannot be determined."
+                    " Use Gregorian.");
+            ctype = GT3_CAL_GREGORIAN;
+        } else
+            logging(LOG_NOTICE, "Calendar type is %s).",
+                    GT3_calendar_name(ctype));
+        calendar = ctype;
+    }
 
+    /*
+     * Now, the calendar is determined. Check date.
+     */
+    if (!date_validated && GT3_checkDate(start, calendar) < 0) {
+        rval = -1;
+        logging(LOG_ERR,
+                "%04d-%02d-%02d: Invalid date.",
+                start->year, start->mon, start->day);
+        goto finish;
+    }
+
+    date_validated = 1;
+    setup_file_iterator(&it, fp, seq);
+    rval = tick(&it, start, intv);
+
+finish:
     GT3_close(fp);
     return rval;
 }
@@ -298,16 +299,16 @@ static int
 get_tdur(int tdur[], const char *str)
 {
     struct { const char *key; int value; } tab[] = {
-        { "yr", UNIT_YEAR   },
-        { "mo", UNIT_MON    },
-        { "dy", UNIT_DAY    },
-        { "hr", UNIT_HOUR   },
-        { "mn", UNIT_MIN    },
+        { "yr", GT3_UNIT_YEAR   },
+        { "mo", GT3_UNIT_MON    },
+        { "dy", GT3_UNIT_DAY    },
+        { "hr", GT3_UNIT_HOUR   },
+        { "mn", GT3_UNIT_MIN    },
 
-        { "year", UNIT_YEAR },
-        { "mon",  UNIT_MON  },
-        { "day",  UNIT_DAY  },
-        { "hour", UNIT_HOUR }
+        { "year", GT3_UNIT_YEAR },
+        { "mon",  GT3_UNIT_MON  },
+        { "day",  GT3_UNIT_DAY  },
+        { "hour", GT3_UNIT_HOUR }
     };
     char *endptr;
     int i, num;
@@ -330,8 +331,7 @@ get_tdur(int tdur[], const char *str)
 
 
 static int
-parse_tdef(const char *head, int *yr, int *mon, int *day, int *sec,
-           int *tdur, int *unit)
+parse_tdef(const char *str, GT3_Date *gdate, GT3_Duration *intv)
 {
     char buf[3][32];
     int num;
@@ -340,7 +340,7 @@ parse_tdef(const char *head, int *yr, int *mon, int *day, int *sec,
     int timedur[2];
     int ipos;
 
-    num = split((char *)buf, sizeof buf[0], 3, head, NULL, NULL);
+    num = split((char *)buf, sizeof buf[0], 3, str, NULL, NULL);
     if (num < 2)
         return -1;
 
@@ -362,13 +362,11 @@ parse_tdef(const char *head, int *yr, int *mon, int *day, int *sec,
     if (get_tdur(timedur, buf[ipos]) < 0)
         return -1;
 
-    *yr  = date[0];
-    *mon = date[1];
-    *day = date[2];
-    *sec = time[2] + 60 * (time[1] + 60 * time[0]);
-    *tdur = timedur[0];
-    *unit = timedur[1];
+    GT3_setDate(gdate, date[0], date[1], date[2],
+                time[0], time[1], time[2]);
 
+    intv->value = timedur[0];
+    intv->unit = timedur[1];
     return 0;
 }
 
@@ -377,20 +375,22 @@ int
 main(int argc, char **argv)
 {
     int ch;
-    caltime start;
+    GT3_Date start;
+    GT3_Duration intv;          /* time-interval of each chunk. */
     struct sequence *tseq = NULL;
-    int caltype = CALTIME_GREGORIAN;
-    int yr, mon, day, sec, tdur, unit;
 
     open_logging(stderr, PROGNAME);
     GT3_setProgname(PROGNAME);
     while ((ch = getopt(argc, argv, "c:nhst:")) != -1)
         switch (ch) {
         case 'c':
-            if ((caltype = ct_calendar_type(optarg)) == CALTIME_DUMMY) {
-                logging(LOG_ERR, "%s: Unknown calendar name.", optarg);
-                exit(1);
-            }
+            if (strcmp(optarg, "auto") == 0)
+                calendar = GT3_CAL_DUMMY;
+            else
+                if ((calendar = GT3_calendar_type(optarg)) == GT3_CAL_DUMMY) {
+                    logging(LOG_ERR, "%s: Unknown calendar name.", optarg);
+                    exit(1);
+                }
             break;
 
         case 'n':
@@ -422,26 +422,19 @@ main(int argc, char **argv)
      * The origin of the time-axis is set to 0-1-1 (1st Jan, B.C. 1).
      * It's default value.
      */
-    ct_init_caltime(&global_origin, caltype, 0, 1, 1);
+    GT3_setDate(&basetime, 0, 1, 1, 0, 0, 0);
 
     /*
-     * 1st argument: time-def specifier.
+     * 1st argument (time-def specifier) is mandatory.
      */
     if (argc <= 0) {
         usage();
         exit(1);
     }
-
-    if (parse_tdef(*argv, &yr, &mon, &day, &sec, &tdur, &unit) < 0) {
-        logging(LOG_ERR, "%s: Invalid argument", *argv);
+    if (parse_tdef(*argv, &start, &intv) < 0) {
+        logging(LOG_ERR, "%s: Invalid argument.", *argv);
         exit(1);
     }
-
-    if (ct_init_caltime(&start, caltype, yr, mon, day) < 0) {
-        logging(LOG_ERR, "%s: Invalid DATE", *argv);
-        exit(1);
-    }
-    ct_add_seconds(&start, sec);
 
     /*
      * process each file.
@@ -449,8 +442,8 @@ main(int argc, char **argv)
     argc--;
     argv++;
     for (; argc > 0 && *argv; argc--, argv++) {
-        if (tick_file(*argv, &start, tdur, unit, tseq) < 0) {
-            logging(LOG_ERR, "%s: abnormal end", *argv);
+        if (tick_file(*argv, &start, &intv, tseq) < 0) {
+            logging(LOG_ERR, "%s: abnormal end.", *argv);
             exit(1);
         }
         if (tseq)
