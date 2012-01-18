@@ -4,7 +4,7 @@
 #ifndef GHPRINTF_H
 #define GHPRINTF_H
 
-#include <sys/types.h>
+#include "internal.h"
 #include "gtool3.h"
 
 int gh_snprintf(char *str, size_t size, const char *format,

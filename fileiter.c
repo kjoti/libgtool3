@@ -1,3 +1,6 @@
+/*
+ * fileiter.c
+ */
 #include "internal.h"
 
 #include <sys/types.h>
@@ -66,6 +69,9 @@ iterate_file(file_iterator *it)
 
     rval = ITER_CONTINUE;
     if (it->seq->step != 0) {
+        /*
+         * skip meaningless iteration if any.
+         */
         int nskips = 0;
 
         if (next < 0) {
@@ -81,7 +87,6 @@ iterate_file(file_iterator *it)
             rval = ITER_OUTRANGE;
         }
 
-        /* skip meaningless iteration. */
         if (nskips > 0)
             it->seq->curr += nskips * it->seq->step;
 

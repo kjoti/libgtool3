@@ -1,6 +1,7 @@
 #ifndef DATEITER__H
 #define DATEITER__H
 
+#include "internal.h"
 #include "gtool3.h"
 #include "caltime.h"
 

@@ -1,6 +1,10 @@
+/*
+ * fileiter.h
+ */
 #ifndef FILEITER__H
 #define FILEITER__H
 
+#include "internal.h"
 #include "gtool3.h"
 #include "seq.h"
 
