@@ -1,5 +1,7 @@
 /*
  * read_ury.c -- read URY & MRY.
+ *
+ * Though URX and MRX are deprecated, they are still supported.
  */
 #include "internal.h"
 
@@ -20,19 +22,17 @@
 
 
 static int
-get_zero_index(int *index, double off, double scale, int max_count)
+get_zero_index(double offset, double scale, int max_count)
 {
     const double eps = 1e-7;
     double c;
 
-    if (off != 0. && scale != 0.) {
-        c = floor(-off / scale + 0.5);
+    if (offset != 0. && scale != 0.) {
+        c = floor(-offset / scale + 0.5);
 
         if (c > 0. && c < max_count
-            && fabs(off + c * scale) < eps * fabs(scale)) {
-            *index = (int)c;
-            return 1;
-        }
+            && fabs(offset + c * scale) < eps * fabs(scale))
+            return (int)c;
     }
     return 0;
 }
@@ -42,17 +42,14 @@ get_zero_index(int *index, double off, double scale, int max_count)
  * read packed data in URY-format and decode them.
  */
 static int
-read_ury_packed(double *outp,
-                size_t nelems,
-                int nbits,
-                const double *dma,
-                double miss,
-                FILE *fp)
+read_packed(double *outp, size_t nelems,
+            unsigned nbits, double offset, double scale,
+            double miss, FILE *fp)
 {
 #define URYBUFSIZ 1024
     uint32_t packed[32 * URYBUFSIZ];
     unsigned idata[32 * URYBUFSIZ];
-    int use_zero_index, zero_index = 0;
+    int zero_index;
     uint32_t imiss;
     size_t npack_per_read, ndata_per_read;
     size_t npack, ndata, nrest, nrest_packed;
@@ -66,7 +63,7 @@ read_ury_packed(double *outp,
     nrest = nelems;
     nrest_packed = pack32_len(nelems, nbits);
 
-    use_zero_index = get_zero_index(&zero_index, dma[0], dma[1], imiss - 1);
+    zero_index = get_zero_index(offset, scale, imiss - 1);
 
     while (nrest > 0) {
         npack = nrest_packed > npack_per_read
@@ -87,15 +84,15 @@ read_ury_packed(double *outp,
 
         unpack_bits_from32(idata, ndata, packed, nbits);
 
-        if (use_zero_index)
+        if (zero_index > 0)
             for (i = 0; i < ndata; i++)
                 outp[i] = (idata[i] != imiss)
-                    ? dma[1] * ((int)idata[i] - zero_index)
+                    ? scale * ((int)idata[i] - zero_index)
                     : miss;
         else
             for (i = 0; i < ndata; i++)
                 outp[i] = (idata[i] != imiss)
-                    ? dma[0] + idata[i] * dma[1]
+                    ? offset + idata[i] * scale
                     : miss;
 
         outp += ndata;
@@ -110,13 +107,14 @@ read_ury_packed(double *outp,
 
 /*
  * XXX: 'skip' and 'nelem' are ignored for now.
- * read_URY() reads all data in a z-plane.
+ * read_URY2() reads all data in a z-plane.
  */
-int
-read_URY(GT3_Varbuf *var, int zpos, size_t skip, size_t nelem, FILE *fp)
+static int
+read_URY2(GT3_Varbuf *var, int zpos, size_t skip, size_t nelem,
+          FILE *fp, int oldflag)
 {
     off_t off;
-    double dma[2];
+    double dma[2], offset, scale;
     unsigned nbits;
     size_t zelems;              /* # of elements in a z-level */
 
@@ -143,10 +141,16 @@ read_URY(GT3_Varbuf *var, int zpos, size_t skip, size_t nelem, FILE *fp)
     if (fseeko(fp, off, SEEK_CUR) < 0)
         return -1;
 
+    offset = dma[0];
+    scale = dma[1];
+    if (oldflag)
+        scale = (nbits == 1) ? 0. : dma[1] / ((1U << nbits) - 2);
+
     /*
      * read packed DATA-BODY in zpos.
      */
-    if (read_ury_packed(var->data, zelems, nbits, dma, var->miss, fp) < 0)
+    if (read_packed(var->data, zelems, nbits,
+                    offset, scale, var->miss, fp) < 0)
         return -1;
 
     return 0;
@@ -156,11 +160,12 @@ read_URY(GT3_Varbuf *var, int zpos, size_t skip, size_t nelem, FILE *fp)
 /*
  * Note: 3rd argument (skip) is ignored, which should be zero.
  */
-int
-read_MRY(GT3_Varbuf *var, int zpos, size_t skip, size_t nelem, FILE *fp)
+static int
+read_MRY2(GT3_Varbuf *var, int zpos, size_t skip, size_t nelem,
+          FILE *fp, int oldflag)
 {
     off_t off;
-    double dma[2];
+    double dma[2], offset, scale;
     GT3_Datamask *mask;
     unsigned nbits;
     size_t skip2;
@@ -211,6 +216,11 @@ read_MRY(GT3_Varbuf *var, int zpos, size_t skip, size_t nelem, FILE *fp)
 
     nbits = (unsigned)var->fp->fmt >> GT3_FMT_MBIT;
 
+    offset = dma[0];
+    scale = dma[1];
+    if (oldflag)
+        scale = (nbits == 1) ? 0. : dma[1] / ((1U << nbits) - 2);
+
     /*
      * skip to zpos.
      */
@@ -225,7 +235,8 @@ read_MRY(GT3_Varbuf *var, int zpos, size_t skip, size_t nelem, FILE *fp)
     if ((data = tiny_alloc(data_buf,
                            sizeof data_buf,
                            sizeof(double) * nnn[zpos])) == NULL
-        || read_ury_packed(data, nnn[zpos], nbits, dma, var->miss, fp) < 0)
+        || read_packed(data, nnn[zpos], nbits,
+                       offset, scale, var->miss, fp) < 0)
         goto error;
 
     /*
@@ -251,4 +262,31 @@ error:
     tiny_free(nnn, nnn_buf);
     tiny_free(data, data_buf);
     return -1;
+}
+
+
+int
+read_URY(GT3_Varbuf *var, int zpos, size_t skip, size_t nelem, FILE *fp)
+{
+    return read_URY2(var, zpos, skip, nelem, fp, 0);
+}
+
+int
+read_MRY(GT3_Varbuf *var, int zpos, size_t skip, size_t nelem, FILE *fp)
+{
+    return read_MRY2(var, zpos, skip, nelem, fp, 0);
+}
+
+/* XXX: URX is  deprecated. */
+int
+read_URX(GT3_Varbuf *var, int zpos, size_t skip, size_t nelem, FILE *fp)
+{
+    return read_URY2(var, zpos, skip, nelem, fp, 1);
+}
+
+/* XXX: MRX is  deprecated. */
+int
+read_MRX(GT3_Varbuf *var, int zpos, size_t skip, size_t nelem, FILE *fp)
+{
+    return read_MRY2(var, zpos, skip, nelem, fp, 1);
 }

@@ -44,7 +44,6 @@ OBJS		= \
 		int_pack.o \
 		mask.o \
 		read_urc.o \
-		read_urx.o \
 		read_ury.o \
 		record.o \
 		reverse.o \

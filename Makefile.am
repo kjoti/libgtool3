@@ -21,7 +21,6 @@ libgtool3_la_SOURCES = \
 		int_pack.c \
 		mask.c \
 		read_urc.c \
-		read_urx.c \
 		read_ury.c \
 		record.c \
 		reverse.c \
