@@ -168,7 +168,7 @@ usage(void)
         "Usage: ngtls [options] [files...]\n"
         "\n"
         "Options:\n"
-        "    -c          fast access mode\n"
+        "    -Q          quick mode\n"
         "    -h          print help message\n"
         "    -n          print axis-length instead of axis-name\n"
         "    -u          print title and unit\n"
@@ -188,9 +188,9 @@ main(int argc, char **argv)
 
     print_item = print_item1;
 
-    while ((ch = getopt(argc, argv, "cnht:uv")) != -1)
+    while ((ch = getopt(argc, argv, "Qnht:uv")) != -1)
         switch (ch) {
-        case 'c':
+        case 'Q':
             fast_mode = 1;
             break;
 
