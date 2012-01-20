@@ -21,18 +21,17 @@
 #define RESERVE_NZ   256
 
 
-static int
-get_zero_index(double offset, double scale, int max_count)
+static unsigned
+get_zero_index(double offset, double scale, unsigned max_count)
 {
     const double eps = 1e-7;
     double c;
 
-    if (offset != 0. && scale != 0.) {
+    if (offset * scale < 0.) {
         c = floor(-offset / scale + 0.5);
 
-        if (c > 0. && c < max_count
-            && fabs(offset + c * scale) < eps * fabs(scale))
-            return (int)c;
+        if (c < max_count && fabs(offset + c * scale) < eps * fabs(scale))
+            return (unsigned)c;
     }
     return 0;
 }
@@ -48,14 +47,13 @@ read_packed(double *outp, size_t nelems,
 {
 #define URYBUFSIZ 1024
     uint32_t packed[32 * URYBUFSIZ];
-    unsigned idata[32 * URYBUFSIZ];
-    int zero_index;
+    unsigned idata[32 * URYBUFSIZ], zero_index;
     uint32_t imiss;
     size_t npack_per_read, ndata_per_read;
     size_t npack, ndata, nrest, nrest_packed;
     int i;
 
-    imiss = (1U << nbits) - 1;
+    imiss = (1U << nbits) - 1U;
 
     npack_per_read = URYBUFSIZ * nbits;
     ndata_per_read = 32 * URYBUFSIZ;
@@ -63,7 +61,7 @@ read_packed(double *outp, size_t nelems,
     nrest = nelems;
     nrest_packed = pack32_len(nelems, nbits);
 
-    zero_index = get_zero_index(offset, scale, imiss - 1);
+    zero_index = get_zero_index(offset, scale, imiss);
 
     while (nrest > 0) {
         npack = nrest_packed > npack_per_read
@@ -84,16 +82,23 @@ read_packed(double *outp, size_t nelems,
 
         unpack_bits_from32(idata, ndata, packed, nbits);
 
-        if (zero_index > 0)
+        if (zero_index > 0) {
             for (i = 0; i < ndata; i++)
-                outp[i] = (idata[i] != imiss)
-                    ? scale * ((int)idata[i] - zero_index)
-                    : miss;
-        else
+                if (idata[i] == imiss)
+                    outp[i] = imiss;
+                else
+                    /*
+                     * NOTE: Be careful when 'unsigned' - 'unsigned'.
+                     */
+                    outp[i] = (idata[i] >= zero_index)
+                        ? scale * (idata[i] - zero_index)
+                        : -scale * (zero_index - idata[i]);
+        } else {
             for (i = 0; i < ndata; i++)
                 outp[i] = (idata[i] != imiss)
                     ? offset + idata[i] * scale
                     : miss;
+        }
 
         outp += ndata;
         nrest -= ndata;
