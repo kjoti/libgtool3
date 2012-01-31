@@ -178,20 +178,6 @@ scaling_parameters(double *dma, double dmin, double dmax, int num)
         goto default_param;
 
     dma[1] = amin / i0;
-#if 0
-    {
-        /*
-         * XXX: To pass test3() in certain environments.
-         */
-        float dx;
-
-        dx = (float)(amin / i0);
-        if (dx < 1e-38f || dx > 1e38f)
-            dma[1] = amin / i0;
-        else
-            dma[1] = dx;
-    }
-#endif
     dma[0] = -dma[1]  * i0;
     return;
 
