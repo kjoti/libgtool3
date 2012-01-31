@@ -24,13 +24,13 @@
 static unsigned
 get_zero_index(double offset, double scale, unsigned max_count)
 {
-    const double eps = 1e-7;
+    const double EPS = 1e-7;
     double c;
 
     if (offset * scale < 0.) {
         c = floor(-offset / scale + 0.5);
 
-        if (c < max_count && fabs(offset + c * scale) < eps * fabs(scale))
+        if (c < max_count && fabs(offset + c * scale) < EPS * fabs(scale))
             return (unsigned)c;
     }
     return 0;
@@ -87,9 +87,7 @@ read_packed(double *outp, size_t nelems,
                 if (idata[i] == imiss)
                     outp[i] = imiss;
                 else
-                    /*
-                     * NOTE: Be careful when 'unsigned' - 'unsigned'.
-                     */
+                    /* NOTE: Be careful when 'unsigned' - 'unsigned'. */
                     outp[i] = (idata[i] >= zero_index)
                         ? scale * (idata[i] - zero_index)
                         : -scale * (zero_index - idata[i]);
