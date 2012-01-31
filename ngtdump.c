@@ -46,6 +46,7 @@ static struct range g_range[] = {
 static struct sequence *g_zseq = NULL;
 
 static int use_index_flag = 1;
+static int quick_mode = 0;
 
 
 char *
@@ -254,7 +255,7 @@ ngtdump(const char *path, struct sequence *seq)
     int rval = -1;
     int stat;
 
-    if ((fp = GT3_open(path)) == NULL
+    if ((fp = quick_mode ? GT3_openHistFile(path) : GT3_open(path)) == NULL
         || (var = GT3_getVarbuf(fp)) == NULL) {
         GT3_printErrorMessages(stderr);
         return -1;
@@ -293,6 +294,7 @@ usage(void)
         "View data.\n"
         "\n"
         "Options:\n"
+        "    -Q        quick access mode\n"
         "    -h        print help message\n"
         "    -a        print grid-value instead of grid-index\n"
         "    -t LIST   specify data No.\n"
@@ -317,8 +319,12 @@ main(int argc, char **argv)
 
     open_logging(stderr, PROGNAME);
     GT3_setProgname(PROGNAME);
-    while ((ch = getopt(argc, argv, "at:x:y:z:h")) != -1)
+    while ((ch = getopt(argc, argv, "Qat:x:y:z:h")) != -1)
         switch (ch) {
+        case 'Q':
+            quick_mode = 1;
+            break;
+
         case 'a':
             use_index_flag = 0;
             break;

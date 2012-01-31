@@ -35,6 +35,7 @@ static struct range g_range[] = {
 static struct sequence *g_zseq = NULL;
 static int slicing = 0;
 static int each_plane = 1;
+static int quick_mode = 0;
 
 /* stat for each layer */
 struct statics {
@@ -368,7 +369,7 @@ ngtstat(const char *path, struct sequence *seq)
     file_iterator it;
     int stat, rval = -1;
 
-    if ((fp = GT3_open(path)) == NULL) {
+    if ((fp = quick_mode ? GT3_openHistFile(path) : GT3_open(path)) == NULL) {
         GT3_printErrorMessages(stderr);
         return -1;
     }
@@ -407,6 +408,7 @@ usage(void)
         "Print average(AVE), standard deviation(SD), MIN, and MAX.\n"
         "\n"
         "Options:\n"
+        "    -Q        quick access mode\n"
         "    -h        print help message\n"
         "    -a        display total info of all Z-planes\n"
         "    -s        use sigma for min/max\n"
@@ -435,8 +437,11 @@ main(int argc, char **argv)
 
     print_stat = print_stat1;
 
-    while ((ch = getopt(argc, argv, "hast:x:y:z:")) != -1)
+    while ((ch = getopt(argc, argv, "Qahst:x:y:z:")) != -1)
         switch (ch) {
+        case 'Q':
+            quick_mode = 1;
+            break;
         case 'a':
             each_plane = 0;
             break;
