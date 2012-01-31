@@ -50,6 +50,13 @@ gauss_legendre(double sol[], double wght[], int nth)
 #include <stdio.h>
 #include <stdlib.h>
 
+#ifndef min
+#  define min(a, b) ((a) < (b) ? (a) : (b))
+#endif
+#ifndef max
+#  define max(a, b) ((a) > (b) ? (a) : (b))
+#endif
+
 
 /*
  * P_n(x): n-th Legendre polynomial function.
@@ -81,20 +88,9 @@ legendre_poly(double x, int nth)
 
 
 int
-zero(double x, double order)
+zero(double x, double eps)
 {
-    return fabs(x) < 1e-10 * order;
-}
-
-
-int
-equal(double a, double b)
-{
-    double ref = fabs(a) + fabs(b);
-
-    if (a != .0 && b != .0)
-        ref = fabs(a - b) / (0.5 * ref);
-    return ref < 1e-9;
+    return fabs(x) <= eps;
 }
 
 
@@ -125,7 +121,7 @@ check_P4(double x0, double x1, int nsamp)
         y1 = legendre_poly(x, 4);
         y2 = P4(x);
 
-        assert(equal(y1, y2));
+        assert(zero(y1 - y2, 1e-12));
     }
 }
 
@@ -141,30 +137,43 @@ check_P5(double x0, double x1, int nsamp)
         y1 = legendre_poly(x, 5);
         y2 = P5(x);
 
-        assert(equal(y1, y2));
+        assert(zero(y1 - y2, 1e-12));
     }
+}
+
+
+double
+sum(const double *values, size_t nelems)
+{
+    double sval = 0.;
+    int i;
+
+    for (i = 0; i < nelems; i++)
+        sval += values[i];
+    return sval;
 }
 
 
 void
 check_root(int nth)
 {
-    double sol[1280], wght[1280], y, wsum;
+    double xzero[6400], wght[6400];
+    double x1, x2, y1, y2;
     int i;
 
-    gauss_legendre(sol, wght, nth);
+    gauss_legendre(xzero, wght, nth);
+    assert(zero(sum(wght, nth) - 2., 1e-12));
 
-    wsum = .0;
+    for (i = 1; i < nth; i++)
+        assert(xzero[i] - xzero[i-1] > 8 * EPS);
+
     for (i = 0; i < nth; i++) {
-        wsum += wght[i];
-        y = legendre_poly(sol[i], nth);
-        assert(zero(y, 1.));
+        x1 = max(-1., xzero[i] - 2 * EPS);
+        x2 = min(1., xzero[i] + 2 * EPS);
+        y1 = legendre_poly(x1, nth);
+        y2 = legendre_poly(x2, nth);
+        assert(y1 * y2 < 0.);
     }
-
-    for (i = 1; i < nth; i++) {
-        assert(sol[i] != sol[i-1]);
-    }
-    assert(equal(wsum, 2.));
 }
 
 
@@ -182,9 +191,10 @@ main(int argc, char **argv)
     check_root(161);
     check_root(320);
     check_root(321);
-    check_root(900);
-    check_root(901);
+    check_root(640);
+    check_root(641);
     check_root(1280);
+    check_root(6400);
     return 0;
 }
 #endif
