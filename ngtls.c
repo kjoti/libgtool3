@@ -12,7 +12,7 @@
 #include "seq.h"
 #include "fileiter.h"
 
-static int fast_mode = 0;
+static int quick_mode = 0;
 static int print_fileinfo = 0;
 static int (*print_item)(int cnt, GT3_File *fp);
 
@@ -127,7 +127,7 @@ print_list(const char *path, struct sequence *seq)
     int stat, rval = 0;
     file_iterator it;
 
-    if ((fp = fast_mode ? GT3_openHistFile(path) : GT3_open(path)) == NULL) {
+    if ((fp = quick_mode ? GT3_openHistFile(path) : GT3_open(path)) == NULL) {
         GT3_printErrorMessages(stderr);
         return -1;
     }
@@ -168,7 +168,7 @@ usage(void)
         "Usage: ngtls [options] [files...]\n"
         "\n"
         "Options:\n"
-        "    -Q          quick mode\n"
+        "    -Q          quick access mode\n"
         "    -h          print help message\n"
         "    -n          print axis-length instead of axis-name\n"
         "    -u          print title and unit\n"
@@ -191,7 +191,7 @@ main(int argc, char **argv)
     while ((ch = getopt(argc, argv, "Qnht:uv")) != -1)
         switch (ch) {
         case 'Q':
-            fast_mode = 1;
+            quick_mode = 1;
             break;
 
         case 'n':
