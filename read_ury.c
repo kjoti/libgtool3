@@ -280,14 +280,14 @@ read_MRY(GT3_Varbuf *var, int zpos, size_t skip, size_t nelem, FILE *fp)
     return read_MRY2(var, zpos, skip, nelem, fp, 0);
 }
 
-/* XXX: URX is  deprecated. */
+/* XXX: URX is deprecated. */
 int
 read_URX(GT3_Varbuf *var, int zpos, size_t skip, size_t nelem, FILE *fp)
 {
     return read_URY2(var, zpos, skip, nelem, fp, 1);
 }
 
-/* XXX: MRX is  deprecated. */
+/* XXX: MRX is deprecated. */
 int
 read_MRX(GT3_Varbuf *var, int zpos, size_t skip, size_t nelem, FILE *fp)
 {
