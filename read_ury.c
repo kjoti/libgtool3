@@ -85,7 +85,7 @@ read_packed(double *outp, size_t nelems,
         if (zero_index > 0) {
             for (i = 0; i < ndata; i++)
                 if (idata[i] == imiss)
-                    outp[i] = imiss;
+                    outp[i] = miss;
                 else
                     /* NOTE: Be careful when 'unsigned' - 'unsigned'. */
                     outp[i] = (idata[i] >= zero_index)
