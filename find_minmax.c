@@ -73,7 +73,7 @@ test2(void)
     float miss = -999.f;
     int nelems = sizeof v / sizeof(float);
     int idx;
-    
+
     idx = find_max_float(v, nelems, &miss);
     assert(idx == -1);
 
