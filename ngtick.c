@@ -85,37 +85,66 @@ print_message_buffer(void)
 }
 
 
-static char *
-date_str(char *buf, const GT3_Date *date)
+static int
+modify_field(GT3_HEADER *head, const char *key, const char *new_value)
 {
-    /* yr = (date->year > 9999) ? 9999 : date->year; */
-    snprintf(buf, 17, "%04d%02d%02d %02d%02d%02d",
-             date->year, date->mon, date->day,
-             date->hour, date->min, date->sec);
-    return buf;
-}
+    char value[17];
+    int rval = 0;
 
+    GT3_copyHeaderItem(value, sizeof value, head, key);
+    if (strcmp(value, new_value) != 0) {
+        if (dryrun_mode)
+            put_message(key, value, new_value);
 
-static char *
-int_str(char *buf, int value)
-{
-    snprintf(buf, 17, "%d", value);
-    return buf;
+        GT3_setHeaderString(head, key, new_value);
+        rval = 1;
+    }
+    return rval;
 }
 
 
 static int
-modify_field(GT3_HEADER *head, const char *key, const char *value)
+modify_field_int(GT3_HEADER *head, const char *key, int new_value)
 {
-    char buf[17];
-    int rval = 0;
+    int rval = 0, value = 0;
 
-    GT3_copyHeaderItem(buf, sizeof buf, head, key);
-    if (strcmp(buf, value) != 0) {
+    rval = GT3_decodeHeaderInt(&value, head, key);
+    if (rval < 0 || value != new_value) {
+        char old[17], new[17];
+
         if (dryrun_mode)
-            put_message(key, buf, value);
+            GT3_copyHeaderItem(old, sizeof old, head, key);
 
-        GT3_setHeaderString(head, key, value);
+        GT3_setHeaderInt(head, key, new_value);
+        if (dryrun_mode) {
+            GT3_copyHeaderItem(new, sizeof new, head, key);
+            put_message(key, old, new);
+        }
+        rval = 1;
+    }
+    return rval;
+}
+
+
+static int
+modify_field_date(GT3_HEADER *head, const char *key,
+                  const GT3_Date *new_value)
+{
+    int rval = 0;
+    GT3_Date value;
+
+    rval = GT3_decodeHeaderDate(&value, head, key);
+    if (rval < 0 || GT3_cmpDate2(&value, new_value) != 0) {
+        char old[17], new[17];
+
+        if (dryrun_mode)
+            GT3_copyHeaderItem(old, sizeof old, head, key);
+
+        GT3_setHeaderDate(head, key, new_value);
+        if (dryrun_mode) {
+            GT3_copyHeaderItem(new, sizeof new, head, key);
+            put_message(key, old, new);
+        }
         rval = 1;
     }
     return rval;
@@ -129,16 +158,15 @@ modify_items(GT3_HEADER *head,
              const GT3_Date *date,
              double time, double tdur)
 {
-    char str[17];
     int rval = 0;
 
     rval += modify_field(head, "UTIM", "HOUR");
-    rval += modify_field(head, "TIME", int_str(str, (int)time));
-    rval += modify_field(head, "TDUR", int_str(str, (int)tdur));
+    rval += modify_field_int(head, "TIME", time);
+    rval += modify_field_int(head, "TDUR", tdur);
 
-    rval += modify_field(head, "DATE",  date_str(str, date));
-    rval += modify_field(head, "DATE1", date_str(str, lower));
-    rval += modify_field(head, "DATE2", date_str(str, upper));
+    rval += modify_field_date(head, "DATE",  date);
+    rval += modify_field_date(head, "DATE1", lower);
+    rval += modify_field_date(head, "DATE2", upper);
     return rval;
 }
 
@@ -189,12 +217,11 @@ tick(file_iterator *it, GT3_Date *start, const GT3_Duration *intv)
         reset_message_buffer();
 
         /*
-         * calculate the midpoint of the time_bnd[].
+         * calculate the midpoint of the time_bnd and modify a header.
          */
         if (snapshot_flag) {
             time = time_bnd[i ^ 1]; /* use upper */
 
-            /* modify the header */
             modified = modify_items(&head, upper, upper, upper, time, 0.);
         } else {
             time = 0.5 * (time_bnd[0] + time_bnd[1]);
@@ -202,7 +229,6 @@ tick(file_iterator *it, GT3_Date *start, const GT3_Duration *intv)
 
             GT3_midDate(&date, lower, upper, calendar);
 
-            /* modify the header */
             modified = modify_items(&head, lower, upper, &date, time, tdur);
         }
 
