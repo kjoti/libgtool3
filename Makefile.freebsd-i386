@@ -181,7 +181,7 @@ test: $(LIBS)
 	        echo "**** TESTING $$f ****"; \
 	        $(TESTCC) -L. $$f $(LDADD); \
 	        if [ $$? -ne 0 ]; then \
-	            echo "**** $$f: ERROR IN COMPILE-TIME."; \
+	            echo "**** $$f: ERROR AT COMPILE-TIME."; \
 	            exit; \
 	        fi; \
 	        ./a.out; \

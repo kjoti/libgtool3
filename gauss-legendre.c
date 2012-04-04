@@ -157,7 +157,7 @@ sum(const double *values, size_t nelems)
 void
 check_root(int nth)
 {
-    double xzero[6400], wght[6400];
+    double xzero[1280], wght[1280];
     double x1, x2, y1, y2;
     int i;
 
@@ -194,7 +194,6 @@ main(int argc, char **argv)
     check_root(640);
     check_root(641);
     check_root(1280);
-    check_root(6400);
     return 0;
 }
 #endif
