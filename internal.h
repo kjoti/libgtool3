@@ -16,7 +16,7 @@
 #endif
 
 #ifndef IO_BUF_SIZE
-#  define IO_BUF_SIZE  (64*1024)
+#  define IO_BUF_SIZE  (32*1024)
 #endif
 
 /*
