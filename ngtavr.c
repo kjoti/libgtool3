@@ -308,6 +308,7 @@ write_average(const struct average *avr, FILE *fp)
     GT3_Date date, origin;
     GT3_HEADER head;
     double time;
+    int itime;
 
     if (avr->count == 0)
         return 0;
@@ -336,9 +337,10 @@ write_average(const struct average *avr, FILE *fp)
      */
     GT3_setDate(&origin, 0, 1, 1, 0, 0, 0);
     time = GT3_getTime(&date, &origin, GT3_UNIT_HOUR, calendar_type);
-    GT3_setHeaderInt(&head, "TIME", (int)time);
-    if (time != (int)time)
-        logging(LOG_NOTICE, "TIME(=%.2f) is truncated to %d", time, (int)time);
+    itime = (int)(time + 0.5);
+    GT3_setHeaderInt(&head, "TIME", itime);
+    if (time != itime)
+        logging(LOG_NOTICE, "TIME(=%.2f) is truncated to %d", time, itime);
 
     /* ASTR3 */
     GT3_setHeaderInt(&head, "ASTR3", g_zrange.str + 1);
