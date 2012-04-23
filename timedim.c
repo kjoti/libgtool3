@@ -608,11 +608,11 @@ main(int argc, char **argv)
 
         GT3_setDate(&date, 2100, 1, 1, 12, 0, 0);
         time = GT3_getTime(&date, &origin, GT3_UNIT_HOUR, GT3_CAL_GREGORIAN);
-        assert(time == 18408252.0);
+        assert(fabs(time - 18408252.0) < 1e-7);
 
         GT3_setDate(&date, 2100, 12, 16, 12, 0, 0);
         time = GT3_getTime(&date, &origin, GT3_UNIT_HOUR, GT3_CAL_GREGORIAN);
-        assert(time == 18416628.0);
+        assert(fabs(time - 18416628.0) < 1e-7);
     }
 
     /*
