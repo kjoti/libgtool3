@@ -22024,7 +22024,8 @@ done
 
 
 
-for ac_func in pow sqrt ilogb scalbn
+
+for ac_func in pow sqrt round ilogb scalbn
 do
 as_ac_var=`echo "ac_cv_func_$ac_func" | $as_tr_sh`
 { echo "$as_me:$LINENO: checking for $ac_func" >&5

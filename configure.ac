@@ -40,6 +40,6 @@ AC_FUNC_REALLOC
 AC_FUNC_STAT
 AC_FUNC_STRTOD
 AC_CHECK_FUNCS([memset strchr strdup strerror strtol])
-AC_CHECK_FUNCS([pow sqrt ilogb scalbn])
+AC_CHECK_FUNCS([pow sqrt round ilogb scalbn])
 AC_CHECK_FUNCS([glob])
 AC_OUTPUT

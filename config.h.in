@@ -38,6 +38,9 @@
    and to 0 otherwise. */
 #undef HAVE_REALLOC
 
+/* Define to 1 if you have the `round' function. */
+#undef HAVE_ROUND
+
 /* Define to 1 if you have the `scalbn' function. */
 #undef HAVE_SCALBN
 

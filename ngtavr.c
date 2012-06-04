@@ -5,6 +5,7 @@
 
 #include <assert.h>
 #include <ctype.h>
+#include <math.h>
 #include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
@@ -23,6 +24,11 @@
 #endif
 #ifndef max
 #  define max(a,b) ((a) > (b) ? (a) : (b))
+#endif
+
+#ifndef HAVE_ROUND
+/* Note: round() is defined in C99. */
+#  define round(x) ((x) >= 0.0) ? floor((x) + 0.5) : ceil((x) - 0.5)
 #endif
 
 #define PROGNAME "ngtavr"
@@ -337,7 +343,7 @@ write_average(const struct average *avr, FILE *fp)
      */
     GT3_setDate(&origin, 0, 1, 1, 0, 0, 0);
     time = GT3_getTime(&date, &origin, GT3_UNIT_HOUR, calendar_type);
-    itime = (int)(time + 0.5);
+    itime = (int)round(time);
     GT3_setHeaderInt(&head, "TIME", itime);
     if (time != itime)
         logging(LOG_NOTICE, "TIME(=%.2f) is truncated to %d", time, itime);
