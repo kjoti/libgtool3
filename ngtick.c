@@ -4,6 +4,7 @@
 #include "internal.h"
 
 #include <errno.h>
+#include <math.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -17,6 +18,11 @@
 #include "logging.h"
 
 #define PROGNAME "ngtick"
+
+#ifndef HAVE_ROUND
+/* Note: round() is defined in C99. */
+#  define round(x) ((x) >= 0.0) ? floor((x) + 0.5) : ceil((x) - 0.5)
+#endif
 
 /*
  * 'basetime' is a date/time of the origin of time-axis.
@@ -161,8 +167,8 @@ modify_items(GT3_HEADER *head,
     int rval = 0;
 
     rval += modify_field(head, "UTIM", "HOUR");
-    rval += modify_field_int(head, "TIME", time);
-    rval += modify_field_int(head, "TDUR", tdur);
+    rval += modify_field_int(head, "TIME", (int)round(time));
+    rval += modify_field_int(head, "TDUR", (int)round(tdur));
 
     rval += modify_field_date(head, "DATE",  date);
     rval += modify_field_date(head, "DATE1", lower);
