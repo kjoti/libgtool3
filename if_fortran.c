@@ -161,7 +161,7 @@ NAME(set_header_date)(char *head,
                       const char *key,
                       const int *year, const int *mon, const int *day,
                       const int *hh, const int *mm, const int *ss,
-                      int keylen)
+                      int dummy, int keylen)
 {
     char key_[17];
     GT3_Date date;
