@@ -41,6 +41,7 @@ OBJS		= \
 		grid.o \
 		gtdim.o \
 		header.o \
+		if_fortran.o \
 		int_pack.o \
 		mask.o \
 		read_urc.o \
