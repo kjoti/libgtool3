@@ -26,11 +26,6 @@
 #  define max(a,b) ((a) > (b) ? (a) : (b))
 #endif
 
-#ifndef HAVE_ROUND
-/* Note: round() is defined in C99. */
-#  define round(x) ((x) >= 0.0) ? floor((x) + 0.5) : ceil((x) - 0.5)
-#endif
-
 #define PROGNAME "ngtavr"
 
 struct average {

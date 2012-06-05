@@ -19,11 +19,6 @@
 
 #define PROGNAME "ngtick"
 
-#ifndef HAVE_ROUND
-/* Note: round() is defined in C99. */
-#  define round(x) ((x) >= 0.0) ? floor((x) + 0.5) : ceil((x) - 0.5)
-#endif
-
 /*
  * 'basetime' is a date/time of the origin of time-axis.
  */
