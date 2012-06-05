@@ -80,10 +80,10 @@ LTLIBRARIES = $(lib_LTLIBRARIES)
 libgtool3_la_LIBADD =
 am_libgtool3_la_OBJECTS = bits_set.lo caltime.lo error.lo file.lo \
 	find_minmax.lo gauss-legendre.lo grid.lo gtdim.lo header.lo \
-	int_pack.lo mask.lo read_urc.lo read_ury.lo record.lo \
-	reverse.lo scaling.lo talloc.lo timedim.lo urc_pack.lo \
-	varbuf.lo vcat.lo version.lo write-mask.lo write-urx.lo \
-	write-ury.lo write.lo xfread.lo
+	if_fortran.lo int_pack.lo mask.lo read_urc.lo read_ury.lo \
+	record.lo reverse.lo scaling.lo talloc.lo timedim.lo \
+	urc_pack.lo varbuf.lo vcat.lo version.lo write-mask.lo \
+	write-urx.lo write-ury.lo write.lo xfread.lo
 libgtool3_la_OBJECTS = $(am_libgtool3_la_OBJECTS)
 binPROGRAMS_INSTALL = $(INSTALL_PROGRAM)
 PROGRAMS = $(bin_PROGRAMS)
@@ -305,6 +305,7 @@ libgtool3_la_SOURCES = \
 		grid.c \
 		gtdim.c \
 		header.c \
+		if_fortran.c \
 		int_pack.c \
 		mask.c \
 		read_urc.c \
@@ -534,6 +535,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/grid.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/gtdim.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/header.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/if_fortran.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/int_pack.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/logging.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mask.Plo@am__quote@

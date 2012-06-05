@@ -18,6 +18,7 @@ libgtool3_la_SOURCES = \
 		grid.c \
 		gtdim.c \
 		header.c \
+		if_fortran.c \
 		int_pack.c \
 		mask.c \
 		read_urc.c \
