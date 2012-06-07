@@ -1,5 +1,5 @@
 /*
- * if_fortran.c -- provide the interface to the Fortran language.
+ * if_fortran.c -- provide an interface to the Fortran language.
  */
 #include "internal.h"
 
@@ -12,6 +12,10 @@
 
 #include "gtool3.h"
 
+#ifndef OPEN_MAX
+#  define OPEN_MAX 256
+#endif
+
 #define MAX_NOUTPUTS OPEN_MAX
 #define MAX_NINPUTS OPEN_MAX
 static FILE *outputs[MAX_NOUTPUTS];
@@ -21,11 +25,12 @@ static GT3_Varbuf *varbuf[MAX_NINPUTS];
 #  define min(a,b) ((a)>(b) ? (b) : (a))
 #endif
 
-/* NAME convention. */
+/*
+ * naming convention.
+ */
 #define NAME(x)  gt3f_ ## x ## _
 
 static int stop_flag = 0;
-
 
 /*
  * convert from Fortran string to C string.
@@ -52,11 +57,11 @@ copy_fstring(char *dest, int destlen, const char *src, int srclen)
  * terminate program if an error has occurred and stop_flag is ON.
  */
 static void
-exit_on_error(int err)
+exit_on_error(int code)
 {
-    if (err != 0 && stop_flag != 0) {
+    if (code < 0 && stop_flag != 0) {
         GT3_printErrorMessages(stderr);
-        fprintf(stderr, "**** STOP in if_fortran..\n");
+        fprintf(stderr, "**** STOP in if_fortran.\n");
         exit(1);
     }
 }
@@ -64,11 +69,13 @@ exit_on_error(int err)
 
 /*
  * set stop flag.
- *   flag:  0: No stop even if an error.
- *          1: stop if an error.
+ *
+ * stop_flag values:
+ *   0: No stop even if an error.
+ *   1: stop if an error.
  */
 void
-NAME(set_stop_flag)(int *flag)
+NAME(stop_on_error)(const int *flag)
 {
     stop_flag = *flag;
 }
@@ -119,25 +126,27 @@ NAME(open_output)(int *iu, const char *path, int pathlen)
 
 
 void
-NAME(close_output)(int *status, const int *iu)
+NAME(close_output)(const int *iu, int *status)
 {
     *status = -1;
-    if (*iu < 0 || *iu >= MAX_NOUTPUTS || outputs[*iu] == NULL) {
+    if (*iu < 0 || *iu >= MAX_NOUTPUTS)
         gt3_error(GT3_ERR_CALL, NULL);
-    } else {
-        if ((*status = fclose(outputs[*iu])) != 0)
+    else {
+        *status = outputs[*iu] ? fclose(outputs[*iu]) : 0;
+        if (*status != 0)
             gt3_error(SYSERR, NULL);
-        outputs[*iu] = NULL;
+        else
+            outputs[*iu] = NULL;
     }
     exit_on_error(*status);
 }
 
 
 /*
- * Note: There is no way to check if 'head' has enough rooom.
+ * Note: There is no way to check whether 'head' has enough rooom.
  */
 void
-NAME(init_header)(char *head, int dummy_)
+NAME(init_header)(char *head, int dummy)
 {
     GT3_initHeader((GT3_HEADER *)head);
 }
@@ -153,6 +162,30 @@ NAME(set_header_string)(char *head,
     copy_fstring(key_, sizeof(key_), key, keylen);
     copy_fstring(value_, sizeof(value_), value, vlen);
     GT3_setHeaderString((GT3_HEADER *)head, key_, value_);
+}
+
+
+void
+NAME(set_header_int)(char *head,
+                     const char *key, const int *value,
+                     int dummy, int keylen)
+{
+    char key_[17];
+
+    copy_fstring(key_, sizeof(key_), key, keylen);
+    GT3_setHeaderInt((GT3_HEADER *)head, key_, *value);
+}
+
+
+void
+NAME(set_header_double)(char *head,
+                        const char *key, const double *value,
+                        int dummy, int keylen)
+{
+    char key_[17];
+
+    copy_fstring(key_, sizeof(key_), key, keylen);
+    GT3_setHeaderDouble((GT3_HEADER *)head, key_, *value);
 }
 
 
@@ -178,18 +211,80 @@ NAME(set_header_date)(char *head,
 
 
 void
-NAME(write)(int *status,
-            const int *iu,
+NAME(get_header_int)(int *value,
+                     const char *head, const char *key,
+                     int *status,
+                     int dummy, int keylen)
+{
+    char key_[17];
+    int rval;
+
+    copy_fstring(key_, sizeof(key_), key, keylen);
+
+    *status = GT3_decodeHeaderInt(&rval, (const GT3_HEADER *)head, key_);
+
+    if (*status == 0)
+        *value = rval;
+    exit_on_error(*status);
+}
+
+
+void
+NAME(get_header_double)(double *value,
+                        const char *head, const char *key,
+                        int *status,
+                        int dummy, int keylen)
+{
+    char key_[17];
+    double rval;
+
+    copy_fstring(key_, sizeof(key_), key, keylen);
+
+    *status = GT3_decodeHeaderDouble(&rval, (const GT3_HEADER *)head, key_);
+
+    if (*status == 0)
+        *value = rval;
+    exit_on_error(*status);
+}
+
+
+void
+NAME(get_header_date)(int *values,
+                      const char *head, const char *key,
+                      int *status,
+                      int dummy, int keylen)
+{
+    char key_[17];
+    GT3_Date date;
+
+    copy_fstring(key_, sizeof(key_), key, keylen);
+
+    *status = GT3_decodeHeaderDate(&date, (const GT3_HEADER *)head, key_);
+    if (*status == 0) {
+        values[0] = date.year;
+        values[1] = date.mon;
+        values[2] = date.day;
+        values[3] = date.hour;
+        values[4] = date.min;
+        values[5] = date.sec;
+    }
+    exit_on_error(*status);
+}
+
+
+void
+NAME(write)(const int *iu,
             const void *ptr, const int *type,
             const int *nx, const int *ny, const int *nz,
             const char *head, const char *dfmt,
+            int *status,
             int dummy, int dfmtlen)
 {
     char fmt[17];
 
     *status = -1;
     if (*iu < 0 || *iu >= MAX_NOUTPUTS || outputs[*iu] == NULL)
-        gt3_error(GT3_ERR_CALL, "if_fortran: write()");
+        gt3_error(GT3_ERR_CALL, "%d: invalid stream", *iu);
     else {
         copy_fstring(fmt, sizeof(fmt), dfmt, dfmtlen);
         *status = GT3_write(ptr, *type, *nx, *ny, *nz,
@@ -216,7 +311,7 @@ get_varbuf(GT3_File *fp)
             break;
 
     if (i == MAX_NINPUTS) {
-        gt3_error(GT3_ERR_CALL, "no more slots for input");
+        gt3_error(GT3_ERR_CALL, "if_fortran: no more slots for input");
         return -1;
     }
 
@@ -254,7 +349,7 @@ NAME(open_input)(int *iu, const char *path, int pathlen)
 
 
 void
-NAME(close_input)(int *status, const int *iu)
+NAME(close_input)(const int *iu, int *status)
 {
     GT3_File *fp;
 
@@ -277,29 +372,44 @@ NAME(close_input)(int *status, const int *iu)
  * seek an input file.
  *
  * [INPUT]
- *  dest: destination position.
- *  whence: 0: SEEK_SET(0), SEEK_CUR(1), or SEEK_END(2).
+ *   dest: destination position (starting with 0).
+ *   whence: SEEK_SET(0), SEEK_CUR(1), or SEEK_END(2).
  */
 void
-NAME(seek_input)(int *status, const int *iu,
-                 const int *dest, const int *whence)
+NAME(seek)(const int *iu,
+           const int *dest, const int *whence,
+           int *status)
 {
     *status = -1;
     if (invalid_input(*iu))
         gt3_error(GT3_ERR_CALL, "seek_input(): invalid input");
     else
         *status = GT3_seek(varbuf[*iu]->fp, *dest, *whence);
-
     exit_on_error(*status);
 }
 
 
 /*
- * goto next chunk.
- * Note: equivalent to NAME(seek_input)(status, iu, 1, 1)
+ * rewind input stream.
+ * equivalent to NAME(seek)(iu, 0, 0, status)
  */
 void
-NAME(next_input)(int *status, const int *iu)
+NAME(rewind)(const int *iu, int *status)
+{
+    *status = -1;
+    if (invalid_input(*iu))
+        gt3_error(GT3_ERR_CALL, "seek_input(): invalid input");
+    else
+        *status = GT3_rewind(varbuf[*iu]->fp);
+    exit_on_error(*status);
+}
+
+
+/*
+ * go to the next chunk.
+ */
+void
+NAME(next)(const int *iu, int *status)
 {
     *status = -1;
     if (invalid_input(*iu))
@@ -311,31 +421,76 @@ NAME(next_input)(int *status, const int *iu)
 }
 
 
+/*
+ * return 0 if not EOF.
+ */
 void
-NAME(eof_input)(int *status, const int *iu)
+NAME(eof)(const int *iu, int *status)
 {
     *status = -1;
-    if (invalid_input(*iu))
+    if (invalid_input(*iu)) {
         gt3_error(GT3_ERR_CALL, "next_input(): invalid input");
-    else
-        *status = GT3_eof(varbuf[*iu]->fp);
-
-    exit_on_error(*status);
+        exit_on_error(*status);
+        return;
+    }
+    *status = GT3_eof(varbuf[*iu]->fp);
 }
 
 
 /*
  * get current chunk position (starting with 0).
+ *
+ * return -1 if an error.
  */
 void
-NAME(tell_input)(int *current, const int *iu)
+NAME(tell_input)(const int *iu, int *pos)
 {
-    *current = -1;
+    *pos = -1;
     if (invalid_input(*iu))
         gt3_error(GT3_ERR_CALL, "tell_input(): invalid input");
     else
-        *current = varbuf[*iu]->fp->curr;
-    exit_on_error(*current);
+        *pos = varbuf[*iu]->fp->curr;
+    exit_on_error(*pos);
+}
+
+
+/*
+ * get filename from unit number.
+ */
+void
+NAME(get_filename)(const int *iu, char *path, int *status, int pathlen)
+{
+    int len;
+
+    *status = -1;
+    if (invalid_input(*iu))
+        gt3_error(GT3_ERR_CALL, "invalid input");
+    else {
+        len = strlen(varbuf[*iu]->fp->path);
+        len = min(len, pathlen);
+        memcpy(path, varbuf[*iu]->fp->path, len);
+
+        if (pathlen > len)
+            memset(path + len, ' ', pathlen - len);
+        *status = 0;
+    }
+    exit_on_error(*status);
+}
+
+
+/*
+ * get the number of chunks which are contained in an input stream.
+ */
+void
+NAME(get_num_chunks)(const int *iu, int *num)
+{
+    *num = -1;
+    if (invalid_input(*iu))
+        gt3_error(GT3_ERR_CALL, "invalid input");
+    else
+        *num = GT3_getNumChunk(varbuf[*iu]->fp);
+
+    exit_on_error(*num);
 }
 
 
@@ -343,7 +498,7 @@ NAME(tell_input)(int *current, const int *iu)
  * get data shape at current chunk.
  */
 void
-NAME(get_dimsize)(int *status, int *shape, const int *iu)
+NAME(get_shape)(const int *iu, int *shape, int *status)
 {
     *status = -1;
     if (invalid_input(*iu))
@@ -359,7 +514,7 @@ NAME(get_dimsize)(int *status, int *shape, const int *iu)
 
 
 void
-NAME(read_header)(int *status, char *head, const int *iu, int dummy)
+NAME(read_header)(const int *iu, char *head, int *status, int dummy)
 {
     *status = -1;
     if (invalid_input(*iu))
@@ -372,78 +527,107 @@ NAME(read_header)(int *status, char *head, const int *iu, int dummy)
 
 
 /*
- * read variable data.
+ * return the number of chunks in a file.
  *
- * [OUTPUT]
- *    status: the number of copied elements (-1 if an error).
- *       buf: output buffer.
- *
- * [INPUT]
- *   bufsize: size of output buffer.
- *        iu: unit number.
+ *    -1: if an error.
  */
 void
-NAME(read_var)(int *status,
-               double *buf, const int *bufsize,
-               const int *iu)
+NAME(count_chunk)(int *num, const char *path, int pathlen)
 {
-    int i, nz, nelems;
-    size_t roomsize;
+    char path_[PATH_MAX + 1];
 
-    *status = -1;
-    if (invalid_input(*iu) || *bufsize < 0) {
-        gt3_error(GT3_ERR_CALL, "read_var(): invalid input");
-        goto finish;
-    }
-
-    roomsize = (size_t)(*bufsize);
-    nz = varbuf[*iu]->fp->dimlen[2];
-
-    for (i = 0; i < nz && roomsize > 0; i++) {
-        if (GT3_readVarZ(varbuf[*iu], i) < 0)
-            goto finish;
-
-        nelems = GT3_copyVarDouble(buf, roomsize, varbuf[*iu], 0, 1);
-
-        buf += nelems;
-        roomsize -= nelems;
-    }
-    *status = *bufsize - (int)roomsize;
-
-finish:
-    exit_on_error(*status);
+    copy_fstring(path_, sizeof(path_), path, pathlen);
+    *num = GT3_countChunk(path_);
 }
 
 
 /*
- * read data on a specified Z-layer.
+ * read variable data.
+ *
+ * [OUTPUT]
+ *    buf: output buffer.
+ *    ncopied: the number of copied elements.
+ * [INPUT]
+ *    iu: unit number.
+ *    xsize, ysize, zsize: buffer shape.
+ *    xoff, yoff, zoff:
  */
 void
-NAME(read_var_z)(int *status,
-                 double *buf, const int *bufsize,
-                 const int *iu, const int *z)
+NAME(read_var)(const int *iu, double *buf,
+               const int *xsize, const int *ysize, const int *zsize,
+               const int *xoff, const int *yoff, const int *zoff,
+               int *ncopied)
 {
-    *status = -1;
-    if (invalid_input(*iu) || *bufsize < 0) {
-        gt3_error(GT3_ERR_CALL, "read_var_z(): invalid input");
+    int shape[3], status, k, j;
+    int inum, jnum, knum, bufstep;
+    double *ptr;
+
+    status = -1;
+    *ncopied = 0;
+    if (invalid_input(*iu)) {
+        gt3_error(GT3_ERR_CALL, "read_var(): invalid input");
         goto finish;
     }
-    if (GT3_readVarZ(varbuf[*iu], *z) < 0)
-        goto finish;
 
-    *status = GT3_copyVarDouble(buf, *bufsize, varbuf[*iu], 0, 1);
+    shape[0] = varbuf[*iu]->fp->dimlen[0];
+    shape[1] = varbuf[*iu]->fp->dimlen[1];
+    shape[2] = varbuf[*iu]->fp->dimlen[2];
+
+    bufstep = *xsize * *ysize;
+
+    inum = min(*xsize, shape[0] - *xoff);
+    jnum = min(*ysize, shape[1] - *yoff);
+    knum = min(*zsize, shape[2] - *zoff);
+
+    if (inum <= 0 || jnum <= 0)
+        knum = 0;
+
+    for (k = 0; k < knum; k++, buf += bufstep) {
+        if (GT3_readVarZ(varbuf[*iu], *zoff + k) < 0)
+            goto finish;
+
+        if (*xoff == 0 && *xsize == shape[0])
+            *ncopied += GT3_copyVarDouble(buf, inum * jnum,
+                                          varbuf[*iu],
+                                          *yoff * shape[0],
+                                          1);
+        else
+            for (j = 0, ptr = buf; j < jnum; j++, ptr += *xsize)
+                *ncopied += GT3_copyVarDouble(ptr, inum,
+                                              varbuf[*iu],
+                                              *xoff + (*yoff + j) * shape[0],
+                                              1);
+    }
+    status = 0;
 finish:
-    exit_on_error(*status);
+    exit_on_error(status);
 }
+
+
+void
+NAME(get_miss)(const int *iu, double *vmiss, int *status)
+{
+    if (invalid_input(*iu)) {
+        gt3_error(GT3_ERR_CALL, "read_header(): invalid input");
+
+        *status = -1;
+        exit_on_error(*status);
+        return;
+    }
+
+    *vmiss = varbuf[*iu]->miss;
+    *status = 0;
+}
+
 
 
 /*
  * get grid data by name, such as 'GLON320', 'GGLA160'.
  */
 void
-NAME(getgrid)(int *status,
-              double *v, int *vsize,
-              const char *name, int namelen)
+NAME(get_grid)(int *status,
+               double *v, int *vsize,
+               const char *name, int namelen)
 {
     char name_[17];
     GT3_Dim *dim;
@@ -467,9 +651,9 @@ NAME(getgrid)(int *status,
 
 
 void
-NAME(getgridweight)(int *status,
-                    double *wght, int *vsize,
-                    const char *name, int namelen)
+NAME(get_weight)(int *status,
+                 double *wght, const int *vsize,
+                 const char *name, int namelen)
 {
     char name_[17];
     double *w;
@@ -494,9 +678,9 @@ NAME(getgridweight)(int *status,
 
 
 void
-NAME(gt3_getgridbound)(int *status,
-                       double *bnd, int *vsize,
-                       const char *name, int namelen)
+NAME(get_gridbound)(int *status,
+                    double *bnd, int *vsize,
+                    const char *name, int namelen)
 {
     char name_[17];
     GT3_DimBound *dimbnd;
@@ -516,4 +700,97 @@ NAME(gt3_getgridbound)(int *status,
 
     GT3_freeDimBound(dimbnd);
     *status = 0;
+}
+
+
+/*
+ * read variable  datafile (path).
+ *
+ * [INPUT]
+ *    t: time index (Data No.). Starting with 1.
+ *    off: offset of variable elements.
+ * [OUTPUT]
+ *         v: output data.
+ *    ncoped: the number of copied elements.
+ */
+void
+NAME(load_var)(double *v, int *vsize, char *head,
+               const char *path,
+               const int *t, const unsigned *off,
+               int *ncopied,
+               int *ierr,
+               int dummy, int pathlen)
+{
+    char path_[PATH_MAX + 1];
+    GT3_File *fp = NULL;
+    GT3_Varbuf *buf = NULL;
+    GT3_HEADER h;
+    unsigned hsize, skip;
+    int nrequest, nread;
+    int z;
+
+    copy_fstring(path_, sizeof(path_), path, pathlen);
+
+    *ierr = -1;
+    *ncopied = 0;
+    if ((fp = GT3_openHistFile(path_)) == NULL
+        || (buf = GT3_getVarbuf(fp)) == NULL
+        || GT3_seek(fp, *t, 0) < 0
+        || GT3_readHeader(&h, fp) < 0)
+        goto finish;
+
+    hsize = buf->dimlen[0] * buf->dimlen[1];
+    nrequest = min(*vsize, hsize * buf->dimlen[2] - *off);
+
+    memcpy(head, &h, sizeof(GT3_HEADER));
+
+    z = *off / hsize;
+    skip = *off % hsize;
+    while (nrequest > 0) {
+        if (GT3_readVarZ(buf, z) < 0)
+            goto finish;
+
+        nread = GT3_copyVarDouble(v, nrequest, buf, skip, 1);
+        assert(nread > 0);
+
+        z++;
+        skip = 0;
+        nrequest -= nread;
+        v += nread;
+        *ncopied += nread;
+    }
+    *ierr = 0;
+finish:
+    GT3_close(fp);
+    GT3_freeVarbuf(buf);
+    exit_on_error(*ierr);
+}
+
+
+/*
+ * load GTOOL3 header from a file.
+ */
+void
+NAME(load_header)(char *head,
+                  const char *path, const int *t,
+                  int *ierr,
+                  int dummy, int pathlen)
+{
+    char path_[PATH_MAX + 1];
+    GT3_File *fp = NULL;
+    GT3_HEADER h;
+
+    copy_fstring(path_, sizeof(path_), path, pathlen);
+
+    *ierr = -1;
+    if ((fp = GT3_openHistFile(path_)) == NULL
+        || GT3_seek(fp, *t, 0) < 0
+        || GT3_readHeader(&h, fp) < 0)
+        goto finish;
+
+    memcpy(head, &h, GT3_HEADER_SIZE);
+    *ierr = 0;
+finish:
+    GT3_close(fp);
+    exit_on_error(*ierr);
 }
