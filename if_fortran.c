@@ -6,6 +6,7 @@
 #include <assert.h>
 #include <ctype.h>
 #include <limits.h>
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -16,19 +17,25 @@
 #  define OPEN_MAX 256
 #endif
 
-#define MAX_NOUTPUTS OPEN_MAX
-#define MAX_NINPUTS OPEN_MAX
-static FILE *outputs[MAX_NOUTPUTS];
-static GT3_Varbuf *varbuf[MAX_NINPUTS];
-
 #ifndef min
 #  define min(a,b) ((a)>(b) ? (b) : (a))
 #endif
+#define min3(a,b,c) min(min((a), (b)), (c))
+
+#define MAX_NOUTPUTS OPEN_MAX
+#define MAX_NINPUTS OPEN_MAX
+
+/* naming convention. */
+#define NAME(x)  gt3f_ ## x ## _
 
 /*
- * naming convention.
+ * input/output streams.
  */
-#define NAME(x)  gt3f_ ## x ## _
+static FILE *outputs[MAX_NOUTPUTS];
+static GT3_Varbuf *varbuf[MAX_NINPUTS];
+
+/* for date and time. */
+static GT3_Date basetime = {0, 1, 1, 0, 0, 0};
 
 static int stop_flag = 0;
 
@@ -543,63 +550,115 @@ NAME(count_chunk)(int *num, const char *path, int pathlen)
 
 /*
  * read variable data.
- *
+ */
+static int
+readin(double *buf, int *ncopied,
+       int xsize, int ysize, int zsize,
+       int xread, int yread, int zread,
+       int xoff, int yoff, int zoff,
+       GT3_Varbuf *vbuf)
+{
+    int shape[3], k, j;
+    int inum, jnum, knum, bufstep;
+    double *ptr;
+
+    *ncopied = 0;
+    shape[0] = vbuf->fp->dimlen[0];
+    shape[1] = vbuf->fp->dimlen[1];
+    shape[2] = vbuf->fp->dimlen[2];
+
+    bufstep = xsize * ysize;
+
+    inum = min3(xsize, shape[0] - xoff, xread);
+    jnum = min3(ysize, shape[1] - yoff, yread);
+    knum = min3(zsize, shape[2] - zoff, zread);
+    if (inum <= 0 || jnum <= 0)
+        knum = 0;
+
+    for (k = 0; k < knum; k++, buf += bufstep) {
+        if (GT3_readVarZ(vbuf, zoff + k) < 0)
+            return -1;
+
+        if (xoff == 0 && xsize == inum)
+            *ncopied += GT3_copyVarDouble(buf, inum * jnum,
+                                          vbuf,
+                                          yoff * shape[0],
+                                          1);
+        else
+            for (j = 0, ptr = buf; j < jnum; j++, ptr += xsize)
+                *ncopied += GT3_copyVarDouble(ptr, inum,
+                                              vbuf,
+                                              xoff + (yoff + j) * shape[0],
+                                              1);
+    }
+    return 0;
+}
+
+
+/*
  * [OUTPUT]
  *    buf: output buffer.
- *    ncopied: the number of copied elements.
+ *    ncopied: the number of elements copied.
  * [INPUT]
  *    iu: unit number.
- *    xsize, ysize, zsize: buffer shape.
- *    xoff, yoff, zoff:
+ *    xsize, ysize, zsize: buffer size (3-D shape).
+ *    xread, yread, zread: size to be read.
+ *    xoff, yoff, zoff: offset for each dimension (starting with 0).
  */
 void
 NAME(read_var)(const int *iu, double *buf,
                const int *xsize, const int *ysize, const int *zsize,
+               const int *xread, const int *yread, const int *zread,
                const int *xoff, const int *yoff, const int *zoff,
                int *ncopied)
 {
-    int shape[3], status, k, j;
-    int inum, jnum, knum, bufstep;
-    double *ptr;
+    int status = -1;
 
-    status = -1;
-    *ncopied = 0;
     if (invalid_input(*iu)) {
         gt3_error(GT3_ERR_CALL, "read_var(): invalid input");
         goto finish;
     }
 
-    shape[0] = varbuf[*iu]->fp->dimlen[0];
-    shape[1] = varbuf[*iu]->fp->dimlen[1];
-    shape[2] = varbuf[*iu]->fp->dimlen[2];
-
-    bufstep = *xsize * *ysize;
-
-    inum = min(*xsize, shape[0] - *xoff);
-    jnum = min(*ysize, shape[1] - *yoff);
-    knum = min(*zsize, shape[2] - *zoff);
-
-    if (inum <= 0 || jnum <= 0)
-        knum = 0;
-
-    for (k = 0; k < knum; k++, buf += bufstep) {
-        if (GT3_readVarZ(varbuf[*iu], *zoff + k) < 0)
-            goto finish;
-
-        if (*xoff == 0 && *xsize == shape[0])
-            *ncopied += GT3_copyVarDouble(buf, inum * jnum,
-                                          varbuf[*iu],
-                                          *yoff * shape[0],
-                                          1);
-        else
-            for (j = 0, ptr = buf; j < jnum; j++, ptr += *xsize)
-                *ncopied += GT3_copyVarDouble(ptr, inum,
-                                              varbuf[*iu],
-                                              *xoff + (*yoff + j) * shape[0],
-                                              1);
-    }
-    status = 0;
+    status = readin(buf, ncopied,
+                    *xsize, *ysize, *zsize,
+                    *xread, *yread, *zread,
+                    *xoff, *yoff, *zoff,
+                    varbuf[*iu]);
 finish:
+    exit_on_error(status);
+}
+
+
+/*
+ * load variable data from a file (path).
+ *
+ * Note: tidx starting with 0.
+ */
+void
+NAME(load_var)(const char *path, const int *tidx, double *buf,
+               const int *xsize, const int *ysize, const int *zsize,
+               const int *xread, const int *yread, const int *zread,
+               const int *xoff, const int *yoff, const int *zoff,
+               int *ncopied)
+{
+    GT3_File *fp = NULL;
+    GT3_Varbuf *vbuf = NULL;
+    int status = -1;
+
+    if ((fp = GT3_open(path)) == NULL
+        || GT3_seek(fp, *tidx, SEEK_SET) < 0
+        || (vbuf = GT3_getVarbuf(fp)) == NULL)
+        goto finish;
+
+    status = readin(buf, ncopied,
+                    *xsize, *ysize, *zsize,
+                    *xread, *yread, *zread,
+                    *xoff, *yoff, *zoff,
+                    vbuf);
+
+finish:
+    GT3_freeVarbuf(vbuf);
+    GT3_close(fp);
     exit_on_error(status);
 }
 
@@ -620,14 +679,26 @@ NAME(get_miss)(const int *iu, double *vmiss, int *status)
 }
 
 
-
 /*
- * get grid data by name, such as 'GLON320', 'GGLA160'.
+ * get dimension length by name.
+ * -1 if unknown error.
  */
 void
-NAME(get_grid)(int *status,
-               double *v, int *vsize,
-               const char *name, int namelen)
+NAME(get_dimlen)(int *length, const char *name, int namelen)
+{
+    char name_[17];
+
+    copy_fstring(name_, sizeof(name_), name, namelen);
+    *length = GT3_getDimlen(name_);
+}
+
+
+/*
+ * get grids by name, such as 'GLON320', 'GGLA160'.
+ */
+void
+NAME(get_grid)(double *loc, const int *locsize,
+               const char *name, int *status, int namelen)
 {
     char name_[17];
     GT3_Dim *dim;
@@ -641,9 +712,9 @@ NAME(get_grid)(int *status,
         return;
     }
 
-    size = min(*vsize, dim->len - dim->cyclic);
+    size = min(*locsize, dim->len - dim->cyclic);
     for (i = 0; i < size; i++)
-        v[i] = dim->values[i];
+        loc[i] = dim->values[i];
 
     GT3_freeDim(dim);
     *status = 0;
@@ -651,9 +722,8 @@ NAME(get_grid)(int *status,
 
 
 void
-NAME(get_weight)(int *status,
-                 double *wght, const int *vsize,
-                 const char *name, int namelen)
+NAME(get_weight)(double *wght, const int *wghtsize,
+                 const char *name, int *status, int namelen)
 {
     char name_[17];
     double *w;
@@ -668,7 +738,7 @@ NAME(get_weight)(int *status,
     }
 
     size = GT3_getDimlen(name_);
-    size = min(*vsize, size);
+    size = min(*wghtsize, size);
     for (i = 0; i < size; i++)
         wght[i] = w[i];
 
@@ -678,9 +748,8 @@ NAME(get_weight)(int *status,
 
 
 void
-NAME(get_gridbound)(int *status,
-                    double *bnd, int *vsize,
-                    const char *name, int namelen)
+NAME(get_gridbound)(double *bnds, int *vsize,
+                    const char *name, int *status, int namelen)
 {
     char name_[17];
     GT3_DimBound *dimbnd;
@@ -696,7 +765,7 @@ NAME(get_gridbound)(int *status,
 
     size = min(*vsize, dimbnd->len);
     for (i = 0; i < size; i++)
-        bnd[i] = dimbnd->bnd[i];
+        bnds[i] = dimbnd->bnd[i];
 
     GT3_freeDimBound(dimbnd);
     *status = 0;
@@ -704,93 +773,166 @@ NAME(get_gridbound)(int *status,
 
 
 /*
- * read variable  datafile (path).
- *
- * [INPUT]
- *    t: time index (Data No.). Starting with 1.
- *    off: offset of variable elements.
- * [OUTPUT]
- *         v: output data.
- *    ncoped: the number of copied elements.
+ * get calendar-type ID by name ('gregorian', 'noleap', ...).
  */
 void
-NAME(load_var)(double *v, int *vsize, char *head,
-               const char *path,
-               const int *t, const unsigned *off,
-               int *ncopied,
-               int *ierr,
-               int dummy, int pathlen)
+NAME(get_calendar)(int *calendar, const char *name, int namelen)
 {
-    char path_[PATH_MAX + 1];
-    GT3_File *fp = NULL;
-    GT3_Varbuf *buf = NULL;
-    GT3_HEADER h;
-    unsigned hsize, skip;
-    int nrequest, nread;
-    int z;
+    char name_[17];
 
-    copy_fstring(path_, sizeof(path_), path, pathlen);
+    copy_fstring(name_, sizeof(name_), name, namelen);
+    *calendar = GT3_calendar_type(name_);
+}
 
-    *ierr = -1;
-    *ncopied = 0;
-    if ((fp = GT3_openHistFile(path_)) == NULL
-        || (buf = GT3_getVarbuf(fp)) == NULL
-        || GT3_seek(fp, *t, 0) < 0
-        || GT3_readHeader(&h, fp) < 0)
-        goto finish;
 
-    hsize = buf->dimlen[0] * buf->dimlen[1];
-    nrequest = min(*vsize, hsize * buf->dimlen[2] - *off);
+void
+NAME(check_date)(int *status,
+                 const int *year, const int *mon, const int *day,
+                 const int *calendar)
+{
+    GT3_Date date;
 
-    memcpy(head, &h, sizeof(GT3_HEADER));
+    GT3_setDate(&date, *year, *mon, *day, 0, 0, 0);
+    *status = GT3_checkDate(&date, *calendar);
+}
 
-    z = *off / hsize;
-    skip = *off % hsize;
-    while (nrequest > 0) {
-        if (GT3_readVarZ(buf, z) < 0)
-            goto finish;
 
-        nread = GT3_copyVarDouble(v, nrequest, buf, skip, 1);
-        assert(nread > 0);
-
-        z++;
-        skip = 0;
-        nrequest -= nread;
-        v += nread;
-        *ncopied += nread;
-    }
-    *ierr = 0;
-finish:
-    GT3_close(fp);
-    GT3_freeVarbuf(buf);
-    exit_on_error(*ierr);
+void
+NAME(set_basetime)(const int *year, const int *mon, const int *day,
+                   const int *hh, const int *mm, const int *ss)
+{
+    basetime.year = *year;
+    basetime.mon  = *mon;
+    basetime.day  = *day;
+    basetime.hour = *hh;
+    basetime.min  = *mm;
+    basetime.sec  = *ss;
 }
 
 
 /*
- * load GTOOL3 header from a file.
+ * date -> time.
+ *
+ * get elapsed time[seconds] since the 'basetime'.
+ *
+ * [INPUT]
+ *   date: array(6) [yyyy,mm,dd hh:mm:ss].
+ *   calendar: calendar type.
  */
 void
-NAME(load_header)(char *head,
-                  const char *path, const int *t,
-                  int *ierr,
-                  int dummy, int pathlen)
+NAME(get_time)(double *time,
+               const int *d, const int *calendar,
+               int *status)
 {
-    char path_[PATH_MAX + 1];
-    GT3_File *fp = NULL;
-    GT3_HEADER h;
+    GT3_Date date;
 
-    copy_fstring(path_, sizeof(path_), path, pathlen);
+    *status = -1;
+    if (GT3_checkDate(&basetime, *calendar) < 0) {
+        gt3_error(GT3_ERR_CALL,
+                  "%04d-%02d-%02d %02d:%02d:%02d: invalid basetime",
+                  basetime.year, basetime.mon, basetime.day,
+                  basetime.hour, basetime.min, basetime.sec);
+        exit_on_error(*status);
+        return;
+    }
 
-    *ierr = -1;
-    if ((fp = GT3_openHistFile(path_)) == NULL
-        || GT3_seek(fp, *t, 0) < 0
-        || GT3_readHeader(&h, fp) < 0)
-        goto finish;
+    GT3_setDate(&date, d[0], d[1], d[2], d[3], d[4], d[5]);
+    if (GT3_checkDate(&date, *calendar) < 0) {
+        gt3_error(GT3_ERR_CALL,
+                  "%04d-%02d-%02d %02d:%02d:%02d: invalid date",
+                  date.year, date.mon, date.day,
+                  date.hour, date.min, date.sec);
+        exit_on_error(*status);
+        return;
+    }
 
-    memcpy(head, &h, GT3_HEADER_SIZE);
-    *ierr = 0;
-finish:
-    GT3_close(fp);
-    exit_on_error(*ierr);
+    *time = GT3_getTime(&date, &basetime, GT3_UNIT_SEC, *calendar);
+    *status = 0;
+}
+
+
+/*
+ * add time[seconds] to the date (d).
+ */
+static int
+add_time(int *d, double time, int calendar)
+{
+    GT3_Date date;
+    GT3_Duration dur;
+    double value;
+
+    GT3_setDate(&date, d[0], d[1], d[2], d[3], d[4], d[5]);
+    if (GT3_checkDate(&date, calendar) < 0)
+        return -1;
+
+    value = round(time / (24. * 3600));
+    if (value > INT_MAX || value < INT_MIN) {
+        gt3_error(GT3_ERR_CALL,
+                  "get_date(fortran): too large value: time = %e", time);
+        return -1;
+    }
+
+    dur.value = (int)value;
+    dur.unit = GT3_UNIT_DAY;
+    GT3_addDuration(&date, &dur, calendar);
+
+    value = round(time - 24. * 3600. * dur.value);
+    dur.value = (int)value;
+    dur.unit = GT3_UNIT_SEC;
+    GT3_addDuration(&date, &dur, calendar);
+
+    d[0] = date.year;
+    d[1] = date.mon;
+    d[2] = date.day;
+    d[3] = date.hour;
+    d[4] = date.min;
+    d[5] = date.sec;
+    return 0;
+}
+
+
+/*
+ * time -> date.
+ *
+ * inverse function of NAME(get_time).
+ */
+void
+NAME(get_date)(int *date, const double *time, const int *calendar,
+               int *status)
+{
+    date[0] = basetime.year;
+    date[1] = basetime.mon;
+    date[2] = basetime.day;
+    date[3] = basetime.hour;
+    date[4] = basetime.min;
+    date[5] = basetime.sec;
+
+    *status = add_time(date, *time, *calendar);
+    exit_on_error(*status);
+}
+
+
+/*
+ * add days into 'date'.
+ */
+void
+NAME(add_days)(int *date,
+               const int *ndays, const int *calendar,
+               int *status)
+{
+    *status = add_time(date, *ndays * 24 * 3600, *calendar);
+    exit_on_error(*status);
+}
+
+
+/*
+ * add seconds into 'date'.
+ */
+void
+NAME(add_seconds)(int *date,
+                  const int *sec, const int *calendar,
+                  int *status)
+{
+    *status = add_time(date, *sec, *calendar);
+    exit_on_error(*status);
 }
