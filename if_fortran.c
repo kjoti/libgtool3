@@ -515,7 +515,7 @@ NAME(close_input_all)(void)
 
 
 /*
- * seek an input file.
+ * seek an input stream.
  *
  * [INPUT]
  *   dest: destination position (starting with 0).
@@ -605,14 +605,16 @@ NAME(tell_input)(const int *iu, int *pos)
 void
 NAME(get_filename)(const int *iu, char *path, int *status, int pathlen)
 {
-    *status = -1;
-    if (invalid_input(*iu))
+    if (invalid_input(*iu)) {
         gt3_error(GT3_ERR_CALL, "gt3f_get_filename: Invalid input(%d)", *iu);
-    else {
-        copy_c2f(path, pathlen, varbuf[*iu]->fp->path);
-        *status = 0;
+
+        *status = -1;
+        exit_on_error(*status);
+        return;
     }
-    exit_on_error(*status);
+
+    copy_c2f(path, pathlen, varbuf[*iu]->fp->path);
+    *status = 0;
 }
 
 
@@ -638,16 +640,18 @@ NAME(get_num_chunks)(const int *iu, int *num)
 void
 NAME(get_shape)(const int *iu, int *shape, int *status)
 {
-    *status = -1;
-    if (invalid_input(*iu))
+    if (invalid_input(*iu)) {
         gt3_error(GT3_ERR_CALL, "gt3f_get_shape: Invalid input(%d)", *iu);
-    else {
-        shape[0] = varbuf[*iu]->fp->dimlen[0];
-        shape[1] = varbuf[*iu]->fp->dimlen[1];
-        shape[2] = varbuf[*iu]->fp->dimlen[2];
-        *status = 0;
+
+        *status = -1;
+        exit_on_error(*status);
+        return;
     }
-    exit_on_error(*status);
+
+    shape[0] = varbuf[*iu]->fp->dimlen[0];
+    shape[1] = varbuf[*iu]->fp->dimlen[1];
+    shape[2] = varbuf[*iu]->fp->dimlen[2];
+    *status = 0;
 }
 
 
@@ -684,53 +688,62 @@ NAME(count_chunk)(int *num, const char *path, int pathlen)
  * read variable data.
  */
 static int
-readin(double *buf, int *ncopied,
+readin(double *buf, int *shape,
        int xsize, int ysize, int zsize,
        int xread, int yread, int zread,
        int xoff, int yoff, int zoff,
        GT3_Varbuf *vbuf)
 {
-    int shape[3], k, j;
-    int inum, jnum, knum, bufstep;
+    int dimlen[3], k, j;
+    int inum, jnum, knum, bufstep, count;
     double *ptr;
 
-    *ncopied = 0;
-    shape[0] = vbuf->fp->dimlen[0];
-    shape[1] = vbuf->fp->dimlen[1];
-    shape[2] = vbuf->fp->dimlen[2];
+    count = 0;
+    dimlen[0] = vbuf->fp->dimlen[0];
+    dimlen[1] = vbuf->fp->dimlen[1];
+    dimlen[2] = vbuf->fp->dimlen[2];
 
     bufstep = xsize * ysize;
 
-    inum = min3(xsize, shape[0] - xoff, xread);
-    jnum = min3(ysize, shape[1] - yoff, yread);
-    knum = min3(zsize, shape[2] - zoff, zread);
+    inum = min3(xsize, dimlen[0] - xoff, xread);
+    jnum = min3(ysize, dimlen[1] - yoff, yread);
+    knum = min3(zsize, dimlen[2] - zoff, zread);
     if (inum <= 0 || jnum <= 0)
-        knum = 0;
+        inum = jnum = knum = 0;
 
     for (k = 0; k < knum; k++, buf += bufstep) {
         if (GT3_readVarZ(vbuf, zoff + k) < 0)
             return -1;
 
         if (xoff == 0 && xsize == inum)
-            *ncopied += GT3_copyVarDouble(buf, inum * jnum,
-                                          vbuf,
-                                          yoff * shape[0],
-                                          1);
+            count += GT3_copyVarDouble(buf, inum * jnum,
+                                       vbuf,
+                                       yoff * dimlen[0],
+                                       1);
         else
             for (j = 0, ptr = buf; j < jnum; j++, ptr += xsize)
-                *ncopied += GT3_copyVarDouble(ptr, inum,
-                                              vbuf,
-                                              xoff + (yoff + j) * shape[0],
-                                              1);
+                count += GT3_copyVarDouble(ptr, inum,
+                                           vbuf,
+                                           xoff + (yoff + j) * dimlen[0],
+                                           1);
     }
+
+    shape[0] = inum;
+    shape[1] = jnum;
+    shape[2] = knum;
+    assert(count == inum * jnum * knum);
     return 0;
 }
 
 
 /*
+ * read data.
+ *
  * [OUTPUT]
  *    buf: output buffer.
- *    ncopied: the number of elements copied.
+ *    miss: missing value.
+ *    read_shape: read shape.
+ *    status: -1 if an error, otherwise 0.
  * [INPUT]
  *    iu: unit number.
  *    xsize, ysize, zsize: buffer size (3-D shape).
@@ -738,61 +751,98 @@ readin(double *buf, int *ncopied,
  *    xoff, yoff, zoff: offset for each dimension (starting with 0).
  */
 void
-NAME(read_var)(const int *iu, double *buf,
-               const int *xsize, const int *ysize, const int *zsize,
-               const int *xread, const int *yread, const int *zread,
-               const int *xoff, const int *yoff, const int *zoff,
-               int *ncopied)
+NAME(read)(const int *iu, double *buf, double *miss, int *read_shape,
+           const int *xsize, const int *ysize, const int *zsize,
+           const int *xread, const int *yread, const int *zread,
+           const int *xoff, const int *yoff, const int *zoff,
+           int *status)
 {
-    int status = -1;
+    *status = -1;
+    if (invalid_input(*iu)) {
+        gt3_error(GT3_ERR_CALL, "gt3f_read: Invalid input(%d)", *iu);
+        goto finish;
+    }
 
+    *status = readin(buf, read_shape,
+                     *xsize, *ysize, *zsize,
+                     *xread, *yread, *zread,
+                     *xoff, *yoff, *zoff,
+                     varbuf[*iu]);
+    *miss = varbuf[*iu]->miss;
+finish:
+    exit_on_error(*status);
+}
+
+
+/*
+ * another version of NAME(read).
+ *
+ * read all data from the chunk.
+ *
+ * [OUTPUT]
+ *    buf: output buffer.
+ *    shape: data shape read (int[3]).
+ *    status: -1 if an error, otherwise 0.
+ * [INPUT]
+ *    iu: unit number.
+ *    xsize, ysize, zsize: buffer size (3-D shape).
+ */
+void
+NAME(read_var)(const int *iu, double *buf, double *miss, int *read_shape,
+               const int *xsize, const int *ysize, const int *zsize,
+               int *status)
+{
+    *status = -1;
     if (invalid_input(*iu)) {
         gt3_error(GT3_ERR_CALL, "gt3f_read_var: Invalid input(%d)", *iu);
         goto finish;
     }
 
-    status = readin(buf, ncopied,
-                    *xsize, *ysize, *zsize,
-                    *xread, *yread, *zread,
-                    *xoff, *yoff, *zoff,
-                    varbuf[*iu]);
+    *status = readin(buf, read_shape,
+                     *xsize, *ysize, *zsize,
+                     *xsize, *ysize, *zsize,
+                     0, 0, 0,
+                     varbuf[*iu]);
+    *miss = varbuf[*iu]->miss;
 finish:
-    exit_on_error(status);
+    exit_on_error(*status);
 }
 
 
+#if 0
 /*
  * load variable data from a file (path).
  *
  * Note: tidx starting with 0.
  */
 void
-NAME(load_var)(const char *path, const int *tidx, double *buf,
-               const int *xsize, const int *ysize, const int *zsize,
-               const int *xread, const int *yread, const int *zread,
-               const int *xoff, const int *yoff, const int *zoff,
-               int *ncopied)
+NAME(load)(double *buf, int *read_shape,
+           const char *path, const int *tidx,
+           const int *xsize, const int *ysize, const int *zsize,
+           const int *xread, const int *yread, const int *zread,
+           const int *xoff, const int *yoff, const int *zoff,
+           int *status)
 {
     GT3_File *fp = NULL;
     GT3_Varbuf *vbuf = NULL;
-    int status = -1;
 
+    *status = -1;
     if ((fp = GT3_open(path)) == NULL
         || GT3_seek(fp, *tidx, SEEK_SET) < 0
         || (vbuf = GT3_getVarbuf(fp)) == NULL)
         goto finish;
 
-    status = readin(buf, ncopied,
-                    *xsize, *ysize, *zsize,
-                    *xread, *yread, *zread,
-                    *xoff, *yoff, *zoff,
-                    vbuf);
-
+    *status = readin(buf, read_shape,
+                     *xsize, *ysize, *zsize,
+                     *xread, *yread, *zread,
+                     *xoff, *yoff, *zoff,
+                     vbuf);
 finish:
     GT3_freeVarbuf(vbuf);
     GT3_close(fp);
-    exit_on_error(status);
+    exit_on_error(*status);
 }
+#endif
 
 
 void
@@ -1056,13 +1106,13 @@ NAME(get_middate)(int *date, const int *date1, const int *date2,
 {
     GT3_Date mid, d1, d2;
 
-    *status = -1;
     GT3_setDate(&d1, date1[0], date1[1], date1[2],
                 date1[3], date1[4], date1[5]);
     GT3_setDate(&d2, date2[0], date2[1], date2[2],
                 date2[3], date2[4], date2[5]);
 
     if (GT3_midDate(&mid, &d1, &d2, *calendar) < 0) {
+        *status = -1;
         exit_on_error(*status);
         return;
     }
