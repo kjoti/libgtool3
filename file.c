@@ -500,9 +500,9 @@ GT3_openRW(const char *path)
 
 
 /*
- * GT3_openHistFile() opens a gtool3 file as a history-file
- * with simplified check.
- * If the file is not a history-file, this operation fails.
+ * GT3_openHistFile() opens a GTOOL3 file with assuming
+ * that all the chunks in the file have the same size.
+ * This enables the seek to be fast.
  */
 GT3_File *
 GT3_openHistFile(const char *path)
