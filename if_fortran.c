@@ -433,6 +433,27 @@ NAME(open_input)(int *iu, const char *path, int pathlen)
 
 
 /*
+ * another version of NAME(open_input).
+ * use GT3_openHistFile().
+ */
+void
+NAME(open_input2)(int *iu, const char *path, int pathlen)
+{
+    char path_[PATH_MAX + 1];
+    GT3_File *fp;
+
+    *iu = -1;
+    copy_f2c(path_, sizeof(path_), path, pathlen);
+    if ((fp = GT3_openHistFile(path_)) != NULL) {
+        *iu = get_varbuf(fp);
+        if (*iu < 0)
+            GT3_close(fp);
+    }
+    exit_on_error(*iu);
+}
+
+
+/*
  * close an input stream.
  */
 void
@@ -887,6 +908,9 @@ NAME(check_date)(int *status,
 }
 
 
+/*
+ * set the basetime (the origin of the time axis).
+ */
 void
 NAME(set_basetime)(const int *year, const int *mon, const int *day,
                    const int *hh, const int *mm, const int *ss)
@@ -901,12 +925,12 @@ NAME(set_basetime)(const int *year, const int *mon, const int *day,
 
 
 /*
- * date -> time.
+ * date(int[6]) -> time(double).
  *
  * get elapsed time[seconds] since the 'basetime'.
  *
  * [INPUT]
- *   date: array(6) [yyyy,mm,dd hh:mm:ss].
+ *   d: array(6) [yyyy-mm-dd hh:mm:ss].
  *   calendar: calendar type.
  */
 void
@@ -919,9 +943,8 @@ NAME(get_time)(double *time,
     *status = -1;
     if (GT3_checkDate(&basetime, *calendar) < 0) {
         gt3_error(GT3_ERR_CALL,
-                  "%04d-%02d-%02d %02d:%02d:%02d: invalid basetime",
-                  basetime.year, basetime.mon, basetime.day,
-                  basetime.hour, basetime.min, basetime.sec);
+                  "gt3f_get_time: Invalid basedate(%04d-%02d-%02d)",
+                  basetime.year, basetime.mon, basetime.day);
         exit_on_error(*status);
         return;
     }
@@ -929,9 +952,8 @@ NAME(get_time)(double *time,
     GT3_setDate(&date, d[0], d[1], d[2], d[3], d[4], d[5]);
     if (GT3_checkDate(&date, *calendar) < 0) {
         gt3_error(GT3_ERR_CALL,
-                  "%04d-%02d-%02d %02d:%02d:%02d: invalid date",
-                  date.year, date.mon, date.day,
-                  date.hour, date.min, date.sec);
+                  "gt3f_get_time: Invalid date(%04d-%02d-%02d)",
+                  date.year, date.mon, date.day);
         exit_on_error(*status);
         return;
     }
@@ -981,7 +1003,7 @@ add_time(int *d, double time, int calendar)
 
 
 /*
- * time -> date.
+ * time(double) -> date(int[6]).
  *
  * inverse function of NAME(get_time).
  */
@@ -1002,6 +1024,36 @@ NAME(get_date)(int *date, const double *time, const int *calendar,
 
 
 /*
+ * get mid-date between date1 and date2.
+ */
+void
+NAME(get_middate)(int *date, const int *date1, const int *date2,
+                  const int *calendar, int *status)
+{
+    GT3_Date mid, d1, d2;
+
+    *status = -1;
+    GT3_setDate(&d1, date1[0], date1[1], date1[2],
+                date1[3], date1[4], date1[5]);
+    GT3_setDate(&d2, date2[0], date2[1], date2[2],
+                date2[3], date2[4], date2[5]);
+
+    if (GT3_midDate(&mid, &d1, &d2, *calendar) < 0) {
+        exit_on_error(*status);
+        return;
+    }
+
+    date[0] = mid.year;
+    date[1] = mid.mon;
+    date[2] = mid.day;
+    date[3] = mid.hour;
+    date[4] = mid.min;
+    date[5] = mid.sec;
+    *status = 0;
+}
+
+
+/*
  * add days into 'date'.
  */
 void
@@ -1009,7 +1061,7 @@ NAME(add_days)(int *date,
                const int *ndays, const int *calendar,
                int *status)
 {
-    *status = add_time(date, *ndays * 24 * 3600, *calendar);
+    *status = add_time(date, *ndays * 24 * 3600.0, *calendar);
     exit_on_error(*status);
 }
 
@@ -1019,7 +1071,7 @@ NAME(add_days)(int *date,
  */
 void
 NAME(add_seconds)(int *date,
-                  const int *sec, const int *calendar,
+                  const double *sec, const int *calendar,
                   int *status)
 {
     *status = add_time(date, *sec, *calendar);
