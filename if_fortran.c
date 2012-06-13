@@ -359,7 +359,7 @@ NAME(get_item_date)(int *values,
  */
 void
 NAME(write)(const int *iu,
-            const void *ptr, const int *type,
+            const double *ptr,
             const int *nx, const int *ny, const int *nz,
             const char *head, const char *dfmt,
             int *status,
@@ -372,7 +372,31 @@ NAME(write)(const int *iu,
         gt3_error(GT3_ERR_CALL, "gt3f_write: Invalid output(%d)", *iu);
     else {
         copy_f2c(fmt, sizeof(fmt), dfmt, dfmtlen);
-        *status = GT3_write(ptr, *type, *nx, *ny, *nz,
+        *status = GT3_write(ptr, GT3_TYPE_DOUBLE,
+                            *nx, *ny, *nz,
+                            (const GT3_HEADER *)head, fmt, outputs[*iu]);
+    }
+    exit_on_error(*status);
+}
+
+
+void
+NAME(write_float)(const int *iu,
+                  const float *ptr,
+                  const int *nx, const int *ny, const int *nz,
+                  const char *head, const char *dfmt,
+                  int *status,
+                  int dummy, int dfmtlen)
+{
+    char fmt[17];
+
+    *status = -1;
+    if (*iu < 0 || *iu >= MAX_NOUTPUTS || outputs[*iu] == NULL)
+        gt3_error(GT3_ERR_CALL, "gt3f_write: Invalid output(%d)", *iu);
+    else {
+        copy_f2c(fmt, sizeof(fmt), dfmt, dfmtlen);
+        *status = GT3_write(ptr, GT3_TYPE_FLOAT,
+                            *nx, *ny, *nz,
                             (const GT3_HEADER *)head, fmt, outputs[*iu]);
     }
     exit_on_error(*status);
@@ -805,7 +829,7 @@ NAME(get_dimlen)(int *length, const char *name, int namelen)
 
 
 /*
- * get grids by name, such as 'GLON320', 'GGLA160'.
+ * get grid locations by name, such as 'GLON320', 'GGLA160'.
  */
 void
 NAME(get_grid)(double *loc, const int *locsize,
