@@ -286,6 +286,7 @@ void GT3_setHeaderString(GT3_HEADER *header, const char *key, const char *str);
 int GT3_setHeaderInt(GT3_HEADER *header, const char *key, int val);
 int GT3_setHeaderDouble(GT3_HEADER *header, const char *key, double val);
 int GT3_setHeaderDate(GT3_HEADER *header, const char *key, const GT3_Date *date);
+void GT3_setHeaderMiss(GT3_HEADER *header, double vmiss);
 void GT3_setHeaderEdit(GT3_HEADER *head, const char *str);
 void GT3_setHeaderEttl(GT3_HEADER *head, const char *str);
 void GT3_setHeaderMemo(GT3_HEADER *head, const char *str);

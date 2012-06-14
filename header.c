@@ -455,6 +455,29 @@ GT3_setHeaderDate(GT3_HEADER *header, const char *key, const GT3_Date *date)
 }
 
 
+/*
+ * Set missing value.
+ * Some other fields (DMIN, DMAX, ...) are also modified if appropriate.
+ */
+void
+GT3_setHeaderMiss(GT3_HEADER *header, double vmiss)
+{
+    const char *keys[] = {"DMIN", "DMAX", "DIVS", "DIVL"};
+    double value, old_miss;
+    int i, rval, rval2;
+
+    rval = GT3_decodeHeaderDouble(&old_miss, header, "MISS");
+    GT3_setHeaderDouble(header, "MISS", vmiss);
+
+    for (i = 0; i < sizeof keys / sizeof keys[0]; i++) {
+        rval2 = GT3_decodeHeaderDouble(&value, header, keys[i]);
+
+        if (rval < 0 || rval2 < 0 || value == old_miss)
+            GT3_setHeaderDouble(header, keys[i], vmiss);
+    }
+}
+
+
 /* last in last out */
 static void
 edit_header_lilo(GT3_HEADER *head, int pos, int count, const char *str)
