@@ -129,11 +129,17 @@ NAME(print_error)(void)
 /*
  * open an output stream.
  *
+ * [OUTPUT]
+ *   iu: file handler(non-negative integer) or -1 if an error.
+ * [INPUT]
+ *   path: pathname of the output.
+ *   append: be append mode if non-zero.
+ *
  * In Fortran:
- *   call gt3f_open_output(iu, 'path_to_output')
+ *   call gt3f_open_output(iu, 'path_to_output', 0)
  */
 void
-NAME(open_output)(int *iu, const char *path, int pathlen)
+NAME(open_output)(int *iu, const char *path, const int *append, int pathlen)
 {
     char path_[PATH_MAX + 1];
     FILE *fp;
@@ -144,7 +150,7 @@ NAME(open_output)(int *iu, const char *path, int pathlen)
     *iu = -1;
     for (i = 0; i < MAX_NOUTPUTS; i++) {
         if (outputs[i] == NULL) {
-            if ((fp = fopen(path_, "wb")) == NULL)
+            if ((fp = fopen(path_, *append ? "ab" : "wb")) == NULL)
                 gt3_error(SYSERR, path_);
             else {
                 outputs[i] = fp;
