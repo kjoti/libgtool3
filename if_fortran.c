@@ -1,5 +1,5 @@
 /*
- * if_fortran.c -- provide an interface to the Fortran language.
+ * if_fortran.c -- Interface to the Fortran language.
  */
 #include "internal.h"
 
@@ -792,15 +792,11 @@ finish:
 /*
  * another version of NAME(read).
  *
- * read all data from the chunk.
- *
- * [OUTPUT]
- *    buf: output buffer.
- *    shape: data shape read (int[3]).
- *    status: -1 if an error, otherwise 0.
- * [INPUT]
- *    iu: unit number.
- *    xsize, ysize, zsize: buffer size (3-D shape).
+ * equivalent to
+ *    call NAME(read)(iu, buf, miss, shape,
+ *                    xsize, ysize, zsize,
+ *                    xsize, ysize, zsize,
+ *                    0, 0, 0, ierr)
  */
 void
 NAME(read_var)(const int *iu, double *buf, double *miss, int *read_shape,
