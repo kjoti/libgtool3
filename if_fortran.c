@@ -25,7 +25,10 @@
 #endif
 
 #ifndef min
-#  define min(a,b) ((a)>(b) ? (b) : (a))
+#  define min(a,b) ((a) > (b) ? (b) : (a))
+#endif
+#ifndef max
+#  define max(a,b) ((a) > (b) ? (a) : (b))
 #endif
 #define min3(a,b,c) min(min((a), (b)), (c))
 
@@ -56,7 +59,8 @@ copy_f2c(char *dest, int destlen, const char *src, int srclen)
 {
     int len, maxlen;
 
-    assert(destlen > 0 && srclen >= 0);
+    /* assert(destlen > 0); */
+    srclen = max(srclen, 0);    /* paranoia */
     maxlen = min(destlen - 1, srclen);
     for (len = maxlen; len > 0; len--)
         if (!isspace(src[len - 1]))
@@ -74,10 +78,11 @@ copy_f2c(char *dest, int destlen, const char *src, int srclen)
 static void
 copy_c2f(char *dest, int destlen, const char *src)
 {
-    while (destlen > 0 && *src != '\0') {
-        *dest++ = *src++;
-        destlen--;
-    }
+    if (src)
+        while (destlen > 0 && *src != '\0') {
+            *dest++ = *src++;
+            destlen--;
+        }
     if (destlen > 0)
         memset(dest, ' ', destlen);
 }
@@ -261,6 +266,13 @@ NAME(set_item_date)(char *head,
 }
 
 
+void
+NAME(set_item_miss)(char *head, const double *vmiss, int dummy)
+{
+    GT3_setHeaderMiss((GT3_HEADER *)head, *vmiss);
+}
+
+
 /*
  * get an item(string) value from a header.
  */
@@ -380,6 +392,9 @@ NAME(write)(const int *iu,
 }
 
 
+/*
+ * write via *float.
+ */
 void
 NAME(write_float)(const int *iu,
                   const float *ptr,
@@ -809,58 +824,6 @@ finish:
 }
 
 
-#if 0
-/*
- * load variable data from a file (path).
- *
- * Note: tidx starting with 0.
- */
-void
-NAME(load)(double *buf, int *read_shape,
-           const char *path, const int *tidx,
-           const int *xsize, const int *ysize, const int *zsize,
-           const int *xread, const int *yread, const int *zread,
-           const int *xoff, const int *yoff, const int *zoff,
-           int *status)
-{
-    GT3_File *fp = NULL;
-    GT3_Varbuf *vbuf = NULL;
-
-    *status = -1;
-    if ((fp = GT3_open(path)) == NULL
-        || GT3_seek(fp, *tidx, SEEK_SET) < 0
-        || (vbuf = GT3_getVarbuf(fp)) == NULL)
-        goto finish;
-
-    *status = readin(buf, read_shape,
-                     *xsize, *ysize, *zsize,
-                     *xread, *yread, *zread,
-                     *xoff, *yoff, *zoff,
-                     vbuf);
-finish:
-    GT3_freeVarbuf(vbuf);
-    GT3_close(fp);
-    exit_on_error(*status);
-}
-#endif
-
-
-void
-NAME(get_miss)(const int *iu, double *vmiss, int *status)
-{
-    if (invalid_input(*iu)) {
-        gt3_error(GT3_ERR_CALL, "gt3f_get_miss: Invalid input(%d)", *iu);
-
-        *status = -1;
-        exit_on_error(*status);
-        return;
-    }
-
-    *vmiss = varbuf[*iu]->miss;
-    *status = 0;
-}
-
-
 /*
  * get dimension length by name.
  * -1 if unknown error.
@@ -967,6 +930,29 @@ NAME(get_calendar)(int *calendar, const char *name, int namelen)
 
     copy_f2c(name_, sizeof(name_), name, namelen);
     *calendar = GT3_calendar_type(name_);
+}
+
+
+void
+NAME(calendar_name)(char *name, const int *calendar, int namelen)
+{
+    copy_c2f(name, namelen, GT3_calendar_name(*calendar));
+}
+
+
+/*
+ * guess calendar from 'time'[seconds] and 'date'.
+ */
+void
+NAME(guess_calendar)(int *ical, const double *time, const int *date)
+{
+    GT3_Date d;
+
+    GT3_setDate(&d, date[0], date[1], date[2], date[3], date[4], date[5]);
+
+    *ical = guess_calendar(*time, &d);
+    if (*ical == GT3_CAL_DUMMY)
+        *ical = -1;
 }
 
 
@@ -1128,26 +1114,13 @@ NAME(get_middate)(int *date, const int *date1, const int *date2,
 
 
 /*
- * add days into 'date'.
+ * add time[seconds] into 'date'.
  */
 void
-NAME(add_days)(int *date,
-               const int *ndays, const int *calendar,
+NAME(add_time)(int *date,
+               const double *time, const int *calendar,
                int *status)
 {
-    *status = add_time(date, *ndays * 24 * 3600.0, *calendar);
-    exit_on_error(*status);
-}
-
-
-/*
- * add seconds into 'date'.
- */
-void
-NAME(add_seconds)(int *date,
-                  const double *sec, const int *calendar,
-                  int *status)
-{
-    *status = add_time(date, *sec, *calendar);
+    *status = add_time(date, *time, *calendar);
     exit_on_error(*status);
 }

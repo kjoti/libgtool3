@@ -156,6 +156,9 @@ int read_MRX(GT3_Varbuf *var, int zpos, size_t skip, size_t nelem, FILE *fp);
 int read_URY(GT3_Varbuf *var, int zpos, size_t skip, size_t nelem, FILE *fp);
 int read_MRY(GT3_Varbuf *var, int zpos, size_t skip, size_t nelem, FILE *fp);
 
+/* timedim.c */
+int guess_calendar(double sec, const GT3_Date *date);
+
 #include "find_minmax.h"
 
 #endif /* GT3_INTERNAL__H */
