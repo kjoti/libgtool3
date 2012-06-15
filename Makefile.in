@@ -294,7 +294,7 @@ target_alias = @target_alias@
 lib_LTLIBRARIES = libgtool3.la
 libgtool3_la_LDFLAGS = -version-info 1
 noinst_LIBRARIES = libinternal.a
-include_HEADERS = gtool3.h
+include_HEADERS = gtool3.h libgtool3.f90
 libgtool3_la_SOURCES = \
 		bits_set.c \
 		caltime.c \

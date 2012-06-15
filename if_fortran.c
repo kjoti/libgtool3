@@ -729,7 +729,7 @@ readin(double *buf, int *shape,
     inum = min3(xsize, dimlen[0] - xoff, xread);
     jnum = min3(ysize, dimlen[1] - yoff, yread);
     knum = min3(zsize, dimlen[2] - zoff, zread);
-    if (inum <= 0 || jnum <= 0)
+    if (inum <= 0 || jnum <= 0 || knum <= 0)
         inum = jnum = knum = 0;
 
     for (k = 0; k < knum; k++, buf += bufstep) {

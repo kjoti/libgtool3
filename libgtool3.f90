@@ -1,5 +1,5 @@
 !!
-!! libgtool3.f90 -- interface definitions for libgtool3.
+!! libgtool3.f90 -- interfaces defined in if_fortran.c
 !!
 !! Including this file enables processor to check argument lists
 !! at compile time.
@@ -241,8 +241,8 @@ interface
      integer, intent(in) :: calendar
    end subroutine gt3f_calendar_name
 
-   subroutine gt3f_guess_calendar(ical, time, date)
-     integer, intent(out) :: ical
+   subroutine gt3f_guess_calendar(calendar, time, date)
+     integer, intent(out) :: calendar
      real(kind(0.d0)), intent(in) :: time
      integer, intent(in) :: date(6)
    end subroutine gt3f_guess_calendar

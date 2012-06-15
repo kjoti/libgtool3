@@ -6,7 +6,7 @@ noinst_LIBRARIES = libinternal.a
 bin_PROGRAMS = ngtcat ngtls ngtsumm ngtstat ngtick ngthead \
 		ngted ngtmkax ngtdiff ngtdump ngtavr ngtconv \
 		ngtredist ngtmean
-include_HEADERS = gtool3.h
+include_HEADERS = gtool3.h libgtool3.f90
 
 libgtool3_la_SOURCES = \
 		bits_set.c \
