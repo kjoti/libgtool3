@@ -1,9 +1,6 @@
 !!
 !! libgtool3.f90 -- interfaces defined in if_fortran.c
 !!
-!! Including this file enables processor to check argument lists
-!! at compile time.
-!!
 !! Example:
 !!    program main
 !!      implicit none
