@@ -415,6 +415,9 @@ GT3_format_string(char *str, int fmt)
 }
 
 
+/*
+ * This operation might take some time.
+ */
 int
 GT3_countChunk(const char *path)
 {
@@ -500,29 +503,38 @@ GT3_openRW(const char *path)
 
 
 /*
- * GT3_openHistFile() opens a GTOOL3 file with assuming
- * that all the chunks in the file have the same size.
- * This enables the seek to be fast.
+ * GT3_openHistFile() opens a GTOOL3 file as well as GT3_open().
+ * In addition, this checks whether all the chunks have the same size.
+ * If so, seeking file will become very fast.
  */
 GT3_File *
 GT3_openHistFile(const char *path)
 {
-    GT3_File *gp;
+    GT3_File *fp;
+    GT3_HEADER head;
+    off_t pos;
 
-    if ((gp = GT3_open(path)) == NULL)
+    if ((fp = GT3_open(path)) == NULL)
         return NULL;
 
-    /*
-     * check if this is a uniform-file, whose all chunks
-     * are in the same size.
-     */
-    if (gp->size % gp->chsize == 0) {
-        gp->mode |= GT3_CONST_CHUNK_SIZE;
-        gp->num_chunk = gp->size / gp->chsize;
-    } else
-        gp->num_chunk = GT3_countChunk(gp->path);
+    if (fp->size % fp->chsize == 0) {
+        /*
+         * check an expected position of the last chunk.
+         */
+        pos = fp->chsize * (fp->size / fp->chsize - 1);
 
-    return gp;
+        if (fseeko(fp->fp, pos, SEEK_SET) == 0
+            && read_header(&head, fp->fp) == 0) {
+            fp->mode |= GT3_CONST_CHUNK_SIZE;
+            fp->num_chunk = fp->size / fp->chsize;
+        }
+
+        if (GT3_rewind(fp) < 0) {
+            GT3_close(fp);
+            return NULL;
+        }
+    }
+    return fp;
 }
 
 
