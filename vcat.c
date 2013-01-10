@@ -15,12 +15,11 @@
 
 
 static int
-alloc_file(GT3_VCatFile *vf, size_t num)
+extend_slots(GT3_VCatFile *vf, size_t num)
 {
     int newsize;
     char **path = NULL;
     int *idx = NULL;
-
 
     assert(vf);
     newsize = vf->reserved + num;
@@ -74,7 +73,6 @@ select_file(GT3_VCatFile *vf, int tpos)
     GT3_File *fp = NULL;
     int i;
 
-
     i = find_range(tpos, vf->index, vf->num_files);
     if (i < 0) {
         gt3_error(GT3_ERR_INDEX, "t=%d", tpos);
@@ -111,26 +109,25 @@ select_file(GT3_VCatFile *vf, int tpos)
 GT3_VCatFile *
 GT3_newVCatFile(void)
 {
-    GT3_VCatFile *vf;
     const int INITIAL_SIZE = 8;
+    GT3_VCatFile *vf;
 
-    vf = malloc(sizeof(GT3_VCatFile));
-    if (vf) {
-        vf->num_files = 0;
-        vf->path = NULL;
-        vf->index = NULL;
-        vf->reserved = 0;
-        vf->opened_ = -1;
-        vf->ofile_ = NULL;
-
-        if (alloc_file(vf, INITIAL_SIZE) < 0) {
-            free(vf);
-            return NULL;
-        }
-        vf->index[0] = 0;
-    } else
+    if ((vf = malloc(sizeof(GT3_VCatFile))) == NULL) {
         gt3_error(SYSERR, NULL);
+        return NULL;
+    }
 
+    vf->num_files = 0;
+    vf->path = NULL;
+    vf->index = NULL;
+    vf->reserved = 0;
+    vf->opened_ = -1;
+    vf->ofile_ = NULL;
+    if (extend_slots(vf, INITIAL_SIZE) < 0) {
+        free(vf);
+        return NULL;
+    }
+    vf->index[0] = 0;
     return vf;
 }
 
@@ -138,14 +135,16 @@ GT3_newVCatFile(void)
 int
 GT3_vcatFile(GT3_VCatFile *vf, const char *path)
 {
+    GT3_File *fp;
     int curr, nc;
 
-    nc = GT3_countChunk(path);
-    if (nc < 0)
+    if ((fp = GT3_openHistFile(path)) == NULL)
         return -1;
+    nc = GT3_getNumChunk(fp);
+    GT3_close(fp);
 
     if (vf->num_files >= vf->reserved
-        && alloc_file(vf, vf->reserved) < 0)
+        && extend_slots(vf, vf->reserved) < 0)
         return -1;
 
     curr = vf->num_files;
@@ -154,8 +153,8 @@ GT3_vcatFile(GT3_VCatFile *vf, const char *path)
         return -1;
     }
 
-    vf->index[curr+1] = vf->index[curr] + nc;
     vf->num_files++;
+    vf->index[curr + 1] = vf->index[curr] + nc;
     return 0;
 }
 
