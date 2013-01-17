@@ -498,7 +498,12 @@ GT3_open(const char *path)
 GT3_File *
 GT3_openRW(const char *path)
 {
-    return open_gt3file(path, "r+b");
+    GT3_File *fp;
+
+    if ((fp = open_gt3file(path, "r+b")) != NULL)
+        fp->mode |= GT3_FILE_WRITABLE;
+
+    return fp;
 }
 
 
@@ -615,7 +620,8 @@ GT3_close(GT3_File *fp)
         if (fp->mask)
             GT3_freeMask(fp->mask);
         free(fp->mask);
-        fclose(fp->fp);
+        if (fp->fp)
+            fclose(fp->fp);
         free(fp->path);
         free(fp);
     }
@@ -716,6 +722,60 @@ GT3_skipZ(GT3_File *fp, int z)
     off = fp->off + zslice_offset(fp, z);
     if (fseeko(fp->fp, off, SEEK_SET) < 0) {
         gt3_error(SYSERR, NULL);
+        return -1;
+    }
+    return 0;
+}
+
+
+/*
+ * GT3_suspend() suspends an instance of GT3_File.
+ * The file is closed but the other informations remain.
+ *
+ * This is used to avoid the limits of OPEN_MAX.
+ */
+int
+GT3_suspend(GT3_File *fp)
+{
+    if (fp->fp && fclose(fp->fp) < 0) {
+        gt3_error(SYSERR, fp->path);
+        return -1;
+    }
+    fp->fp = NULL;
+    return 0;
+}
+
+
+/*
+ * GT3_resume() resumes a suspened GT3_File by GT3_suspend().
+ */
+int
+GT3_resume(GT3_File *fp)
+{
+    GT3_HEADER head;
+    const char *mode;
+
+    if (fp->fp) {
+        gt3_error(GT3_ERR_CALL, "GT3_resume(): Not suspended file");
+        return -1;
+    }
+    if (fp->path == NULL) {
+        gt3_error(GT3_ERR_CALL, "GT3_resume(): Cannot resume");
+        return -1;
+    }
+
+    mode = (fp->mode & GT3_FILE_WRITABLE) ? "r+b" :  "rb";
+    if ((fp->fp = fopen(fp->path, mode)) == NULL) {
+        gt3_error(SYSERR, fp->path);
+        return -1;
+    }
+
+    /*
+     * check.
+     */
+    if (GT3_readHeader(&head, fp) < 0 || update(fp, &head) < 0) {
+        fclose(fp->fp);
+        fp->fp = NULL;
         return -1;
     }
     return 0;

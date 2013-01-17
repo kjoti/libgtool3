@@ -63,7 +63,8 @@ enum {
 
 /* for mode in GT3_File */
 enum {
-    GT3_CONST_CHUNK_SIZE = 1U
+    GT3_CONST_CHUNK_SIZE = 1U,
+    GT3_FILE_WRITABLE = 2U
 };
 
 /*
@@ -232,6 +233,8 @@ void GT3_close(GT3_File *fp);
 int GT3_rewind(GT3_File *fp);
 int GT3_seek(GT3_File *fp, int dest, int whence);
 int GT3_skipZ(GT3_File *fp, int z);
+int GT3_suspend(GT3_File *fp);
+int GT3_resume(GT3_File *fp);
 
 /* varbuf.c */
 void GT3_freeVarbuf(GT3_Varbuf *var);
