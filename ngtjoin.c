@@ -99,6 +99,43 @@ free_buffer(struct buffer *buf)
 
 
 /*
+ * check joint surface.
+ * compare sizes with nearby blocks.
+ */
+static int
+check_joint(struct input_set *inset, const int *pattern)
+{
+    int m, n;
+
+    for (n = 1; n < inset->num; n++) {
+        if (n % pattern[0]) {
+            m = n - 1;
+            if (   inset->fp[n]->dimlen[1] != inset->fp[m]->dimlen[1]
+                || inset->fp[n]->dimlen[2] != inset->fp[m]->dimlen[2])
+                return -1;
+        }
+
+        if ((n / pattern[0]) % pattern[1]) {
+            m = n - pattern[0];
+
+            if (   inset->fp[n]->dimlen[2] != inset->fp[m]->dimlen[2]
+                || inset->fp[n]->dimlen[0] != inset->fp[m]->dimlen[0])
+                return -1;
+        }
+
+        if (n / (pattern[0] * pattern[1])) {
+            m = n - pattern[0] * pattern[1];
+
+            if (   inset->fp[n]->dimlen[0] != inset->fp[m]->dimlen[0]
+                || inset->fp[n]->dimlen[1] != inset->fp[m]->dimlen[1])
+                return -1;
+        }
+    }
+    return 0;
+}
+
+
+/*
  * get joined size.
  */
 static void
@@ -155,6 +192,11 @@ join_chunk(struct buffer *dest, struct input_set *inset, const int *pattern)
     int gsize[3];
     int n, y, z, offset;
     int ncopied;
+
+    if (check_joint(inset, pattern) < 0) {
+        logging(LOG_ERR, "Invalid block size.");
+        return -1;
+    }
 
     /*
      * resize destination area.
@@ -350,7 +392,7 @@ join(FILE *output, struct input_set *inset,
         }
 
         /*
-         * set gtool3 header.
+         * set GTOOL3 header.
          */
         if (GT3_readHeader(&head, inset->fp[0]) < 0) {
             GT3_printErrorMessages(stderr);
@@ -367,11 +409,10 @@ join(FILE *output, struct input_set *inset,
             goto finish;
 
         /*
-         * get format name if ASIS.
+         * output GTOOL3.
          */
         if (fmt == NULL)
             GT3_copyHeaderItem(fmt_asis, sizeof fmt_asis, &head, "DFMT");
-
         if (GT3_write(wkbuf->data, GT3_TYPE_DOUBLE,
                       wkbuf->shape[0], wkbuf->shape[1], wkbuf->shape[2],
                       &head,
