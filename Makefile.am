@@ -5,7 +5,7 @@ noinst_LIBRARIES = libinternal.a
 
 bin_PROGRAMS = ngtcat ngtls ngtsumm ngtstat ngtick ngthead \
 		ngted ngtmkax ngtdiff ngtdump ngtavr ngtconv \
-		ngtredist ngtmean
+		ngtredist ngtmean ngtjoin
 include_HEADERS = gtool3.h libgtool3.f90
 
 libgtool3_la_SOURCES = \
@@ -63,6 +63,7 @@ ngtavr_SOURCES = ngtavr.c $(libinternal_a_SOURCES)
 ngtconv_SOURCES = ngtconv.c $(libinternal_a_SOURCES)
 ngtredist_SOURCES = ngtredist.c $(libinternal_a_SOURCES)
 ngtmean_SOURCES = ngtmean.c $(libinternal_a_SOURCES)
+ngtjoin_SOURCES = ngtjoin.c $(libinternal_a_SOURCES)
 
 LDADD = libinternal.a libgtool3.la -lm
 
