@@ -54,7 +54,7 @@ static const char *default_ofile = "gtool.out";
 static int calendar_type = GT3_CAL_GREGORIAN;
 static int ignore_tdur = 0;
 static double limit_factor = 0.;
-static char *g_format = "UR8";
+static char *g_format = "UR4";
 
 
 static void
