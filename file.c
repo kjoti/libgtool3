@@ -729,10 +729,8 @@ GT3_skipZ(GT3_File *fp, int z)
 
 
 /*
- * GT3_suspend() suspends an instance of GT3_File.
- * The file is closed but the other informations remain.
- *
- * This is used to avoid the limits of OPEN_MAX.
+ * GT3_suspend() temporary suspends an instance of GT3_File.
+ * The 'fp->fp' (FILE) is closed but the other informations remain.
  */
 int
 GT3_suspend(GT3_File *fp)
@@ -756,11 +754,11 @@ GT3_resume(GT3_File *fp)
     const char *mode;
 
     if (fp->fp) {
-        gt3_error(GT3_ERR_CALL, "GT3_resume(): Not suspended file");
+        gt3_error(GT3_ERR_CALL, "GT3_resume(): Not suspended");
         return -1;
     }
     if (fp->path == NULL) {
-        gt3_error(GT3_ERR_CALL, "GT3_resume(): Cannot resume");
+        gt3_error(GT3_ERR_CALL, "GT3_resume(): Broken GT3_File");
         return -1;
     }
 
@@ -770,9 +768,6 @@ GT3_resume(GT3_File *fp)
         return -1;
     }
 
-    /*
-     * check.
-     */
     if (GT3_readHeader(&head, fp) < 0 || update(fp, &head) < 0) {
         fclose(fp->fp);
         fp->fp = NULL;

@@ -184,7 +184,7 @@ update_offset_index(struct input_set *inset,
 
 
 /*
- * join() joins data in each of 'inset' into 'dest' buffer.
+ * join each chunk.
  */
 static int
 join_chunk(struct buffer *dest, struct input_set *inset, const int *pattern)
@@ -194,7 +194,7 @@ join_chunk(struct buffer *dest, struct input_set *inset, const int *pattern)
     int ncopied;
 
     if (check_joint(inset, pattern) < 0) {
-        logging(LOG_ERR, "Invalid block size.");
+        logging(LOG_ERR, "Cannot join due to invalid data size.");
         return -1;
     }
 
@@ -210,8 +210,6 @@ join_chunk(struct buffer *dest, struct input_set *inset, const int *pattern)
      */
     if (update_offset_index(inset, gsize, pattern) < 0)
         return -1;
-
-    assert(inset->offset[inset->num - 1] < dest->size);
 
     for (n = 0; n < inset->num; n++) {
         /*
@@ -239,6 +237,7 @@ join_chunk(struct buffer *dest, struct input_set *inset, const int *pattern)
                 offset = inset->offset[n]
                     + dest->shape[0] * (y + dest->shape[1] * z);
 
+                /* assert(offset + inset->fp[n]->dimlen[0] <= dest->size); */
                 ncopied = GT3_copyVarDouble(dest->data + offset,
                                             inset->fp[n]->dimlen[0],
                                             inset->vbuf,
@@ -248,7 +247,7 @@ join_chunk(struct buffer *dest, struct input_set *inset, const int *pattern)
         }
 
         /*
-         * suspend input if needed.
+         * suspend input if not keep_alive.
          */
         if (!inset->keep_alive && n > 0 && GT3_suspend(inset->fp[n]) < 0) {
             GT3_printErrorMessages(stderr);
@@ -345,7 +344,7 @@ error:
 
 
 /*
- * join main function.
+ * join main process.
  */
 static int
 join(FILE *output, struct input_set *inset,
@@ -372,7 +371,7 @@ join(FILE *output, struct input_set *inset,
             continue;
 
         /*
-         * seek to the same position to inset->fp[0].
+         * move to the same position to inset->fp[0].
          */
         for (n = 1; n < inset->num; n++) {
             if (!inset->keep_alive && GT3_resume(inset->fp[n]) < 0) {
@@ -391,26 +390,16 @@ join(FILE *output, struct input_set *inset,
             }
         }
 
-        /*
-         * set GTOOL3 header.
-         */
-        if (GT3_readHeader(&head, inset->fp[0]) < 0) {
-            GT3_printErrorMessages(stderr);
-            goto finish;
-        }
-        if (pattern[0] > 1)
-            GT3_setHeaderString(&head, "AITM1", "NUMBER1000");
-        if (pattern[1] > 1)
-            GT3_setHeaderString(&head, "AITM2", "NUMBER1000");
-        if (pattern[2] > 1)
-            GT3_setHeaderString(&head, "AITM3", "NUMBER1000");
-
         if (join_chunk(wkbuf, inset, pattern) < 0)
             goto finish;
 
         /*
          * output GTOOL3.
          */
+        if (GT3_readHeader(&head, inset->fp[0]) < 0) {
+            GT3_printErrorMessages(stderr);
+            goto finish;
+        }
         if (fmt == NULL)
             GT3_copyHeaderItem(fmt_asis, sizeof fmt_asis, &head, "DFMT");
         if (GT3_write(wkbuf->data, GT3_TYPE_DOUBLE,
@@ -423,13 +412,6 @@ join(FILE *output, struct input_set *inset,
         }
     }
     rval = 0;
-
-    if (pattern[0] > 1)
-        logging(LOG_NOTICE, "AITM1 is renamed to NUMBER1000.");
-    if (pattern[1] > 1)
-        logging(LOG_NOTICE, "AITM2 is renamed to NUMBER1000.");
-    if (pattern[2] > 1)
-        logging(LOG_NOTICE, "AITM3 is renamed to NUMBER1000.");
 
 finish:
     free_buffer(wkbuf);
@@ -453,10 +435,10 @@ usage(void)
 {
     const char *message =
         "Usage:\n"
-        "  " PROGNAME " [options] -x       File1 ... fileN\n"
-        "  " PROGNAME " [options] -y       File1 ... fileN\n"
-        "  " PROGNAME " [options] -z       File1 ... fileN\n"
-        "  " PROGNAME " [options] -s IxJ   File1 ... fileN\n"
+        "  " PROGNAME " [options] -x       file1 ... fileN\n"
+        "  " PROGNAME " [options] -y       file1 ... fileN\n"
+        "  " PROGNAME " [options] -z       file1 ... fileN\n"
+        "  " PROGNAME " [options] -s <XxY> file1 ... fileN\n"
         "\n"
         "Options:\n"
         "    -f fmt    specify output format\n"
@@ -541,6 +523,7 @@ main(int argc, char **argv)
     argv += optind;
     if (argc <= 0) {
         logging(LOG_ERR, "No input file.");
+        usage();
         exit(1);
     }
     if ((inset = make_input_set(argv, argc)) == NULL)
@@ -572,7 +555,7 @@ main(int argc, char **argv)
         pattern[0] = pattern[1] = 1;
         break;
     default:
-        logging(LOG_ERR, "One of -x, -y, -z, -s should be specified.");
+        logging(LOG_ERR, "Specify the one of -x, -y, -z, or -s.");
         usage();
         exit(1);
         break;
