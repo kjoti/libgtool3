@@ -2,7 +2,7 @@
 
 #include "gtool3.h"
 
-static const char *version = "libgtool3 0.20.1";
+static const char *version = "libgtool3 0.21.0";
 
 char *
 GT3_version(void)
