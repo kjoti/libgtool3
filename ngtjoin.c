@@ -17,7 +17,11 @@
 #include "myutils.h"
 #include "seq.h"
 
-#define ALIVE_MAX (OPEN_MAX - 5)
+#ifdef OPEN_MAX
+#  define ALIVE_MAX (OPEN_MAX - 5)
+#else
+#  define ALIVE_MAX 15
+#endif
 #define RANGE_MAX 0x7fffffff
 
 #define PROGNAME "ngtjoin"
