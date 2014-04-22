@@ -64,8 +64,8 @@ libinternal_a_AR = $(AR) $(ARFLAGS)
 libinternal_a_LIBADD =
 am_libinternal_a_OBJECTS = copysubst.$(OBJEXT) dateiter.$(OBJEXT) \
 	fileiter.$(OBJEXT) get_ints.$(OBJEXT) ghprintf.$(OBJEXT) \
-	logging.$(OBJEXT) range.$(OBJEXT) seq.$(OBJEXT) \
-	split.$(OBJEXT)
+	logging.$(OBJEXT) mkpath.$(OBJEXT) range.$(OBJEXT) \
+	seq.$(OBJEXT) split.$(OBJEXT)
 libinternal_a_OBJECTS = $(am_libinternal_a_OBJECTS)
 am__vpath_adj_setup = srcdirstrip=`echo "$(srcdir)" | sed 's|.|.|g'`;
 am__vpath_adj = case $$p in \
@@ -89,8 +89,8 @@ binPROGRAMS_INSTALL = $(INSTALL_PROGRAM)
 PROGRAMS = $(bin_PROGRAMS)
 am__objects_1 = copysubst.$(OBJEXT) dateiter.$(OBJEXT) \
 	fileiter.$(OBJEXT) get_ints.$(OBJEXT) ghprintf.$(OBJEXT) \
-	logging.$(OBJEXT) range.$(OBJEXT) seq.$(OBJEXT) \
-	split.$(OBJEXT)
+	logging.$(OBJEXT) mkpath.$(OBJEXT) range.$(OBJEXT) \
+	seq.$(OBJEXT) split.$(OBJEXT)
 am_ngtavr_OBJECTS = ngtavr.$(OBJEXT) $(am__objects_1)
 ngtavr_OBJECTS = $(am_ngtavr_OBJECTS)
 ngtavr_LDADD = $(LDADD)
@@ -336,6 +336,7 @@ libinternal_a_SOURCES = \
 		get_ints.c \
 		ghprintf.c \
 		logging.c \
+		mkpath.c \
 		range.c \
 		seq.c \
 		split.c
@@ -547,6 +548,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/int_pack.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/logging.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mask.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mkpath.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ngtavr.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ngtcat.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ngtconv.Po@am__quote@

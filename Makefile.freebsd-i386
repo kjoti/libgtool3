@@ -76,6 +76,7 @@ UTILS		= \
 		get_ints.o \
 		ghprintf.o \
 		logging.o \
+		mkpath.o \
 		range.o \
 		seq.o \
 		split.o

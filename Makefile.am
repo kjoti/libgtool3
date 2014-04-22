@@ -45,6 +45,7 @@ libinternal_a_SOURCES = \
 		get_ints.c \
 		ghprintf.c \
 		logging.c \
+		mkpath.c \
 		range.c \
 		seq.c \
 		split.c

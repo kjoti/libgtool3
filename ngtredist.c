@@ -7,19 +7,11 @@
 #include <sys/stat.h>
 
 #include <ctype.h>
-#include <errno.h>
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-
-#ifdef __MINGW32__
-#  include <io.h>
-#  define MKDIR(p, m) mkdir(p)
-#else
-#  define MKDIR(p, m) mkdir(p, m)
-#endif
 
 #include "gtool3.h"
 #include "seq.h"
@@ -37,7 +29,6 @@ enum {
 };
 static int open_mode = NORMAL_MODE;
 static int dryrun = 0;
-
 
 
 /*
@@ -95,42 +86,6 @@ dirname(const char *path)
 }
 
 
-int
-build_path(const char *path)
-{
-    file_stat_t sb;
-    char p[PATH_MAX + 1];
-    int i, nlevel = 0;
-    mode_t mode = 0777;
-
-    if (path == NULL)
-        return 0;
-
-    p[0] = path[0];
-    path++;
-    for (i = 1; i < PATH_MAX; path++) {
-        if (*path == '/' && p[i-1] == '/')
-            continue;
-
-        if (*path == '/' || *path == '\0') {
-            p[i] = '\0';
-            if (!(file_stat(p, &sb) == 0 && S_ISDIR(sb.st_mode))) {
-                if (MKDIR(p, mode) < 0)
-                    return -1;
-                nlevel++;
-            }
-            if (*path == '\0')
-                break;
-
-            p[i] = '/';
-            i++;
-        } else
-            p[i++] = *path;
-    }
-    return nlevel;
-}
-
-
 static FILE *
 open_file(const char *path)
 {
@@ -161,7 +116,7 @@ open_file(const char *path)
     } else {
         logging(LOG_INFO, "Creating %s", path);
         if (!dryrun) {
-            if ((dir = dirname(path)) == NULL || build_path(dir) < 0) {
+            if ((dir = dirname(path)) == NULL || mkpath(dir) < 0) {
                 logging(LOG_SYSERR, NULL);
                 return NULL;
             }
