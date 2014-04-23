@@ -141,7 +141,6 @@ gh_snprintf(char *str, size_t size, const char *format,
     int rval = 0;
     char buf[33];
 
-
     while (size > 1 && *p != '\0') {
         if (p[0] != '%') {
             *str++ = *p++;

@@ -94,7 +94,6 @@ write_ury(const void *ptr,
     unsigned idata[URYBUFSIZ];
     uint32_t packed[URYBUFSIZ];
 
-
     assert(URYBUFSIZ % 32 == 0);
 
     if ((dma = (double *)
@@ -222,7 +221,6 @@ write_mry(const void *ptr2,
     uint32_t plen_all;
     unsigned imiss;
     unsigned i;
-
 
     if ((cnt = (uint32_t *)
          tiny_alloc(cnt_buf,

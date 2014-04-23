@@ -291,7 +291,6 @@ GT3_write(const void *ptr, int type,
     size_t asize, zsize;
     int nbits;
 
-
     /* parameter check */
     if (ptr == NULL) {
         gt3_error(GT3_ERR_CALL, "GT3_write(): null pointer passed");

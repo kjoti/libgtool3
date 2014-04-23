@@ -202,7 +202,6 @@ redist(const char *path, const char *format, struct sequence *seq)
     int sw = 0;
     char outpath[2][PATH_MAX + 1];
 
-
     if ((fp = GT3_open(path)) == NULL) {
         err = GT3_getLastError();
         if (err == GT3_ERR_FILE) {

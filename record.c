@@ -16,7 +16,6 @@ read_from_record(void *ptr, size_t skip, size_t nelem,
     off_t eor;
     size_t nelem_record;        /* # of elements in the record. */
 
-
     if (fread(&recsiz, sizeof(fort_size_t), 1, fp) != 1)
         return -1;
     if (IS_LITTLE_ENDIAN)
@@ -100,7 +99,7 @@ write_record_sep(fort_size_t size, FILE *fp)
 
 
 /*
- *
+ * Write a record of Fortran unformatted sequential.
  */
 static int
 write_into_record(const void *ptr,
@@ -112,7 +111,6 @@ write_into_record(const void *ptr,
     char data[IO_BUF_SIZE];
     const char *ptr2;
     size_t nelem2, len, maxelems;
-
 
     /* HEADER */
     if (write_record_sep(size * nelem, fp) < 0)

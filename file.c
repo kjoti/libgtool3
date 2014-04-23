@@ -467,14 +467,14 @@ open_gt3file(const char *path, const char *mode)
         goto error;
     }
 
-    gp->path   = strdup(path);
-    gp->fp     = fp;
-    gp->size   = sb.st_size;
-    gp->mode   = 0;
-    gp->curr   = 0;
-    gp->off    = 0;
+    gp->path = strdup(path);
+    gp->fp = fp;
+    gp->size = sb.st_size;
+    gp->mode = 0;
+    gp->curr = 0;
+    gp->off = 0;
     gp->num_chunk = CHNUM_UNKNOWN;
-    gp->mask   = NULL;
+    gp->mask = NULL;
 
     if (update(gp, &head) < 0)
         goto error;
@@ -799,7 +799,6 @@ main(int argc, char **argv)
         rval = GT3_format_string(dfmt, fmt);
         assert(rval == 0);
         assert(strcmp(name[i], dfmt) == 0);
-
     }
 
     printf("sizeof sb.st_size: %d\n", sizeof sb.st_size);

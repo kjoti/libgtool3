@@ -35,7 +35,6 @@ pack_bits_into32(uint32_t *packed,
     uint32_t *ptr;
     size_t i, len;
 
-
     assert(nbit > 0 && nbit < 32);
 
     mask = (1U << nbit) - 1U;

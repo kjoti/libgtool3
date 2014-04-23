@@ -18,8 +18,8 @@
 #include <string.h>
 #include "caltime.h"
 
-typedef int  (*FUNC1)(int, int, const int **);
-typedef int  (*FUNC2)(int, int);
+typedef int (*FUNC1)(int, int, const int **);
+typedef int (*FUNC2)(int, int);
 
 
 /* calendar trait functions */

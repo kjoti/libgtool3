@@ -10,6 +10,7 @@ static FILE *output = NULL;
 static int  needtoclose = 0;
 static char prefix[32] = "";
 
+
 static void
 default_prefix_func(FILE *fp, int type)
 {
@@ -26,7 +27,9 @@ default_prefix_func(FILE *fp, int type)
         fputs(marks[type], fp);
 }
 
+
 static void (*prefix_func)(FILE *fp, int type) = default_prefix_func;
+
 
 static void
 set_logging_name(const char *name)

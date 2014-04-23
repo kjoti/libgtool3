@@ -299,7 +299,6 @@ GT3_guessCalendarHeader(const GT3_HEADER *head)
     GT3_Date date;
     int time, tunit;
 
-
     if (GT3_decodeHeaderDate(&date, head, "DATE") < 0
         || (tunit = GT3_decodeHeaderTunit(head)) < 0
         || GT3_decodeHeaderInt(&time, head, "TIME") < 0)

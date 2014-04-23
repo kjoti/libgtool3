@@ -133,7 +133,6 @@ dump_var(GT3_Varbuf *var, const GT3_HEADER *head)
     int newline_z, newline_y;
     int rval = 0;
 
-
     for (n = 0; n < 3; n++) {
         snprintf(key, sizeof key, "AITM%c", key2[n]);
         GT3_copyHeaderItem(hbuf, sizeof hbuf, head, key);

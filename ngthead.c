@@ -86,6 +86,7 @@ void
 copy(char *dest, const char *src)
 {
     int i;
+
     for (i = 0; i < ELEMLEN; i++, src++, dest++)
         *dest = ISCNTRL(*src) ? '#' : *src;
 }

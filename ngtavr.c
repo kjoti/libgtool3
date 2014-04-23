@@ -413,7 +413,6 @@ integrate_chunk(struct average *avr, GT3_Varbuf *var)
     int date_missing = 0;
     double wght;
 
-
     if (GT3_readHeader(&head, var->fp) < 0) {
         GT3_printErrorMessages(stderr);
         return -1;
@@ -546,7 +545,6 @@ ngtavr_eachstep(struct average *avr,
     GT3_File *fp;
     int rval = -1;
     int diff;
-
 
     if ((fp = GT3_open(path)) == NULL) {
         GT3_printErrorMessages(stderr);
@@ -779,7 +777,6 @@ main(int argc, char **argv)
     int avrmode = SEQUENCE_MODE;
     char *endptr;
     char dummy[17];
-
 
     open_logging(stderr, PROGNAME);
     GT3_setProgname(PROGNAME);

@@ -19,8 +19,6 @@
 #include "logging.h"
 
 #define PROGNAME "ngted"
-
-
 #define ELEMLEN   16
 
 enum {
@@ -197,7 +195,6 @@ set_miss(GT3_HEADER *head, struct edit_command *ec)
 {
     double miss_old, temp;
     int addr = ec->addr;
-
 
     GT3_decodeHeaderDouble(&miss_old, head, "MISS");
     set_elem(head, addr, ec->arg1);

@@ -100,7 +100,6 @@ write_urx(const void *ptr,
     unsigned idata[URXBUFSIZ];
     uint32_t packed[URXBUFSIZ];
 
-
     assert(URXBUFSIZ % 32 == 0);
 
     if ((dma = (double *)
@@ -229,7 +228,6 @@ write_mrx(const void *ptr2,
     unsigned imiss;
     double scale0;
     unsigned i;
-
 
     if ((cnt = (uint32_t *)
          tiny_alloc(cnt_buf,

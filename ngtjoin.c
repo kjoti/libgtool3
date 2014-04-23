@@ -223,8 +223,8 @@ join_chunk(struct buffer *dest, struct input_set *inset, const int *pattern)
             GT3_printErrorMessages(stderr);
             return -1;
         }
-        inset->vbuf = GT3_getVarbuf2(inset->vbuf, inset->fp[n]);
-        if (inset->vbuf == NULL) {
+
+        if (GT3_reattachVarbuf(inset->vbuf, inset->fp[n]) < 0) {
             GT3_printErrorMessages(stderr);
             return -1;
         }

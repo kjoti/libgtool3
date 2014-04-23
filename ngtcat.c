@@ -96,7 +96,6 @@ slicecopy2(FILE *dest, GT3_File *fp, size_t esize,
     size_t siz = 0, ssize;
     off_t off, zoff, off0 = 0;
 
-
     if (fp->fmt == GT3_FMT_URC || fp->fmt == GT3_FMT_URC1) {
         siz = esize * (xrange[1] - xrange[0]) * (yrange[1] - yrange[0]);
         if (IS_LITTLE_ENDIAN)
@@ -157,7 +156,6 @@ slicecopy(FILE *dest, GT3_File *fp)
     int zfirst = 0, zorder;
     int xynum, znum, nz;
     int all_flag;
-
 
     if (GT3_readHeader(&head, fp) < 0
         || GT3_decodeHeaderInt(&xstr0, &head, "ASTR1") < 0

@@ -367,15 +367,16 @@ update_varbuf(GT3_Varbuf *vbuf, GT3_File *fp)
 }
 
 
-static void
+static int
 update2_varbuf(GT3_Varbuf *var)
 {
     if (!GT3_isHistfile(var->fp)) {
         varbuf_status *stat = (varbuf_status *)var->stat_;
 
         if (stat->ch != var->fp->curr)
-            update_varbuf(var, var->fp);
+            return update_varbuf(var, var->fp);
     }
+    return 0;
 }
 
 
@@ -451,7 +452,8 @@ GT3_readVarZ(GT3_Varbuf *var, int zpos)
     varbuf_status *stat = (varbuf_status *)var->stat_;
     int fmt;
 
-    update2_varbuf(var);
+    if (update2_varbuf(var) < 0)
+        return -1;
 
     if (zpos < 0 || zpos >= var->dimlen[2]) {
         gt3_error(GT3_ERR_INDEX, "GT3_readVarZ(): z=%d", zpos);
@@ -502,7 +504,9 @@ GT3_readVarZY(GT3_Varbuf *var, int zpos, int ypos)
         GT3_FMT_MR8
     };
 
-    update2_varbuf(var);
+    if (update2_varbuf(var) < 0)
+        return -1;
+
     if (   zpos < 0 || zpos >= var->dimlen[2]
         || ypos < 0 || ypos >= var->dimlen[1]) {
         gt3_error(GT3_ERR_INDEX, "GT3_readVarZY(): y=%d, z=%d", ypos, zpos);
@@ -607,23 +611,23 @@ GT3_readVar(double *rval, GT3_Varbuf *var, int x, int y, int z)
  */
 int
 GT3_copyVarDouble(double *buf, size_t buflen,
-                  const GT3_Varbuf *var, int begin, int skip)
+                  const GT3_Varbuf *var, int offset, int stride)
 {
     int maxlen = var->dimlen[0] * var->dimlen[1];
     int end, nelem;
 
-    if (skip > 0) {
-        begin = clip(begin, 0, maxlen);
+    if (stride > 0) {
+        offset = clip(offset, 0, maxlen);
 
         end = maxlen;
-        nelem = (end - begin + (skip - 1)) / skip;
-    } else if (skip < 0) {
-        begin = clip(begin, -1, maxlen - 1);
+        nelem = (end - offset + (stride - 1)) / stride;
+    } else if (stride < 0) {
+        offset = clip(offset, -1, maxlen - 1);
 
         end = -1;
-        nelem = (end - begin + (skip + 1)) / skip;
+        nelem = (end - offset + (stride + 1)) / stride;
     } else {
-        if (begin < 0 || begin >= maxlen)
+        if (offset < 0 || offset >= maxlen)
             nelem = 0;
         else
             nelem = buflen;
@@ -632,23 +636,23 @@ GT3_copyVarDouble(double *buf, size_t buflen,
     if (nelem > buflen)
         nelem = buflen;
 
-    assert(begin + (nelem - 1) * skip >= 0);
-    assert(begin + (nelem - 1) * skip < maxlen);
+    assert(offset + (nelem - 1) * stride >= 0);
+    assert(offset + (nelem - 1) * stride < maxlen);
 
     if (var->type == GT3_TYPE_DOUBLE) {
         int i;
         double *ptr = var->data;
 
-        ptr += begin;
+        ptr += offset;
         for (i = 0; i < nelem; i++)
-            buf[i] = ptr[i * skip];
+            buf[i] = ptr[i * stride];
     } else {
         int i;
         float *ptr = var->data;
 
-        ptr += begin;
+        ptr += offset;
         for (i = 0; i < nelem; i++)
-            buf[i] = ptr[i * skip];
+            buf[i] = ptr[i * stride];
     }
     return nelem;
 }
@@ -660,23 +664,23 @@ GT3_copyVarDouble(double *buf, size_t buflen,
  */
 int
 GT3_copyVarFloat(float *buf, size_t buflen,
-                 const GT3_Varbuf *var, int begin, int skip)
+                 const GT3_Varbuf *var, int offset, int stride)
 {
     int maxlen = var->dimlen[0] * var->dimlen[1];
     int end, nelem;
 
-    if (skip > 0) {
-        begin = clip(begin, 0, maxlen);
+    if (stride > 0) {
+        offset = clip(offset, 0, maxlen);
 
         end = maxlen;
-        nelem = (end - begin + (skip - 1)) / skip;
-    } else if (skip < 0) {
-        begin = clip(begin, -1, maxlen - 1);
+        nelem = (end - offset + (stride - 1)) / stride;
+    } else if (stride < 0) {
+        offset = clip(offset, -1, maxlen - 1);
 
         end = -1;
-        nelem = (end - begin + (skip + 1)) / skip;
+        nelem = (end - offset + (stride + 1)) / stride;
     } else {
-        if (begin < 0 || begin >= maxlen)
+        if (offset < 0 || offset >= maxlen)
             nelem = 0;
         else
             nelem = buflen;
@@ -685,23 +689,23 @@ GT3_copyVarFloat(float *buf, size_t buflen,
     if (nelem > buflen)
         nelem = buflen;
 
-    assert(begin + (nelem - 1) * skip >= 0);
-    assert(begin + (nelem - 1) * skip < maxlen);
+    assert(offset + (nelem - 1) * stride >= 0);
+    assert(offset + (nelem - 1) * stride < maxlen);
 
     if (var->type == GT3_TYPE_DOUBLE) {
         int i;
         double *ptr = var->data;
 
-        ptr += begin;
+        ptr += offset;
         for (i = 0; i < nelem; i++)
-            buf[i] = (float)ptr[i * skip];
+            buf[i] = (float)ptr[i * stride];
     } else {
         int i;
         float *ptr = var->data;
 
-        ptr += begin;
+        ptr += offset;
         for (i = 0; i < nelem; i++)
-            buf[i] = ptr[i * skip];
+            buf[i] = ptr[i * stride];
     }
     return nelem;
 }

@@ -242,7 +242,6 @@ conv_chunk(FILE *output, const char *dfmt, GT3_Varbuf *var, GT3_File *fp)
     char suffix[] = { '1', '2', '3' };
     char fmtsp[17];
 
-
     if (GT3_readHeader(&head, fp) < 0) {
         GT3_printErrorMessages(stderr);
         return -1;
