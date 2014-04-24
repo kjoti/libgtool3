@@ -423,17 +423,6 @@ finish:
 }
 
 
-static char *
-toupper_string(char *str)
-{
-    char *p = str;
-
-    while ((*p = toupper(*p)))
-        p++;
-    return str;
-}
-
-
 static void
 usage(void)
 {
@@ -475,12 +464,12 @@ main(int argc, char **argv)
     while ((ch = getopt(argc, argv, "f:o:s:t:vxyzh")) != -1)
         switch (ch) {
         case 'f':
-            format = strdup(optarg);
-            toupper_string(format);
-            if (GT3_output_format(dummy, format) < 0) {
+            toupper_string(optarg);
+            if (GT3_output_format(dummy, optarg) < 0) {
                 logging(LOG_ERR, "-f: Unknonw format (%s).", optarg);
                 exit(1);
             }
+            format = optarg;
             break;
 
         case 'o':

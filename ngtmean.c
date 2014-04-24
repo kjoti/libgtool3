@@ -482,17 +482,6 @@ set_mmode(const char *str)
 }
 
 
-static char *
-toupper_string(char *str)
-{
-    char *p = str;
-
-    while ((*p = toupper(*p)))
-        p++;
-    return str;
-}
-
-
 static void
 usage(void)
 {
@@ -502,7 +491,7 @@ usage(void)
         "calculate mean.\n"
         "\n"
         "Options:\n"
-        "    -f fmt    output GTOOL3 format (default: same as input)\n"
+        "    -f fmt    output GTOOL3 format (default: UR4)\n"
         "    -m MODE   mean mode (any combination \"xyzXYZ\")\n"
         "    -n        no shift axes\n"
         "    -o PATH   specify output file\n"
@@ -526,7 +515,7 @@ main(int argc, char **argv)
     unsigned mode = X_MEAN | Y_MEAN | Z_MEAN | X_WEIGHT | Y_WEIGHT | Z_WEIGHT;
     char *filename = "gtool.out";
     char dummy[17];
-    char *fmt = NULL;
+    char *fmt = "UR4";
     FILE *output = NULL;
     struct sequence *tseq = NULL;
     int ch;
@@ -538,8 +527,16 @@ main(int argc, char **argv)
     while ((ch = getopt(argc, argv, "f:m:no:st:x:y:z:h")) != -1)
         switch (ch) {
         case 'f':
-            fmt = strdup(optarg);
-            toupper_string(fmt);
+            toupper_string(optarg);
+            if (strcmp(optarg, "ASIS") == 0)
+                fmt = NULL;
+            else {
+                if (GT3_output_format(dummy, optarg) < 0) {
+                    logging(LOG_ERR, "%s: Unknown format", optarg);
+                    exit(1);
+                }
+                fmt = optarg;
+            }
             break;
         case 'm':
             mode = set_mmode(optarg);
@@ -585,10 +582,6 @@ main(int argc, char **argv)
             break;
         }
 
-    if (fmt && GT3_output_format(dummy, fmt) < 0) {
-        logging(LOG_ERR, "%s: Unknown format", fmt);
-        exit(1);
-    }
     if ((output = fopen(filename, "wb")) == NULL) {
         logging(LOG_SYSERR, filename);
         exit(1);

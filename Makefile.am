@@ -48,7 +48,8 @@ libinternal_a_SOURCES = \
 		mkpath.c \
 		range.c \
 		seq.c \
-		split.c
+		split.c \
+		strman.c
 
 ngtcat_SOURCES = ngtcat.c $(libinternal_a_SOURCES)
 ngtls_SOURCES = ngtls.c $(libinternal_a_SOURCES)

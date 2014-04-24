@@ -386,17 +386,6 @@ finish:
 }
 
 
-static char *
-toupper_string(char *str)
-{
-    char *p = str;
-
-    while ((*p = toupper(*p)))
-        p++;
-    return str;
-}
-
-
 void
 usage(void)
 {
@@ -438,8 +427,7 @@ main(int argc, char **argv)
     int ch;
     struct sequence *tseq = NULL;
     const char *mode = "wb";
-    char *fmt = NULL;
-    const char *default_fmt = "UR4";
+    char *fmt = "UR4";
     char *outpath = "gtool.out";
     FILE *output;
     char dummy[17];
@@ -453,18 +441,15 @@ main(int argc, char **argv)
             mode = "ab";
             break;
         case 'f':
-            if ((fmt = strdup(optarg)) == NULL) {
-                logging(LOG_SYSERR, NULL);
+            toupper_string(optarg);
+            if (strcmp(optarg, "ASIS") != 0
+                && strcmp(optarg, "MASK") != 0
+                && GT3_output_format(dummy, optarg) < 0
+                && find_raw_format(optarg) < 0) {
+                logging(LOG_ERR, "-f: %s: Unknown format", optarg);
                 exit(1);
             }
-            toupper_string(fmt);
-            if (strcmp(fmt, "ASIS") != 0
-                && strcmp(fmt, "MASK") != 0
-                && GT3_output_format(dummy, fmt) < 0
-                && find_raw_format(fmt) < 0) {
-                logging(LOG_ERR, "%s: Unknown format name", fmt);
-                exit(1);
-            }
+            fmt = optarg;
             break;
         case 't':
             if ((tseq = initSeq(optarg, 1, RANGE_MAX)) == NULL) {
@@ -519,7 +504,7 @@ main(int argc, char **argv)
         exit(1);
     }
 
-    rval = conv_file(argv[0], fmt ? fmt : default_fmt, output, tseq);
+    rval = conv_file(argv[0], fmt, output, tseq);
     fclose(output);
     return rval < 0 ? 1 : 0;
 }

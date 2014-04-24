@@ -14,6 +14,7 @@
 
 #include "gtool3.h"
 #include "logging.h"
+#include "myutils.h"
 
 #define PROGNAME "ngtmkax"
 
@@ -67,17 +68,6 @@ make_axisfile(const char *name, const char *outdir, const char *fmt)
 }
 
 
-static char *
-toupper_string(char *str)
-{
-    char *p = str;
-
-    while ((*p = toupper(*p)))
-        p++;
-    return str;
-}
-
-
 void
 usage(void)
 {
@@ -104,7 +94,8 @@ main(int argc, char **argv)
 {
     int ch, rval;
     const char *outdir = ".";
-    const char *fmt = "UR8";
+    char dummy[17];
+    char *fmt = "UR8";
 
     open_logging(stderr, PROGNAME);
     GT3_setProgname(PROGNAME);
@@ -112,7 +103,11 @@ main(int argc, char **argv)
         switch (ch) {
         case 'f':
             toupper_string(optarg);
-            fmt = strdup(optarg);
+            if (GT3_output_format(dummy, optarg) < 0) {
+                logging(LOG_ERR, "%s: Unknown format", optarg);
+                exit(1);
+            }
+            fmt = optarg;
             break;
 
         case 'o':

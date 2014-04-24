@@ -79,7 +79,8 @@ UTILS		= \
 		mkpath.o \
 		range.o \
 		seq.o \
-		split.o
+		split.o \
+		strman.o
 
 PICFLAG		= -fpic
 SONAME		= $(SHLIB)

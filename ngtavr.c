@@ -715,17 +715,6 @@ setStepsize(GT3_Date *step, const char *str)
 }
 
 
-static char *
-toupper_string(char *str)
-{
-    char *p = str;
-
-    while ((*p = toupper(*p)))
-        p++;
-    return str;
-}
-
-
 static void
 usage(void)
 {

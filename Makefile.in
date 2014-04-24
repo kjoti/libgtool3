@@ -65,7 +65,7 @@ libinternal_a_LIBADD =
 am_libinternal_a_OBJECTS = copysubst.$(OBJEXT) dateiter.$(OBJEXT) \
 	fileiter.$(OBJEXT) get_ints.$(OBJEXT) ghprintf.$(OBJEXT) \
 	logging.$(OBJEXT) mkpath.$(OBJEXT) range.$(OBJEXT) \
-	seq.$(OBJEXT) split.$(OBJEXT)
+	seq.$(OBJEXT) split.$(OBJEXT) strman.$(OBJEXT)
 libinternal_a_OBJECTS = $(am_libinternal_a_OBJECTS)
 am__vpath_adj_setup = srcdirstrip=`echo "$(srcdir)" | sed 's|.|.|g'`;
 am__vpath_adj = case $$p in \
@@ -90,7 +90,7 @@ PROGRAMS = $(bin_PROGRAMS)
 am__objects_1 = copysubst.$(OBJEXT) dateiter.$(OBJEXT) \
 	fileiter.$(OBJEXT) get_ints.$(OBJEXT) ghprintf.$(OBJEXT) \
 	logging.$(OBJEXT) mkpath.$(OBJEXT) range.$(OBJEXT) \
-	seq.$(OBJEXT) split.$(OBJEXT)
+	seq.$(OBJEXT) split.$(OBJEXT) strman.$(OBJEXT)
 am_ngtavr_OBJECTS = ngtavr.$(OBJEXT) $(am__objects_1)
 ngtavr_OBJECTS = $(am_ngtavr_OBJECTS)
 ngtavr_LDADD = $(LDADD)
@@ -339,7 +339,8 @@ libinternal_a_SOURCES = \
 		mkpath.c \
 		range.c \
 		seq.c \
-		split.c
+		split.c \
+		strman.c
 
 ngtcat_SOURCES = ngtcat.c $(libinternal_a_SOURCES)
 ngtls_SOURCES = ngtls.c $(libinternal_a_SOURCES)
@@ -572,6 +573,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/scaling.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/seq.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/split.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/strman.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/talloc.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/timedim.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/urc_pack.Plo@am__quote@
