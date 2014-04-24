@@ -17,7 +17,7 @@ Without configure script, you should create a Makefile manually.
 Copy 'Makefile.freebsd-i386' and modify it for your system.
 Consult 'config.h.in'.
 
-    $ cp Makefile.freebsd-i386 Makefile.YOURSYS-YOURARCH
-    $ vi Makefile.YOURSYS-YOURARCH
-    $ make -f Makefile.YOURSYS-YOURARCH
-    $ make -f Makefile.YOURSYS-YOURARCH install
+    $ cp Makefile.freebsd-i386 Makefile
+    $ vi Makefile
+    $ make
+    $ make install

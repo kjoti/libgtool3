@@ -1,10 +1,34 @@
+================================================================
 libgtool3
+================================================================
 
 A library to read/write GTOOL3 formatted files
 
 This package installs the following:
-  * libgtool3.a  (in /usr/local/lib)
-  * gtool3.h     (in /usr/local/include)
-  * ngtcat       (in /usr/local/bin)
-  * ngtls        (in /usr/local/bin)
-  * ngtsumm      (in /usr/local/bin)
+
+* into /usr/local/lib
+  * libgtool3.a
+  * libgtool3.la
+  * libgtool3.so
+  * libgtool3.so.1
+
+* into /usr/local/include
+  * gtool3.h
+  * libgtool3.f90
+
+* into /usr/local/bin
+  * ngtavr
+  * ngtcat
+  * ngtconv
+  * ngtdiff
+  * ngtdump
+  * ngted
+  * ngthead
+  * ngtick
+  * ngtjoin
+  * ngtls
+  * ngtmean
+  * ngtmkax
+  * ngtredist
+  * ngtstat
+  * ngtsumm
