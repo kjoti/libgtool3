@@ -257,9 +257,9 @@ setup_dim(struct mdata *var,
 
             val = var->off[axis] + size;
             GT3_decodeHeaderInt(&val, head, key);
-            if (val > dim->len - dim->cyclic) {
+            if (val > GT3_dimlen(dim)) {
                 logging(LOG_WARN, "%s exceeds dimlen(%d)",
-                        key, dim->len - dim->cyclic);
+                        key, GT3_dimlen(dim));
                 logging(LOG_WARN, "Ignore weight for %s", name);
                 free(var->wght[axis]);
                 var->wght[axis] = NULL;

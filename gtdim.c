@@ -657,6 +657,19 @@ GT3_getBuiltinDim(const char *name)
 }
 
 
+/*
+ * Return the (real) length of given dimension.
+ */
+int
+GT3_dimlen(const GT3_Dim *dim)
+{
+    return dim->len - dim->cyclic;
+}
+
+
+/*
+ * Return the (real) length of the dimension specified by name.
+ */
 int
 GT3_getDimlen(const char *name)
 {
@@ -672,7 +685,7 @@ GT3_getDimlen(const char *name)
         len *= idiv;
     } else {
         dim = GT3_loadDim(name);
-        len = dim ? dim->len - dim->cyclic : -1;
+        len = dim ? GT3_dimlen(dim) : -1;
         GT3_freeDim(dim);
     }
     return len;

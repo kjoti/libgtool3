@@ -862,7 +862,7 @@ NAME(get_grid)(double *loc, const int *locsize,
         return;
     }
 
-    size = min(*locsize, dim->len - dim->cyclic);
+    size = min(*locsize, GT3_dimlen(dim));
     for (i = 0; i < size; i++)
         loc[i] = dim->values[i];
 

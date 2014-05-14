@@ -264,6 +264,7 @@ int GT3_loadMaskX(GT3_Datamask *mask, int zpos, GT3_File *fp);
 /* gtdim.c */
 GT3_Dim *GT3_loadDim(const char *name);
 GT3_Dim *GT3_getBuiltinDim(const char *name);
+int GT3_dimlen(const GT3_Dim *dim);
 int GT3_getDimlen(const char *name);
 GT3_Dim *GT3_getDim(const char *name);
 void GT3_freeDim(GT3_Dim *dim);
