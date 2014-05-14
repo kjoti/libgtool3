@@ -661,7 +661,6 @@ int
 GT3_getDimlen(const char *name)
 {
     char base[16 + 1];
-    int rval;
     int len, idiv;
     unsigned flag;
     GT3_Dim *dim;
@@ -669,15 +668,14 @@ GT3_getDimlen(const char *name)
     if (name == NULL)
         return -1;
 
-    rval = parse_axisname(name, base, &len, &idiv, &flag);
-    if (rval == 0)
-        return len * idiv;
-
-    dim = GT3_loadDim(name);
-    rval = dim ? dim->len - dim->cyclic : -1;
-
-    GT3_freeDim(dim);
-    return rval;
+    if (parse_axisname(name, base, &len, &idiv, &flag) == 0) {
+        len *= idiv;
+    } else {
+        dim = GT3_loadDim(name);
+        len = dim ? dim->len - dim->cyclic : -1;
+        GT3_freeDim(dim);
+    }
+    return len;
 }
 
 
@@ -1592,6 +1590,7 @@ main(int argc, char **argv)
     assert(GT3_getDimlen("SFC1") == 1);
     assert(GT3_getDimlen("GLON320") == 320);
     assert(GT3_getDimlen("GGLA160x2") == 320);
+    assert(GT3_getDimlen("GGLA160x2I") == 320);
     assert(GT3_getDimlen("OCLONT1280") == 1280);
 
     return 0;
