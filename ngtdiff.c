@@ -41,7 +41,7 @@ static int (*equal)(double, double) = NULL;
 static double tolerance = 0.;
 static unsigned ignored_item[64];
 static int zrange[] = { 0, 0x7ffffff };
-static unsigned detail_print = 1;
+static unsigned verbose = 0;
 
 #define ISCNTRL(c) ((c) < 040 || (c) == 0177)
 
@@ -269,7 +269,7 @@ diff_var(GT3_Varbuf *var1, GT3_Varbuf *var2)
                 continue;
 
             if (miss1 ^ miss2 || !(v1 == v2 || (equal && equal(v1, v2)))) {
-                if (detail_print) {
+                if (verbose) {
                     if ((flag & 1) == 0) {
                         print_header(var1, var2);
                         flag |= 1;
@@ -449,7 +449,7 @@ usage(void)
         "    -T        ignore TIME, DATE, TDUR, DATE1, DATE2\n"
         "    -a value  specify tolerance (absolute error)\n"
         "    -r value  specify tolerance (relative error)\n"
-        "    -s        output summarized form\n"
+        "    -v        verbose\n"
         "    -t LIST   specify data No. for both FileA and FileB\n"
         "    -z RANGE  specify Z-range\n";
 
@@ -471,7 +471,7 @@ main(int argc, char **argv)
 
     open_logging(stderr, PROGNAME);
     GT3_setProgname(PROGNAME);
-    while ((ch = getopt(argc, argv, "A:B:I:STa:hr:st:z:")) != -1)
+    while ((ch = getopt(argc, argv, "A:B:I:STa:hr:st:vz:")) != -1)
         switch (ch) {
         case 'A':
             if ((seq1 = initSeq(optarg, 1, 0x7fffffff)) == NULL) {
@@ -516,11 +516,15 @@ main(int argc, char **argv)
             equal = ch == 'a' ? equal_abs : equal_rel;
             break;
         case 's':
-            detail_print = 0;
+            /* For backward-compatibility. */
+            verbose = 0;
             break;
         case 't':
             seq1 = initSeq(optarg, 1, 0x7fffffff);
             seq2 = initSeq(optarg, 1, 0x7fffffff);
+            break;
+        case 'v':
+            verbose = 1;
             break;
         case 'z':
             if (set_range(zrange, optarg) < 0) {
