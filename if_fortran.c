@@ -41,8 +41,8 @@
 /*
  * input/output streams.
  */
-static FILE *outputs[MAX_NOUTPUTS];
-static GT3_Varbuf *varbuf[MAX_NINPUTS];
+static FILE *outputs[MAX_NOUTPUTS]; /* for output */
+static GT3_Varbuf *varbuf[MAX_NINPUTS]; /* for input */
 
 /*
  * basetime: the origin of the time axis.
@@ -588,7 +588,9 @@ NAME(next)(const int *iu, int *status)
 
 
 /*
- * return 0 if not EOF.
+ * return 1  if EOF
+ *        0  if not EOF
+ *        -1 if error.
  */
 void
 NAME(eof)(const int *iu, int *status)
@@ -604,7 +606,7 @@ NAME(eof)(const int *iu, int *status)
 
 
 /*
- * get current chunk position (starting with 0).
+ * get current chunk No. (starting with 0).
  *
  * return -1 if an error.
  */

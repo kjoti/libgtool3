@@ -476,7 +476,6 @@ new_command(const char *str)
     char *endptr;
     int i, addr, cmd, type, stat;
 
-
     if ((temp = (struct edit_command *)
          malloc(sizeof(struct edit_command))) == NULL) {
         logging(LOG_SYSERR, NULL);

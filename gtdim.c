@@ -240,13 +240,13 @@ make_glon(int len, int idiv, unsigned flag)
             grid[i] += delta;
     }
 
-    dim->values   = grid;
-    dim->len      = mlen;
+    dim->values = grid;
+    dim->len = mlen;
     dim->range[0] = bnd0;
     dim->range[1] = bnd1;
-    dim->cyclic   = 1;
-    dim->title    = strdup("longitude");
-    dim->unit     = strdup("degrees_east"); /* UDUNITS supports */
+    dim->cyclic = 1;
+    dim->title = strdup("longitude");
+    dim->unit = strdup("degrees_east"); /* UDUNITS supports */
 
     return dim;
 }
@@ -277,13 +277,13 @@ make_glat(int len, int idiv, unsigned flag)
     if (flag & INVERT_FLAG)
         invert(grid, len);
 
-    dim->values   = grid;
-    dim->len      = len;
+    dim->values = grid;
+    dim->len = len;
     dim->range[0] = -90;
     dim->range[1] = 90.;
-    dim->cyclic   = 0;
-    dim->title    = strdup("latitude");
-    dim->unit     = strdup("degrees_north"); /* UDUNITS supports */
+    dim->cyclic = 0;
+    dim->title = strdup("latitude");
+    dim->unit = strdup("degrees_north"); /* UDUNITS supports */
 
     return dim;
 }
@@ -347,13 +347,13 @@ make_ggla(int len, int idiv, unsigned flag)
     errflag = 0;
 final:
     if (!errflag) {
-        dim->values   = grid;
-        dim->len      = mlen;
+        dim->values = grid;
+        dim->len = mlen;
         dim->range[0] = -90.;
         dim->range[1] = 90.;
-        dim->cyclic   = 0;
-        dim->title    = strdup("latitude");
-        dim->unit     = strdup("degrees_north"); /* UDUNITS supports */
+        dim->cyclic = 0;
+        dim->title = strdup("latitude");
+        dim->unit = strdup("degrees_north"); /* UDUNITS supports */
     } else {
         free(grid);
         free(dim);
@@ -383,7 +383,7 @@ make_sfc1(int len, int idiv, unsigned flag)
     grid[0] = 1.;
 
     dim->values = grid;
-    dim->len    = 1;
+    dim->len = 1;
     return dim;
 }
 

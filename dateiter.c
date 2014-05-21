@@ -75,7 +75,6 @@ cmpDateIterator(const DateIterator *it, const GT3_Date *date)
 }
 
 
-
 #ifdef TEST_MAIN
 #include <assert.h>
 

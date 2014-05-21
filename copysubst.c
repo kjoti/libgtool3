@@ -32,7 +32,7 @@ copysubst(char *dest, size_t len,
             memcpy(dest, new, slen);
 
             dest += slen;
-            len  -= slen;
+            len -= slen;
             orig += oldlen;
             remain -= oldlen;
             cnt++;

@@ -96,7 +96,6 @@ read_UR8(GT3_Varbuf *var, int zpos, size_t skip, size_t nelem, FILE *fp)
         + sizeof(double) * (zpos * var->dimlen[0] * var->dimlen[1] + skip)
         + sizeof(fort_size_t);
 
-
     if (fseeko(fp, off, SEEK_SET) < 0) {
         gt3_error(SYSERR, NULL);
         return -1;
@@ -343,7 +342,7 @@ update_varbuf(GT3_Varbuf *vbuf, GT3_File *fp)
     /*
      * all checks passed.
      */
-    vbuf->fp   = fp;
+    vbuf->fp = fp;
     vbuf->type = type;
     vbuf->dimlen[0] = dim[0];
     vbuf->dimlen[1] = dim[1];

@@ -39,8 +39,8 @@ scalefac(double rmin, double rmax,
             rdelta = r;
             *pfac_e = fac_e;
             *pfac_d = fac;
-            *pne    = ne;
-            *pnd    = nd;
+            *pne = ne;
+            *pnd = nd;
         }
     }
     assert(rmin + MAX_AVAIL * (*pfac_e) / (*pfac_d) >= rmax);
@@ -75,11 +75,11 @@ calc_urc_param(const float *data, int len, double miss,
         scalefac(rmin, rmax, &fac_e, &fac_d, &ne, &nd);
 
     /* URC-packing parameters */
-    *prmin  = rmin;
+    *prmin = rmin;
     *pfac_e = fac_e;
     *pfac_d = fac_d;
-    *pne    = ne;
-    *pnd    = nd;
+    *pne = ne;
+    *pnd = nd;
 }
 
 
@@ -154,8 +154,8 @@ urc1_pack(const float *data, int len, double miss,
     urc1_packing(packed, data, len, miss, rmin, fac_e, fac_d);
 
     *pref = rmin * fac_d;
-    *pne  = ne;
-    *pnd  = nd;
+    *pne = ne;
+    *pnd = nd;
 }
 
 
@@ -170,8 +170,8 @@ urc2_pack(const float *data, int len, double miss,
     urc2_packing(packed, data, len, miss, rmin, fac_e, fac_d);
 
     *pref = rmin * fac_d;
-    *pne  = ne;
-    *pnd  = nd;
+    *pne = ne;
+    *pnd = nd;
 }
 
 

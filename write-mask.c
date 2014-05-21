@@ -246,7 +246,6 @@ write_mr8(const void *ptr2,
     size_t ncopy, nread;
     double copied[BUFLEN];
 
-
     /*
      * write the # of not-missing value.
      */

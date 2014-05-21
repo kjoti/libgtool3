@@ -18,7 +18,6 @@
 #include "write-fmt.h"
 
 
-
 static uint32_t
 maxval_uint32(const uint32_t *vals, size_t num)
 {

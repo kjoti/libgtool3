@@ -5,6 +5,7 @@
 #include <sys/types.h>
 #include <stdio.h>
 
+
 /*
  * To distinguish I/O error and file-format error (unexpected EOF).
  */

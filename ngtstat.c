@@ -108,9 +108,9 @@ sumup_stat(struct statics *stat, const struct statics sz[], int len)
     stat->max = -HUGE_VAL;
     for (i = 0; i < len; i++) {
         stat->count += sz[i].count;
-        stat->avr   += sz[i].count * sz[i].avr;
-        stat->min   =  min(stat->min, sz[i].min);
-        stat->max   =  max(stat->max, sz[i].max);
+        stat->avr += sz[i].count * sz[i].avr;
+        stat->min = min(stat->min, sz[i].min);
+        stat->max = max(stat->max, sz[i].max);
     }
 
     if (stat->count > 0) {
@@ -172,8 +172,8 @@ calc_stat(struct statics *stat, const GT3_Varbuf *varbuf,
         sd_func(&sd, work, avr, len);
     }
     stat->count = len;
-    stat->avr   = avr;
-    stat->sd    = sd;
+    stat->avr = avr;
+    stat->sd = sd;
 }
 
 

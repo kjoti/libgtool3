@@ -133,7 +133,6 @@ chunk_size(GT3_File *fp)
     int fmt;
     size_t siz = 0, nelem;
 
-
     fmt = (int)(fp->fmt & GT3_FMT_MASK);
     switch (fmt) {
     case GT3_FMT_UR4:
@@ -347,7 +346,6 @@ GT3_format(const char *str)
         { "URY",  GT3_FMT_URY   },
         { "MRY",  GT3_FMT_MRY   },
     };
-
     int i;
 
     for (i = 0; i < sizeof ftab / sizeof ftab[0]; i++)

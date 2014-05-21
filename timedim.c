@@ -51,7 +51,7 @@ conv_ct_to_date(GT3_Date *date, const struct caltime* p)
     sec = p->sec;
     date->hour = sec / 3600;
     sec -= 3600 * date->hour;
-    date->min  = sec / 60;
+    date->min = sec / 60;
     sec -= 60 * date->min;
     date->sec = sec;
 }
@@ -198,7 +198,7 @@ GT3_getTime(const GT3_Date *date, const GT3_Date *since,
     double sec, fact;
 
     if (conv_date_to_ct(&from, since, calendar) < 0
-        || conv_date_to_ct(&to,   date,  calendar) < 0)
+        || conv_date_to_ct(&to, date, calendar) < 0)
         return 0.;
 
     sec = ct_diff_seconds(&to, &from);

@@ -187,7 +187,6 @@ default_param:
 }
 
 
-
 #ifdef TEST_MAIN
 #include <assert.h>
 #include <float.h>
