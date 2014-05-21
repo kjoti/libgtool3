@@ -449,8 +449,8 @@ usage(void)
         "    -T        ignore TIME, DATE, TDUR, DATE1, DATE2\n"
         "    -a value  specify tolerance (absolute error)\n"
         "    -r value  specify tolerance (relative error)\n"
-        "    -v        verbose\n"
         "    -t LIST   specify data No. for both FileA and FileB\n"
+        "    -v        verbose\n"
         "    -z RANGE  specify Z-range\n";
 
     fprintf(stderr, "%s\n", GT3_version());
