@@ -420,16 +420,18 @@ int
 GT3_countChunk(const char *path)
 {
     GT3_File *fp;
-    int cnt;
+    int cnt, err = 0;
 
     if ((fp = GT3_open(path)) == NULL)
         return -1;
 
     while (!GT3_eof(fp))
-        if (GT3_next(fp) < 0)
-            return -1;
+        if (GT3_next(fp) < 0) {
+            err = 1;
+            break;
+        }
 
-    cnt = fp->curr;
+    cnt = err ? -1 : fp->curr;
     GT3_close(fp);
     return cnt;
 }
@@ -686,8 +688,8 @@ GT3_seek(GT3_File *fp, int dest, int whence)
     if (GT3_isHistfile(fp))
         return seekhist(fp, dest);
 
-    if (dest < fp->curr)        /* backward */
-        GT3_rewind(fp);
+    if (dest < fp->curr && GT3_rewind(fp) < 0) /* backward */
+        return -1;
 
     num = dest - fp->curr;
     while (num-- > 0 && !GT3_eof(fp))
