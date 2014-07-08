@@ -127,8 +127,8 @@ latitude_mosaic(double *grid, const double *wght, int len, int idiv)
     int half;
 
     half = (len + 1) / 2;
-    if ((bnd = (double *)tiny_alloc(
-             bnd_, sizeof bnd_, sizeof(double) * (half + 1))) == NULL) {
+    if ((bnd = tiny_alloc(bnd_, sizeof bnd_,
+                          sizeof(double) * (half + 1))) == NULL) {
         gt3_error(SYSERR, NULL);
         return -1;
     }
@@ -180,7 +180,7 @@ alloc_newdim(void)
 {
     GT3_Dim *dim;
 
-    if ((dim = (GT3_Dim *)malloc(sizeof(GT3_Dim))) == NULL)
+    if ((dim = malloc(sizeof(GT3_Dim))) == NULL)
         return NULL;
 
     dim->name = NULL;
@@ -207,7 +207,7 @@ make_glon(int len, int idiv, unsigned flag)
     mlen = len * idiv + 1;
 
     if ((dim = alloc_newdim()) == NULL
-        || (grid = (double *)malloc(sizeof(double) * mlen)) == NULL) {
+        || (grid = malloc(sizeof(double) * mlen)) == NULL) {
         gt3_error(SYSERR, NULL);
         free(dim);
         return NULL;
@@ -262,7 +262,7 @@ make_glat(int len, int idiv, unsigned flag)
         return NULL;
 
     if ((dim = alloc_newdim()) == NULL
-        || (grid = (double *)malloc(sizeof(double) * len)) == NULL) {
+        || (grid = malloc(sizeof(double) * len)) == NULL) {
         gt3_error(SYSERR, NULL);
         free(dim);
         return NULL;
@@ -304,9 +304,9 @@ make_ggla(int len, int idiv, unsigned flag)
 
     mlen = len * idiv;
     if ((dim = alloc_newdim()) == NULL
-        || (grid = (double *)malloc(sizeof(double) * mlen)) == NULL
-        || (wght = (double *)tiny_alloc(
-                wght_, sizeof wght_, sizeof(double) * len)) == NULL) {
+        || (grid = malloc(sizeof(double) * mlen)) == NULL
+        || (wght = tiny_alloc(wght_, sizeof wght_,
+                              sizeof(double) * len)) == NULL) {
         gt3_error(SYSERR, NULL);
         goto final;
     }
@@ -375,7 +375,7 @@ make_sfc1(int len, int idiv, unsigned flag)
         return NULL;
 
     if ((dim = alloc_newdim()) == NULL
-        || (grid = (double *)malloc(sizeof(double))) == NULL) {
+        || (grid = malloc(sizeof(double))) == NULL) {
         gt3_error(SYSERR, NULL);
         free(dim);
         return NULL;
@@ -399,7 +399,7 @@ make_num(int len, int idiv, unsigned flag)
         return NULL;
 
     if ((dim = alloc_newdim()) == NULL
-        || (grid = (double *)malloc(sizeof(double) * len)) == NULL) {
+        || (grid = malloc(sizeof(double) * len)) == NULL) {
         gt3_error(SYSERR, NULL);
         free(dim);
         return NULL;
@@ -578,7 +578,7 @@ GT3_loadDim(const char *name)
     (void)GT3_decodeHeaderDouble(&dmin, &head, "DMIN");
     (void)GT3_decodeHeaderDouble(&dmax, &head, "DMAX");
 
-    if ((grid = (double *)malloc(sizeof(double) * var->dimlen[0])) == NULL
+    if ((grid = malloc(sizeof(double) * var->dimlen[0])) == NULL
         || (dim = alloc_newdim()) == NULL) {
 
         gt3_error(SYSERR, NULL);
@@ -762,8 +762,8 @@ cellbnd_ggla(double *bnd, int len, int idiv, unsigned flag)
     double *grid, *wght, wsum;
     int i, mid, bndlen;
 
-    grid = (double *)tiny_alloc(grid_, sizeof grid_, sizeof(double) * len);
-    wght = (double *)tiny_alloc(wght_, sizeof wght_, sizeof(double) * len);
+    grid = tiny_alloc(grid_, sizeof grid_, sizeof(double) * len);
+    wght = tiny_alloc(wght_, sizeof wght_, sizeof(double) * len);
     if (grid == NULL || wght == NULL)
         return -1;
 
@@ -854,8 +854,7 @@ weight_glon(double *temp, int len, int idiv, unsigned flag)
     if (len <= 0)
         return NULL;
 
-    if (!temp
-        && (temp = (double *)malloc(sizeof(double) * (len + 1))) == NULL)
+    if (!temp && (temp = malloc(sizeof(double) * (len + 1))) == NULL)
         return NULL;
 
     w = 360. / len;
@@ -876,7 +875,7 @@ static double *
 weight_ggla(double *weight, int len, int idiv, unsigned flag)
 {
     if (!weight)
-        weight = (double *)malloc(sizeof(double) * len * idiv);
+        weight = malloc(sizeof(double) * len * idiv);
 
     if (!weight)
         return NULL;
@@ -934,8 +933,7 @@ weight_latitude(double *wght, const double *lat, int len)
      * we need half only.
      */
     len2 = (len + 1) / 2;
-    bnd = (double *)tiny_alloc(bnd_, sizeof bnd_,
-                               sizeof(double) * (len2 + 1));
+    bnd = tiny_alloc(bnd_, sizeof bnd_, sizeof(double) * (len2 + 1));
     if (bnd == NULL) {
         gt3_error(SYSERR, NULL);
         return -1;
@@ -967,8 +965,7 @@ weight_glat(double *wght, int len, int idiv, unsigned flag)
     if ((dim = make_glat(len, idiv, flag)) == NULL)
         return NULL;
 
-    if (!wght && (wght = (double *)malloc(
-                      sizeof(double) * dim->len)) == NULL)
+    if (!wght && (wght = malloc(sizeof(double) * dim->len)) == NULL)
         gt3_error(SYSERR, NULL);
 
     if (wght)
@@ -994,7 +991,7 @@ GT3_loadDimWeight(const char *name)
         || GT3_readVarZ(var, 0) < 0)
         goto final;
 
-    if ((wght = (double *)malloc(sizeof(double) * var->dimlen[0])) == NULL) {
+    if ((wght = malloc(sizeof(double) * var->dimlen[0])) == NULL) {
         gt3_error(SYSERR, NULL);
         goto final;
     }
@@ -1154,8 +1151,8 @@ new_dimbound(const char *name, int len_orig, int len)
     GT3_DimBound *dimbnd = NULL;
     double *bnd = NULL;
 
-    if ((dimbnd = (GT3_DimBound *)malloc(sizeof(GT3_DimBound))) == NULL
-        || (bnd = (double *)malloc(sizeof(double) * len)) == NULL) {
+    if ((dimbnd = malloc(sizeof(GT3_DimBound))) == NULL
+        || (bnd = malloc(sizeof(double) * len)) == NULL) {
 
         gt3_error(SYSERR, NULL);
         free(bnd);

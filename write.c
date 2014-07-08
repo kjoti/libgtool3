@@ -216,7 +216,7 @@ write_urc_via_double(const double *input, int len, int nz, double miss,
     int i, n;
     float *data;
 
-    if ((data = (float *)malloc(sizeof(float) * len)) == NULL) {
+    if ((data = malloc(sizeof(float) * len)) == NULL) {
         gt3_error(SYSERR, NULL);
         return -1;
     }

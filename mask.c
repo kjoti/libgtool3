@@ -33,7 +33,7 @@ GT3_newMask(void)
 {
     GT3_Datamask *mask;
 
-    if ((mask = (GT3_Datamask *)malloc(sizeof(GT3_Datamask))) == NULL) {
+    if ((mask = malloc(sizeof(GT3_Datamask))) == NULL) {
         gt3_error(SYSERR, NULL);
         return NULL;
     }
@@ -75,7 +75,7 @@ GT3_setMaskSize(GT3_Datamask *ptr, size_t nelem)
 
     GT3_freeMask(ptr);
     mlen = (nelem + 31) / 32;
-    if ((mask = (uint32_t *)malloc(sizeof(uint32_t) * mlen)) == NULL) {
+    if ((mask = malloc(sizeof(uint32_t) * mlen)) == NULL) {
         gt3_error(SYSERR, NULL);
         return -1;
     }

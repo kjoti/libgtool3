@@ -73,7 +73,7 @@ initSeq(const char *spec, int first, int last)
 {
     struct sequence *p;
 
-    if ((p = (struct sequence *)malloc(sizeof(struct sequence))) == NULL
+    if ((p = malloc(sizeof(struct sequence))) == NULL
         || (p->spec = strdup(spec)) == NULL)
         return NULL;
 

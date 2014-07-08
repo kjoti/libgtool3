@@ -457,7 +457,7 @@ open_gt3file(const char *path, const char *mode)
         return NULL;
     }
 
-    if ((gp = (GT3_File *)malloc(sizeof(GT3_File))) == NULL) {
+    if ((gp = malloc(sizeof(GT3_File))) == NULL) {
         gt3_error(SYSERR, NULL);
         goto error;
     }
