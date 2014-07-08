@@ -109,10 +109,11 @@ static int
 calc_mean(struct mdata *mdata, GT3_Varbuf *vbuf, unsigned mode)
 {
     double wz, wght;
-    int i, x, y, z;
+    int x, y, z;
     int xm, ym, zm, n;
     int idest;
     int x0, x1, y0, y1;
+    size_t i;
     double value;
     double *wghtx = NULL, *wghty = NULL, *wghtz = NULL;
     double wyz;

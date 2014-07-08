@@ -24,44 +24,37 @@ typedef void (*PACKING_FUNC)(uint32_t *, const float *, int, double,
 
 
 static int
-write_ur4_via_double(const double *data, size_t len, FILE *fp)
+write_ur4_via_double(const double *data, size_t nelems, FILE *fp)
 {
-    float buf[BUFLEN];
-    int i, num;
-    fort_size_t siz;
+    float copied[BUFLEN];
+    size_t len;
+    int ncopy, i;
 
-    siz = 4 * len;
-    if (IS_LITTLE_ENDIAN)
-        reverse_words(&siz, 1);
-
-    if (fwrite(&siz, 4, 1, fp) != 1) {  /* HEADER */
-        gt3_error(SYSERR, NULL);
+    if (write_record_sep((uint64_t)4 * nelems, fp) < 0)
         return -1;
-    }
 
+    len = nelems;
     while (len > 0) {
-        num = (len > BUFLEN) ? BUFLEN : len;
+        ncopy = (len > BUFLEN) ? BUFLEN : len;
 
-        for (i = 0; i < num; i++)
-            buf[i] = (float)data[i];
+        for (i = 0; i < ncopy; i++)
+            copied[i] = (float)data[i];
 
         if (IS_LITTLE_ENDIAN)
-            reverse_words(buf, num);
+            reverse_words(copied, ncopy);
 
-        if (fwrite(buf, 4, num, fp) != num) {
+        if (fwrite(copied, 4, ncopy, fp) != ncopy) {
             gt3_error(SYSERR, NULL);
             return -1;
         }
 
-        data += num;
-        len  -= num;
+        data += ncopy;
+        len -= ncopy;
     }
-    assert(len == 0);
 
-    if (fwrite(&siz, 4, 1, fp) != 1) {  /* TRAILER */
-        gt3_error(SYSERR, NULL);
+    if (write_record_sep((uint64_t)4 * nelems, fp) < 0)
         return -1;
-    }
+
     return 0;
 }
 
@@ -84,10 +77,10 @@ static int
 write_ur8_via_float(const float *data, size_t nelems, FILE *fp)
 {
     double copied[BUFLEN8];
-    size_t ncopy, len;
-    int i;
+    size_t len;
+    int ncopy, i;
 
-    if (write_record_sep(8 * nelems, fp) < 0)
+    if (write_record_sep((uint64_t)8 * nelems, fp) < 0)
         return -1;
 
     len = nelems;
@@ -105,11 +98,11 @@ write_ur8_via_float(const float *data, size_t nelems, FILE *fp)
             return -1;
         }
 
-        len -= ncopy;
         data += ncopy;
+        len -= ncopy;
     }
 
-    if (write_record_sep(8 * nelems, fp) < 0)
+    if (write_record_sep((uint64_t)8 * nelems, fp) < 0)
         return -1;
 
     return 0;
@@ -189,7 +182,7 @@ write_urc_zslice(const float *data, int len, double miss,
         }
 
         data += len_pack;
-        len  -= len_pack;
+        len -= len_pack;
     }
 
     /* trailer */

@@ -79,6 +79,7 @@ enum {
     GT3_ERR_FILE,               /* Not a gtool file */
     GT3_ERR_HEADER,             /* invalid data in the header  */
     GT3_ERR_INDEX,              /* index out of range */
+    GT3_ERR_TOOLONG,            /* data size is too long */
 
     GT3_ERR_UNDEF               /* undefined error (sentinel) */
 };

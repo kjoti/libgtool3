@@ -99,7 +99,7 @@ alloc_average(struct average *avr, size_t len)
 static void
 clear_average(struct average *avr)
 {
-    int i;
+    size_t i;
 
     for (i = 0; i < avr->len; i++) {
         avr->data[i] = 0.;

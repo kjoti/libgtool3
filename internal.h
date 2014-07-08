@@ -91,8 +91,8 @@ void urc2_unpack(const uint32_t *packed, int packed_len,
                  double miss, float *data);
 
 /* reverse.c */
-void *reverse_words(void *vptr, int nwords);
-void *reverse_dwords(void *vptr, int nwords);
+void *reverse_words(void *vptr, size_t nwords);
+void *reverse_dwords(void *vptr, size_t nwords);
 
 /* grid.c */
 int uniform_center(double *grid, double x0, double x1, int len);
@@ -136,7 +136,7 @@ void scaling_parameters(double *dma, double dmin, double dmax, int num);
 /* record.c */
 int read_words_from_record(void *ptr, size_t skip, size_t nelem, FILE *fp);
 int read_dwords_from_record(void *ptr, size_t skip, size_t nelem, FILE *fp);
-int write_record_sep(fort_size_t size, FILE *fp);
+int write_record_sep(uint64_t size, FILE *fp);
 int write_words_into_record(const void *ptr, size_t nelem, FILE *fp);
 int write_dwords_into_record(const void *ptr, size_t nelem, FILE *fp);
 int write_bytes_into_record(const void *ptr, size_t nelem, FILE *fp);

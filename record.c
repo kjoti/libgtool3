@@ -3,7 +3,6 @@
  */
 #include "internal.h"
 
-#include <sys/types.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -84,9 +83,18 @@ read_dwords_from_record(void *ptr, size_t skip, size_t nelem, FILE *fp)
 }
 
 
+/*
+ * Write the header or trailer of the Fortran sequential records.
+ * The sizeof(fort_size_t) is assumed to be 4.
+ * If the record-size is greater than 0xffffffff, use 0xffffffff.
+ */
 int
-write_record_sep(fort_size_t size, FILE *fp)
+write_record_sep(uint64_t size0, FILE *fp)
 {
+    fort_size_t size;
+
+    size = (size0 > 0xffffffffU) ? 0xffffffffU : size0;
+
     if (IS_LITTLE_ENDIAN)
         reverse_words(&size, 1);
 
@@ -105,7 +113,7 @@ static int
 write_into_record(const void *ptr,
                   size_t size,
                   size_t nelem,
-                  void *(*reverse)(void *, int),
+                  void *(*reverse)(void *, size_t),
                   FILE *fp)
 {
     char data[IO_BUF_SIZE];
@@ -113,7 +121,7 @@ write_into_record(const void *ptr,
     size_t nelem2, len, maxelems;
 
     /* HEADER */
-    if (write_record_sep(size * nelem, fp) < 0)
+    if (write_record_sep((uint64_t)size * nelem, fp) < 0)
         return -1;
 
     if (IS_LITTLE_ENDIAN && size > 1) {
@@ -141,7 +149,7 @@ write_into_record(const void *ptr,
         }
 
     /* TRAILER */
-    if (write_record_sep(size * nelem, fp) < 0)
+    if (write_record_sep((uint64_t)size * nelem, fp) < 0)
         return -1;
 
     return 0;

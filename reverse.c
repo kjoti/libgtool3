@@ -8,9 +8,9 @@
  * reverse_words() reverses the byte-order of words (32-bit).
  */
 void *
-reverse_words(void *vptr, int nwords)
+reverse_words(void *vptr, size_t nwords)
 {
-    int i;
+    size_t i;
     uint32_t u;
     uint32_t *uptr = vptr;
 
@@ -27,9 +27,9 @@ reverse_words(void *vptr, int nwords)
  * reverse_dwords() reverses the byte-order of double words (64-bit).
  */
 void *
-reverse_dwords(void *vptr, int nwords)
+reverse_dwords(void *vptr, size_t nwords)
 {
-    int i;
+    size_t i;
     uint32_t u1, u2;
     uint32_t *uptr = vptr;
 

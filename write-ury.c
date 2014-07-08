@@ -96,10 +96,9 @@ write_ury(const void *ptr,
 
     assert(URYBUFSIZ % 32 == 0);
 
-    if ((dma = (double *)
-         tiny_alloc(dma_buf,
-                    sizeof dma_buf,
-                    2 * nz * sizeof(double))) == NULL)
+    if ((dma = tiny_alloc(dma_buf,
+                          sizeof dma_buf,
+                          2 * nz * sizeof(double))) == NULL)
         goto error;
 
     /*
@@ -130,17 +129,15 @@ write_ury(const void *ptr,
     imiss = (1U << nbits) - 1;
     packed_len = pack32_len(zelem, nbits);
 
-    /*
-     * write a header of data-body.
-     */
-    if (write_record_sep(4 * packed_len * nz, fp) < 0)
+    /* write a header of data-body. */
+    if (write_record_sep((uint64_t)4 * packed_len * nz, fp) < 0)
         goto error;
 
     /*
      * write data-body (packed)
      */
     for (i = 0; i < nz; i++) {
-        ptr2 = (const char *)ptr + i *zelem * size;
+        ptr2 = (const char *)ptr + i * zelem * size;
         nelems = zelem;
 
         while (nelems > 0) {
@@ -173,7 +170,7 @@ write_ury(const void *ptr,
     }
 
     /* write a trailer of data-body */
-    if (write_record_sep(4 * packed_len * nz, fp) < 0)
+    if (write_record_sep((uint64_t)4 * packed_len * nz, fp) < 0)
         goto error;
 
     tiny_free(dma, dma_buf);
@@ -215,30 +212,33 @@ write_mry(const void *ptr2,
     uint32_t cnt_buf[128];
     uint32_t plen_buf[128];
     double dma_buf[256];
+    size_t cnt0;
     uint32_t *cnt = cnt_buf;
     uint32_t *plen = plen_buf;
     double *dma = dma_buf;
-    uint32_t plen_all;
+    uint64_t plen_all;
+    uint32_t plen_a;
     unsigned imiss;
     unsigned i;
 
-    if ((cnt = (uint32_t *)
-         tiny_alloc(cnt_buf,
-                    sizeof cnt_buf,
-                    sizeof(uint32_t) * nz)) == NULL
-        || (plen = (uint32_t *)
-            tiny_alloc(plen_buf,
-                       sizeof plen_buf,
-                       sizeof(uint32_t) * nz)) == NULL
-        || (dma = (double *)
-            tiny_alloc(dma_buf,
-                       sizeof dma_buf,
-                       sizeof(double) * 2 * nz)) == NULL)
+    if ((cnt = tiny_alloc(cnt_buf,
+                          sizeof cnt_buf,
+                          sizeof(uint32_t) * nz)) == NULL
+        || (plen = tiny_alloc(plen_buf,
+                              sizeof plen_buf,
+                              sizeof(uint32_t) * nz)) == NULL
+        || (dma = tiny_alloc(dma_buf,
+                             sizeof dma_buf,
+                             sizeof(double) * 2 * nz)) == NULL)
         goto error;
 
     for (ptr = ptr2, i = 0; i < nz; i++, ptr += zelems * size) {
-        cnt[i] = masked_count(ptr, size, zelems, miss);
-
+        cnt0 = masked_count(ptr, size, zelems, miss);
+        if (cnt0 > 0xffffffffU) {
+            gt3_error(GT3_ERR_TOOLONG, "in writing MRY");
+            goto error;
+        }
+        cnt[i] = (uint32_t)cnt0;
         plen[i] = (uint32_t)pack32_len(cnt[i], nbits);
 
         if (size == 4)
@@ -252,13 +252,18 @@ write_mry(const void *ptr2,
     for (plen_all = 0, i = 0; i < nz; i++)
         plen_all += plen[i];
 
-    if (write_words_into_record(&plen_all, 1, fp) < 0
+    if (plen_all > 0xffffffffU) {
+        gt3_error(GT3_ERR_TOOLONG, "in writing MRY");
+        goto error;
+    }
+    plen_a = (uint32_t)plen_all;
+
+    if (write_words_into_record(&plen_a, 1, fp) < 0
         || write_words_into_record(cnt, nz, fp) < 0
         || write_words_into_record(plen, nz, fp) < 0
         || write_dwords_into_record(dma, 2 * nz, fp) < 0
         || write_mask(ptr2, size, zelems, nz, miss, fp) < 0)
         goto error;
-
 
     imiss = (1U << nbits) - 1;
 

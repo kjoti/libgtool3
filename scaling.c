@@ -25,7 +25,7 @@ masked_scalingf(unsigned *dest,
                 double offset, double scale,
                 unsigned imiss, double miss)
 {
-    int i;
+    size_t i;
     double v;
     double iscale;
     size_t cnt;
@@ -85,7 +85,7 @@ scaling(unsigned *dest,
         double offset, double scale,
         unsigned imiss, double miss)
 {
-    int i;
+    size_t i;
     double v;
     double iscale;
 
@@ -112,7 +112,7 @@ scalingf(unsigned *dest,
          double offset, double scale,
          unsigned imiss, double miss)
 {
-    int i;
+    size_t i;
     double v;
     double iscale;
     float missf = (float)miss;

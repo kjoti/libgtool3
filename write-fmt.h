@@ -23,8 +23,8 @@ int write_mrx_via_float(const void *ptr,
                         FILE *fp);
 
 /* write-mask.c */
-unsigned masked_count(const void *ptr, size_t size,
-                      size_t nelems, double miss);
+size_t masked_count(const void *ptr, size_t size,
+                    size_t nelems, double miss);
 int write_mask(const void *ptr2,
                size_t size,
                size_t nelems, size_t nsets,

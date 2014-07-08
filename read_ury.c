@@ -50,8 +50,7 @@ read_packed(double *outp, size_t nelems,
     unsigned idata[32 * URYBUFSIZ], zero_index;
     uint32_t imiss;
     size_t npack_per_read, ndata_per_read;
-    size_t npack, ndata, nrest, nrest_packed;
-    int i;
+    size_t i, npack, ndata, nrest, nrest_packed;
 
     imiss = (1U << nbits) - 1U;
 
@@ -124,7 +123,7 @@ read_URY2(GT3_Varbuf *var, int zpos, size_t skip, size_t nelem,
      * XXX: read_URY() always reads all the data in a z-plane.
      * 'skip' and 'nelem' passed as an argument are ignored.
      */
-    zelems = (size_t)(var->dimlen[0] * var->dimlen[1]);
+    zelems = var->dimlen[0] * var->dimlen[1];
     nbits = (unsigned)var->fp->fmt >> GT3_FMT_MBIT;
 
     /*
@@ -170,12 +169,11 @@ read_MRY2(GT3_Varbuf *var, int zpos, size_t skip, size_t nelem,
     double dma[2], offset, scale;
     GT3_Datamask *mask;
     unsigned nbits;
-    size_t skip2;
-    int i, n;
+    size_t skip2, i, n;
     double *outp;
-    int nnn_buf[RESERVE_NZ];
+    uint32_t nnn_buf[RESERVE_NZ];
     double data_buf[RESERVE_SIZE];
-    int *nnn = nnn_buf;         /* the Number of Non-missing Number  */
+    uint32_t *nnn = nnn_buf;    /* the Number of Non-missing Number  */
     double *data = data_buf;
 
     /*
@@ -188,9 +186,9 @@ read_MRY2(GT3_Varbuf *var, int zpos, size_t skip, size_t nelem,
         return -1;
     var->fp->mask = mask;
 
-    if ((nnn = (int *)tiny_alloc(nnn_buf,
-                                 sizeof nnn_buf,
-                                 sizeof(int) * var->dimlen[2])) == NULL)
+    if ((nnn = tiny_alloc(nnn_buf,
+                          sizeof nnn_buf,
+                          sizeof(uint32_t) * var->dimlen[2])) == NULL)
         return -1;
 
     /* skip to NNN */

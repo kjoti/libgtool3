@@ -13,7 +13,7 @@
  *     int buf[16];
  *     int *bufp;
  *
- *     bufp = (int *)tiny_alloc(buf, sizeof buf, sizeof(int) * len);
+ *     bufp = tiny_alloc(buf, sizeof buf, sizeof(int) * len);
  *     if (bufp == NULL) {
  *         perrro(NULL);
  *

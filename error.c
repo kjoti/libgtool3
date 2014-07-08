@@ -36,6 +36,7 @@ static const char *messages[] = {
     "Not a gtool file",
     "Invalid data in the header",
     "Index out of range",
+    "Too long data",
     "Undefined error" /* sentinel */
 };
 

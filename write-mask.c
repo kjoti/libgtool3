@@ -50,8 +50,7 @@ masked_copyf(size_t *nread,
              size_t destlen, size_t srclen,
              double miss)
 {
-    size_t cnt;
-    int i;
+    size_t i, cnt;
 
     if (size == 4) {
         const float *data = srcptr;
@@ -85,8 +84,7 @@ masked_copy(size_t *nread,
             size_t destlen, size_t srclen,
             double miss)
 {
-    size_t cnt;
-    int i;
+    size_t i, cnt;
 
     if (size == 4) {
         const float *data = srcptr;
@@ -112,11 +110,10 @@ masked_copy(size_t *nread,
 }
 
 
-unsigned
+size_t
 masked_count(const void *ptr, size_t size, size_t nelems, double miss)
 {
-    unsigned cnt;
-    int i;
+    size_t i, cnt;
 
     if (size == 4) {
         const float *data = ptr;
@@ -192,13 +189,18 @@ write_mr4(const void *ptr2,
 {
     const char *ptr;
     uint32_t cnt;
-    size_t ncopy, nread;
+    size_t cnt0, ncopy, nread;
     float copied[BUFLEN];
 
     /*
-     * write the # of not-missing value.
+     * write the # of valid grids (4-byte).
      */
-    cnt = (uint32_t)masked_count(ptr2, size, nelems, miss);
+    cnt0 = masked_count(ptr2, size, nelems, miss);
+    if (cnt0 > 0xffffffffU) {
+        gt3_error(GT3_ERR_TOOLONG, "in writing MR4");
+        return -1;
+    }
+    cnt = (uint32_t)cnt0;
     if (write_words_into_record(&cnt, 1, fp) < 0)
         return -1;
 
@@ -209,11 +211,18 @@ write_mr4(const void *ptr2,
         return -1;
 
     /*
-     * write DATA-BODY.
+     * write the header of DATA-BODY.
+     *
+     * Note:
+     * Although 'cnt0' must be less than or equal to 0xffffffff,
+     * 'sizeof(float) * cnt0' can be greater than 0xffffffff.
      */
-    if (write_record_sep(sizeof(float) * cnt, fp) < 0)
+    if (write_record_sep((uint64_t)sizeof(float) * cnt0, fp) < 0)
         return -1;
 
+    /*
+     * write DATA-BODY.
+     */
     ptr = ptr2;
     while (nelems > 0) {
         ncopy = masked_copyf(&nread, copied, ptr, size, BUFLEN, nelems, miss);
@@ -230,7 +239,7 @@ write_mr4(const void *ptr2,
         ptr += nread * size;
     }
 
-    if (write_record_sep(sizeof(float) * cnt, fp) < 0)
+    if (write_record_sep((uint64_t)sizeof(float) * cnt0, fp) < 0)
         return -1;
     return 0;
 }
@@ -243,13 +252,18 @@ write_mr8(const void *ptr2,
 {
     const char *ptr;
     uint32_t cnt;
-    size_t ncopy, nread;
+    size_t cnt0, ncopy, nread;
     double copied[BUFLEN];
 
     /*
-     * write the # of not-missing value.
+     * write the # of valid grids (4-byte).
      */
-    cnt = (uint32_t)masked_count(ptr2, size, nelems, miss);
+    cnt0 = masked_count(ptr2, size, nelems, miss);
+    if (cnt0 > 0xffffffffU) {
+        gt3_error(GT3_ERR_TOOLONG, "in writing MR8");
+        return -1;
+    }
+    cnt = (uint32_t)cnt0;
     if (write_words_into_record(&cnt, 1, fp) < 0)
         return -1;
 
@@ -260,11 +274,18 @@ write_mr8(const void *ptr2,
         return -1;
 
     /*
-     * write DATA-BODY.
+     * write the header of DATA-BODY.
+     *
+     * Note:
+     * Although 'cnt0' must be less than or equal to 0xffffffff,
+     * 'sizeof(float) * cnt0' can be greater than 0xffffffff.
      */
-    if (write_record_sep(sizeof(double) * cnt, fp) < 0)
+    if (write_record_sep((uint64_t)sizeof(double) * cnt0, fp) < 0)
         return -1;
 
+    /*
+     * write DATA-BODY.
+     */
     ptr = ptr2;
     while (nelems > 0) {
         ncopy = masked_copy(&nread, copied, ptr, size, BUFLEN, nelems, miss);
@@ -281,7 +302,7 @@ write_mr8(const void *ptr2,
         ptr += nread * size;
     }
 
-    if (write_record_sep(sizeof(double) * cnt, fp) < 0)
+    if (write_record_sep((uint64_t)sizeof(double) * cnt0, fp) < 0)
         return -1;
     return 0;
 }
