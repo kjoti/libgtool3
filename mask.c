@@ -95,8 +95,7 @@ GT3_setMaskSize(GT3_Datamask *ptr, size_t nelem)
 int
 GT3_updateMaskIndex(GT3_Datamask *mask, int interval)
 {
-    int i, j, m, idx;
-    size_t idxlen;
+    size_t i, j, m, idx, idxlen;
 
     assert(mask->loaded != -1);
     if (mask->indexed)
@@ -107,9 +106,9 @@ GT3_updateMaskIndex(GT3_Datamask *mask, int interval)
 
     idxlen = mask->nelem / interval + 1;
     if (idxlen > mask->index_len) {
-        int *ptr;
+        size_t *ptr;
 
-        if ((ptr = malloc(sizeof(int) * idxlen)) == NULL) {
+        if ((ptr = malloc(sizeof(size_t) * idxlen)) == NULL) {
             gt3_error(SYSERR, NULL);
             return -1;
         }

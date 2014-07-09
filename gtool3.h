@@ -115,7 +115,7 @@ struct GT3_Datamask {
 
     int loaded;                 /* the chunk number mask is loaded */
     int indexed;                /* Index up-to-date?  */
-    int *index;
+    size_t *index;
     size_t index_len;           /* length of index */
 };
 typedef struct GT3_Datamask GT3_Datamask;
