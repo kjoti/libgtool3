@@ -80,7 +80,7 @@ static int
 read_URCv(GT3_Varbuf *var, int zpos, size_t skip, size_t nelem, FILE *fp,
           UNPACK_FUNC unpack_func)
 {
-    unsigned packed[1024];
+    unsigned packed[8192];
     unsigned char pbuf[8 + 4 + 4 + 7 * sizeof(fort_size_t)];
     off_t off;
     double ref;

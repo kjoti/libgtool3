@@ -206,7 +206,7 @@ update(GT3_File *fp, const GT3_HEADER *headp)
 
     if (dim[0] < 1 || dim[1] < 1 || dim[2] < 1) {
         gt3_error(GT3_ERR_HEADER, "Invalid dim-size: %d %d %d",
-              dim[0], dim[1], dim[2]);
+                  dim[0], dim[1], dim[2]);
         return -1;
     }
 

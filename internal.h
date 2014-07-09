@@ -74,7 +74,7 @@ typedef uint32_t fort_size_t;
 /*
  * urc_pack.c
  */
-void calc_urc_param(const float *data, int len, double miss,
+void calc_urc_param(const float *data, size_t len, double miss,
                     double *prmin, double *pfac_e, double *pfac_d,
                     int *pne, int *pnd);
 void urc1_packing(uint32_t *packed,

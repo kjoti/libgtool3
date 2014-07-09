@@ -110,13 +110,12 @@ write_ur8_via_float(const float *data, size_t nelems, FILE *fp)
 
 
 static int
-write_urc_zslice(const float *data, int len, double miss,
+write_urc_zslice(const float *data, size_t len, double miss,
                  PACKING_FUNC packing, FILE *fp)
 {
     char siz4[] = { 0, 0, 0, 4 };
     char siz8[] = { 0, 0, 0, 8 };
-    uint32_t packed[1024];
-    fort_size_t siz;
+    uint32_t packed[8192];
     unsigned char parambuf[8 + 4 + 4 + 3 * 2 * 4];
     double rmin, ref, fac_e, fac_d;
     int ne, nd;
@@ -129,12 +128,12 @@ write_urc_zslice(const float *data, int len, double miss,
      * three packing parameters (REF, ND, and NE)
      */
     ref = rmin * fac_d;
-    memcpy(parambuf,       siz8, 4); /* REF head */
-    memcpy(parambuf + 12,  siz8, 4); /* REF tail */
-    memcpy(parambuf + 16,  siz4, 4); /* ND  head */
-    memcpy(parambuf + 24,  siz4, 4); /* ND  tail */
-    memcpy(parambuf + 28,  siz4, 4); /* NE  head */
-    memcpy(parambuf + 36,  siz4, 4); /* NE  tail */
+    memcpy(parambuf,      siz8, 4); /* REF head */
+    memcpy(parambuf + 12, siz8, 4); /* REF tail */
+    memcpy(parambuf + 16, siz4, 4); /* ND  head */
+    memcpy(parambuf + 24, siz4, 4); /* ND  tail */
+    memcpy(parambuf + 28, siz4, 4); /* NE  head */
+    memcpy(parambuf + 36, siz4, 4); /* NE  tail */
     if (IS_LITTLE_ENDIAN) {
         memcpy(parambuf +  4, reverse_dwords(&ref, 1), 8);
         memcpy(parambuf + 20, reverse_words(&nd,   1), 4);
@@ -149,15 +148,9 @@ write_urc_zslice(const float *data, int len, double miss,
         return -1;
     }
 
-    /* header of data body */
-    siz = 2 * len;
-    if (IS_LITTLE_ENDIAN) {
-        reverse_words(&siz, 1);
-    }
-    if (fwrite(&siz, 1, 4, fp) != 4) {
-        gt3_error(SYSERR, NULL);
+    /* HEADER */
+    if (write_record_sep(2 * len, fp) < 0)
         return -1;
-    }
 
     /*
      * data body
@@ -171,9 +164,8 @@ write_urc_zslice(const float *data, int len, double miss,
          */
         packing(packed, data, len_pack, miss, rmin, fac_e, fac_d);
 
-        if (IS_LITTLE_ENDIAN) {
+        if (IS_LITTLE_ENDIAN)
             reverse_words(packed, (len_pack + 1) / 2);
-        }
 
         /* write packed data */
         if (fwrite(packed, 2, len_pack, fp) != len_pack) {
@@ -185,18 +177,16 @@ write_urc_zslice(const float *data, int len, double miss,
         len -= len_pack;
     }
 
-    /* trailer */
-    if (fwrite(&siz, 1, 4, fp) != 4) {
-        gt3_error(SYSERR, NULL);
+    /* TRAILER */
+    if (write_record_sep(2 * len, fp) < 0)
         return -1;
-    }
 
     return 0;
 }
 
 
 static int
-write_urc_via_float(const float *data, int len, int nz, double miss,
+write_urc_via_float(const float *data, size_t len, int nz, double miss,
                     PACKING_FUNC packing, FILE *fp)
 {
     int i;
@@ -210,10 +200,11 @@ write_urc_via_float(const float *data, int len, int nz, double miss,
 
 
 static int
-write_urc_via_double(const double *input, int len, int nz, double miss,
+write_urc_via_double(const double *input, size_t len, int nz, double miss,
                      PACKING_FUNC packing, FILE *fp)
 {
-    int i, n;
+    int i;
+    size_t n;
     float *data;
 
     if ((data = malloc(sizeof(float) * len)) == NULL) {

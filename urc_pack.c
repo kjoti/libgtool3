@@ -51,15 +51,15 @@ scalefac(double rmin, double rmax,
  * calculate three parameters for URC-packing.
  */
 void
-calc_urc_param(const float *data, int len, double miss,
+calc_urc_param(const float *data, size_t len, double miss,
                double *prmin, double *pfac_e, double *pfac_d,
                int *pne, int *pnd)
 {
     double rmin = HUGE_VAL, rmax = -HUGE_VAL;
     double fac_e = HUGE_VAL, fac_d = 1.0;
-    int    ne = IMISS, nd = 0;
-    float  vmiss = (float)miss;
-    int i;
+    int ne = IMISS, nd = 0;
+    float vmiss = (float)miss;
+    size_t i;
 
     for (i = 0; i < len; i++) {
         if (data[i] == vmiss)

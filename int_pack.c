@@ -66,10 +66,9 @@ unpack_bits_from32(unsigned *data,
                    size_t len,
                    const uint32_t *packed, unsigned nbit)
 {
-    unsigned i, i2, i3;
-    unsigned ipos, off;
-    unsigned value;
-    unsigned mask;
+    size_t i, i2, ipos;
+    unsigned i3, off;
+    unsigned value, mask;
 
     assert(nbit > 0 && nbit < 32);
     mask = (1U << nbit) - 1U;

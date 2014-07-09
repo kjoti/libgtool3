@@ -306,7 +306,7 @@ update_varbuf(GT3_Varbuf *vbuf, GT3_File *fp)
     dim[1] = fp->dimlen[1];
     dim[2] = fp->dimlen[2];
 
-    newsize = elsize * ((dim[0] * dim[1] + 1) & ~1U);
+    newsize = elsize * (((size_t)dim[0] * dim[1] + 1) & ~1U);
     if (newsize > vbuf->bufsize) {
         /*
          * reallocation of data buffer.
