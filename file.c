@@ -55,7 +55,7 @@ chunk_size_std(size_t nelem, size_t size)
  * chunk size of URC or URC2.
  */
 static size_t
-chunk_size_urc(size_t nelem, int nz)
+chunk_size_urc(size_t nelem, size_t nz)
 {
     return GT3_HEADER_SIZE + 2 * sizeof(fort_size_t)
         + (8 + 4 + 4 + 2 * nelem + 8 * sizeof(fort_size_t)) * nz;
@@ -63,10 +63,10 @@ chunk_size_urc(size_t nelem, int nz)
 
 
 /*
- * chunk size of URX.
+ * chunk size of URY.
  */
 static size_t
-chunk_size_urx(size_t nelem, int nz, int nbit)
+chunk_size_urx(size_t nelem, size_t nz, unsigned nbit)
 {
     return 6 * sizeof(fort_size_t)  /* 3 records */
         + GT3_HEADER_SIZE       /* header */
@@ -84,42 +84,43 @@ chunk_size_urx(size_t nelem, int nz, int nbit)
 static size_t
 chunk_size_mask(size_t nelem, size_t size, GT3_File *fp)
 {
-    uint32_t num[] = {0, 0};
+    uint32_t num[] = {0, 0};    /* XXX: uint32_t, not size_t */
 
     fread(&num, 4, 2, fp->fp);
     if (IS_LITTLE_ENDIAN)
         reverse_words(&num, 2);
 
-    return GT3_HEADER_SIZE + 2 * sizeof(fort_size_t)
-        +  4 + 2 * sizeof(fort_size_t)
-        +  4 * ((nelem + 31) / 32) + 2 * sizeof(fort_size_t)
-        +  size * num[1] + 2 * sizeof(fort_size_t);
+    return 8 * sizeof(fort_size_t) /* 4 records */
+        + GT3_HEADER_SIZE       /* header */
+        + 4                     /* NNN */
+        + 4 * pack32_len(nelem, 1) /* mask */
+        + size * num[1];        /* body */
 }
 
 
 /*
- * chunk size of MRX.
+ * chunk size of MRY.
  *
  * FIXME: It is assumed that the current file position is next to
  * GTOOL3 header record.
  */
 static size_t
-chunk_size_maskx(size_t nelem, int nz, int nbit, GT3_File *fp)
+chunk_size_maskx(size_t nelem, size_t nz, GT3_File *fp)
 {
-    uint32_t num[] = {0, 0};
+    uint32_t num[] = {0, 0};    /* XXX: uint32_t, not size_t */
 
     fread(&num, 4, 2, fp->fp);
     if (IS_LITTLE_ENDIAN)
         reverse_words(&num, 2);
 
     return 14 * sizeof(fort_size_t)  /* 7 records */
-        + GT3_HEADER_SIZE
-        + 4
-        + 4 * nz
-        + 4 * nz
-        + 2 * 8 * nz
-        + 4 * pack32_len(nelem, 1) * nz
-        + 4 * num[1];
+        + GT3_HEADER_SIZE       /* header */
+        + 4                     /* # of valid grids  */
+        + 4 * nz                /* NNN */
+        + 4 * nz                /* IZLEN */
+        + 2 * 8 * nz            /* DMA */
+        + 4 * pack32_len(nelem, 1) * nz /* mask */
+        + 4 * num[1];           /* body */
 }
 
 
@@ -131,47 +132,42 @@ static size_t
 chunk_size(GT3_File *fp)
 {
     int fmt;
-    size_t siz = 0, nelem;
+    size_t nxy, nz, siz = 0;
 
+    nxy = fp->dimlen[0] * fp->dimlen[1];
+    nz = fp->dimlen[2];
     fmt = (int)(fp->fmt & GT3_FMT_MASK);
+
     switch (fmt) {
     case GT3_FMT_UR4:
-        nelem = fp->dimlen[0] * fp->dimlen[1] * fp->dimlen[2];
-        siz = chunk_size_std(nelem, 4);
+        siz = chunk_size_std(nxy * nz, 4);
         break;
 
     case GT3_FMT_URC:
     case GT3_FMT_URC1:
-        nelem = fp->dimlen[0] * fp->dimlen[1];
-        siz = chunk_size_urc(nelem, fp->dimlen[2]);
+        siz = chunk_size_urc(nxy, nz);
         break;
 
     case GT3_FMT_UR8:
-        nelem = fp->dimlen[0] * fp->dimlen[1] * fp->dimlen[2];
-        siz = chunk_size_std(nelem, 8);
+        siz = chunk_size_std(nxy * nz, 8);
         break;
 
     case GT3_FMT_URX:
     case GT3_FMT_URY:
-        nelem = fp->dimlen[0] * fp->dimlen[1];
-        siz = chunk_size_urx(nelem, fp->dimlen[2], fp->fmt >> GT3_FMT_MBIT);
+        siz = chunk_size_urx(nxy, nz, fp->fmt >> GT3_FMT_MBIT);
         break;
 
     case GT3_FMT_MR4:
-        nelem = fp->dimlen[0] * fp->dimlen[1] * fp->dimlen[2];
-        siz = chunk_size_mask(nelem, 4, fp);
+        siz = chunk_size_mask(nxy * nz, 4, fp);
         break;
 
     case GT3_FMT_MR8:
-        nelem = fp->dimlen[0] * fp->dimlen[1] * fp->dimlen[2];
-        siz = chunk_size_mask(nelem, 8, fp);
+        siz = chunk_size_mask(nxy * nz, 8, fp);
         break;
 
     case GT3_FMT_MRX:
     case GT3_FMT_MRY:
-        nelem = fp->dimlen[0] * fp->dimlen[1];
-        siz = chunk_size_maskx(nelem, fp->dimlen[2],
-                               fp->fmt >> GT3_FMT_MBIT, fp);
+        siz = chunk_size_maskx(nxy, nz, fp);
         break;
 
     default:

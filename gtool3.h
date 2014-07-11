@@ -45,10 +45,10 @@ enum {
     GT3_FMT_URC,                /* URC version 2 (deprecated) */
     GT3_FMT_URC1,               /* URC version 1 (deprecated) */
     GT3_FMT_UR8,
-    GT3_FMT_URX,
+    GT3_FMT_URX,                /* deprecated */
     GT3_FMT_MR4,
     GT3_FMT_MR8,
-    GT3_FMT_MRX,
+    GT3_FMT_MRX,                /* deprecated */
     GT3_FMT_URY,
     GT3_FMT_MRY,
     GT3_FMT_NULL
