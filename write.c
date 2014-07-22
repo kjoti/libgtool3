@@ -340,8 +340,8 @@ GT3_write(const void *ptr, int type,
     /*
      * write data-body.
      */
-    asize = nx * ny * nz;
     zsize = nx * ny;
+    asize = zsize * nz;
     GT3_decodeHeaderDouble(&miss, &head, "MISS");
     nbits = (unsigned)fmt >> GT3_FMT_MBIT;
 
