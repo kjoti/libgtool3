@@ -115,6 +115,7 @@ write_urc_zslice(const float *data, size_t len, double miss,
 {
     char siz4[] = { 0, 0, 0, 4 };
     char siz8[] = { 0, 0, 0, 8 };
+    uint64_t siz;
     uint32_t packed[8192];
     unsigned char parambuf[8 + 4 + 4 + 3 * 2 * 4];
     double rmin, ref, fac_e, fac_d;
@@ -149,7 +150,8 @@ write_urc_zslice(const float *data, size_t len, double miss,
     }
 
     /* HEADER */
-    if (write_record_sep(2 * len, fp) < 0)
+    siz = 2 * len;
+    if (write_record_sep(siz, fp) < 0)
         return -1;
 
     /*
@@ -178,7 +180,7 @@ write_urc_zslice(const float *data, size_t len, double miss,
     }
 
     /* TRAILER */
-    if (write_record_sep(2 * len, fp) < 0)
+    if (write_record_sep(siz, fp) < 0)
         return -1;
 
     return 0;
