@@ -275,21 +275,23 @@ GT3_write(const void *ptr, int type,
     int fmt, rval = -1;
     double miss = -999.0;       /* -999.0: default value */
     size_t asize, zsize;
-    int nbits;
+    unsigned nbits;
 
-    /* parameter check */
+    /*
+     * check passed arguments.
+     */
     if (ptr == NULL) {
-        gt3_error(GT3_ERR_CALL, "GT3_write(): null pointer passed");
+        gt3_error(GT3_ERR_CALL, "GT3_write(): Null pointer passed");
         return -1;
     }
     if (nx < 1 || ny < 1 || nz < 1) {
-        gt3_error(GT3_ERR_CALL, "GT3_write(): %d %d %d", nx, ny, nz);
+        gt3_error(GT3_ERR_CALL,
+                  "GT3_write(): Invalid data shape (%d, %d, %d)",
+                  nx, ny, nz);
         return -1;
     }
-
-    if (type != GT3_TYPE_DOUBLE
-        && type != GT3_TYPE_FLOAT) {
-        gt3_error(GT3_ERR_CALL, "GT3_write(): unknown datatype");
+    if (type != GT3_TYPE_DOUBLE && type != GT3_TYPE_FLOAT) {
+        gt3_error(GT3_ERR_CALL, "GT3_write(): Unknown datatype");
         return -1;
     }
 
@@ -418,6 +420,103 @@ GT3_write(const void *ptr, int type,
 
     fflush(fp);
     return rval;
+}
+
+
+/*
+ * Write data with specified bit-packing parameters (offset and scale).
+ *
+ * Output format will be URY?? or MRY??.
+ */
+int
+GT3_write_bitpack(const void *ptr, int type,
+                  int nx, int ny, int nz,
+                  const GT3_HEADER *headin,
+                  double offset, double scale,
+                  unsigned nbits, unsigned is_mask,
+                  FILE *fp)
+{
+    GT3_HEADER head;
+    double miss = -999.0;
+    char dfmt[17];
+    int i, str, end, dim[3];
+    const char *astr[] = { "ASTR1", "ASTR2", "ASTR3" };
+    const char *aend[] = { "AEND1", "AEND2", "AEND3" };
+    /* a pointer to write_{ury,mry}_man_via_{float,double} */
+    typedef int (*WWS_FUNC)(const void *ptr,
+                            size_t zelem, size_t nz,
+                            unsigned nbits, double miss,
+                            double offset, double scale,
+                            FILE *fp);
+    WWS_FUNC functab[] = {
+        write_ury_man_via_float,
+        write_mry_man_via_float,
+        write_ury_man_via_double,
+        write_mry_man_via_double
+    };
+    unsigned func;
+    WWS_FUNC write_func;
+
+    /*
+     * check passed arguments.
+     */
+    if (ptr == NULL) {
+        gt3_error(GT3_ERR_CALL, "GT3_write_bitpack(): Null pointer passed");
+        return -1;
+    }
+    if (nx < 1 || ny < 1 || nz < 1) {
+        gt3_error(GT3_ERR_CALL,
+                  "GT3_write_bitpack(): Invalid data shape (%d, %d, %d)",
+                  nx, ny, nz);
+        return -1;
+    }
+    if (type != GT3_TYPE_DOUBLE && type != GT3_TYPE_FLOAT) {
+        gt3_error(GT3_ERR_CALL, "GT3_write_bitpack(): Unknown datatype");
+        return -1;
+    }
+    if (nbits > 31) {
+        gt3_error(GT3_ERR_CALL,
+                  "GT3_write_bitpack(): nbits should be less than 32");
+        return -1;
+    }
+
+    /*
+     * update meta data.
+     */
+    GT3_copyHeader(&head, headin);
+    snprintf(dfmt, sizeof dfmt, "%cRY%02u", is_mask ? 'M' : 'U', nbits);
+    GT3_setHeaderString(&head, "DFMT", dfmt);
+    GT3_setHeaderInt(&head, "SIZE", nx * ny * nz);
+
+    /* set "AEND1", "AEND2", and "AEND3". */
+    dim[0] = nx;
+    dim[1] = ny;
+    dim[2] = nz;
+    for (i = 0; i < 3; i++) {
+        if (GT3_decodeHeaderInt(&str, &head, astr[i]) < 0) {
+            str = 1;
+            GT3_setHeaderInt(&head, astr[i], str);
+        }
+        end = str - 1 + dim[i];
+        GT3_setHeaderInt(&head, aend[i], end);
+    }
+
+    /*
+     * write gtool header.
+     */
+    if (write_bytes_into_record(&head.h, GT3_HEADER_SIZE, fp) < 0)
+        return -1;
+
+    /*
+     * select a function to be invoked.
+     */
+    func = (is_mask ? 1 : 0) | (type == GT3_TYPE_DOUBLE) << 1;
+    assert(func < 4);
+    write_func = functab[func];
+
+    GT3_decodeHeaderDouble(&miss, &head, "MISS");
+    return write_func(ptr, nx * ny, nz, nbits, miss,
+                      offset, scale, fp);
 }
 
 

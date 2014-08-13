@@ -7,6 +7,8 @@
 #include <sys/stat.h>
 #include <assert.h>
 #include <ctype.h>
+#include <limits.h>
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -203,6 +205,48 @@ allocate_buffer(struct buffer *buf, size_t newsize)
 
 
 /*
+ * Return the offset value and the number of bits required.
+ */
+static int
+find_params_for_int(double *param1, unsigned *param2,
+                    const double *val, size_t nelems, double miss)
+{
+    double vmin = HUGE_VAL, vmax = -HUGE_VAL, vcount;
+    uint32_t vwidth;
+    unsigned nbits;
+    size_t i;
+
+    for (i = 0; i < nelems; i++)
+        if (val[i] != miss) {
+            vmin = (val[i] < vmin) ? val[i] : vmin;
+            vmax = (val[i] > vmax) ? val[i] : vmax;
+        }
+
+    if (vmin > vmax) {          /* no value. */
+        *param1 = 0.;
+        *param2 = 1;
+        return 0;
+    }
+
+    vmin = round(vmin);
+    vmax = round(vmax);
+    vcount = vmax - vmin + 2.;  /* including the missing value. */
+
+    if (vcount > (double)0x80000000U) /* overflow */
+        return -1;
+
+    vwidth = (uint32_t)vcount;
+    for (nbits = 1; nbits < 31; nbits++)
+        if ((1U << nbits) >= vwidth)
+            break;
+
+    *param1 = vmin;
+    *param2 = nbits;
+    return 0;
+}
+
+
+/*
  * XXX: fmt has enough size.
  *
  * UR4 => MR4, UR8 => MR8, URC => MRY16, URX?? => MRY??, URY?? => MRY??
@@ -241,6 +285,8 @@ conv_chunk(FILE *output, const char *dfmt, GT3_Varbuf *var, GT3_File *fp)
     char key[17];
     char suffix[] = { '1', '2', '3' };
     char fmtsp[17];
+    unsigned int_flag, mask_flag;
+    int rval;
 
     if (GT3_readHeader(&head, fp) < 0) {
         GT3_printErrorMessages(stderr);
@@ -271,7 +317,7 @@ conv_chunk(FILE *output, const char *dfmt, GT3_Varbuf *var, GT3_File *fp)
         return 0;
     }
 
-    if (allocate_buffer(&g_buffer, nx * ny * nz) < 0) {
+    if (allocate_buffer(&g_buffer, (size_t)nx * ny * nz) < 0) {
         logging(LOG_SYSERR, NULL);
         return -1;
     }
@@ -309,7 +355,7 @@ conv_chunk(FILE *output, const char *dfmt, GT3_Varbuf *var, GT3_File *fp)
      * output in raw binary format {4-byte,8-byte} {big,little}.
      */
     if (raw_output) {
-        nelems = nx * ny * nz;
+        nelems = (size_t)nx * ny * nz;
 
         if (raw_output(g_buffer.ptr, nelems, output) != nelems) {
             logging(LOG_SYSERR, NULL);
@@ -339,16 +385,45 @@ conv_chunk(FILE *output, const char *dfmt, GT3_Varbuf *var, GT3_File *fp)
         masked_format(fmtsp, orig);
     }
 
-    if (GT3_write(g_buffer.ptr, GT3_TYPE_DOUBLE,
-                  nx, ny, nz,
-                  &head,
-                  fmtsp[0] != '\0' ? fmtsp : dfmt,
-                  output) < 0) {
+    /*
+     * format 'INT' support.
+     */
+    rval = 0;
+    int_flag = strcmp(dfmt, "INT") == 0;
+    mask_flag = strcmp(dfmt, "MASK_INT") == 0;
+    if (int_flag || mask_flag) {
+        double scale = 1., miss = -999.;
+        double offset;
+        unsigned nbits;
 
-        GT3_printErrorMessages(stderr);
-        return -1;
+        nelems = (size_t)nx * ny * nz;
+        GT3_decodeHeaderDouble(&miss, &head, "MISS");
+
+        if (find_params_for_int(&offset, &nbits,
+                                g_buffer.ptr, nelems, miss) < 0) {
+
+            logging(LOG_ERR, "INT/MASK_INT is not available (overflow).");
+            return -1;
+        }
+
+        rval = GT3_write_bitpack(g_buffer.ptr, GT3_TYPE_DOUBLE,
+                                 nx, ny, nz,
+                                 &head,
+                                 offset, scale,
+                                 nbits, mask_flag,
+                                 output);
+    } else {
+        rval = GT3_write(g_buffer.ptr, GT3_TYPE_DOUBLE,
+                         nx, ny, nz,
+                         &head,
+                         fmtsp[0] != '\0' ? fmtsp : dfmt,
+                         output);
     }
-    return 0;
+
+    if (rval < 0)
+        GT3_printErrorMessages(stderr);
+
+    return rval;
 }
 
 
@@ -409,6 +484,9 @@ usage(void)
         "       ur4, ur8, urc mr4, mr8\n"
         "       ury{01,02,...,31}, mry{01,02,...,31}\n"
         "\n"
+        "    Special name:\n"
+        "       asis, mask, int, mask_int\n"
+        "\n"
         "    Raw binary formats:\n"
         "       raw_float  (native-endian)\n"
         "       raw_double (native-endian)\n"
@@ -444,6 +522,8 @@ main(int argc, char **argv)
             toupper_string(optarg);
             if (strcmp(optarg, "ASIS") != 0
                 && strcmp(optarg, "MASK") != 0
+                && strcmp(optarg, "INT") != 0
+                && strcmp(optarg, "MASK_INT") != 0
                 && GT3_output_format(dummy, optarg) < 0
                 && find_raw_format(optarg) < 0) {
                 logging(LOG_ERR, "-f: %s: Unknown format", optarg);

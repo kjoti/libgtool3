@@ -6,6 +6,7 @@
 #include "internal.h"
 
 #include <assert.h>
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -33,50 +34,56 @@ maxval_uint32(const uint32_t *vals, size_t num)
 
 static void
 get_urx_parameterf(double *dma,
-                   const float *data, size_t nelem,
-                   double miss, int nbits)
+                   const float *data, size_t nelems,
+                   double miss, unsigned nbits)
 {
-    int in, ix;
+    float vmin = HUGE_VALF, vmax = -HUGE_VALF;
     float missf = (float)miss;
     int num = (1U << nbits) - 2;
+    size_t i;
 
-    in = find_min_float(data, nelem, &missf);
-    if (in < 0) {
+    for (i = 0; i < nelems; i++) {
+        if (data[i] != missf) {
+            vmin = data[i] < vmin ? data[i] : vmin;
+            vmax = data[i] > vmax ? data[i] : vmax;
+        }
+    }
+    if (vmin > vmax) {          /* no value */
         dma[0] = 0.;
         dma[1] = 0.;
-        return;
+    } else {
+        if (num < 1)
+            num = 1;
+        scaling_parameters(dma, vmin, vmax, num);
+        dma[1] *= num;
     }
-    ix = find_max_float(data, nelem, &missf);
-    assert(ix >= 0);
-
-    if (num < 1)
-        num = 1;
-    scaling_parameters(dma, data[in], data[ix], num);
-    dma[1] *= num;
 }
 
 
 static void
 get_urx_parameter(double *dma,
-                  const double *data, size_t nelem,
-                  double miss, int nbits)
+                  const double *data, size_t nelems,
+                  double miss, unsigned nbits)
 {
-    int in, ix;
+    double vmin = HUGE_VAL, vmax = -HUGE_VAL;
     int num = (1U << nbits) - 2;
+    size_t i;
 
-    in = find_min_double(data, nelem, &miss);
-    if (in < 0) {
+    for (i = 0; i < nelems; i++) {
+        if (data[i] != miss) {
+            vmin = data[i] < vmin ? data[i] : vmin;
+            vmax = data[i] > vmax ? data[i] : vmax;
+        }
+    }
+    if (vmin > vmax) {          /* no value */
         dma[0] = 0.;
         dma[1] = 0.;
-        return;
+    } else {
+        if (num < 1)
+            num = 1;
+        scaling_parameters(dma, vmin, vmax, num);
+        dma[1] *= num;
     }
-    ix = find_max_double(data, nelem, &miss);
-    assert(ix >= 0);
-
-    if (num < 1)
-        num = 1;
-    scaling_parameters(dma, data[in], data[ix], num);
-    dma[1] *= num;
 }
 
 
@@ -85,26 +92,28 @@ write_urx(const void *ptr,
           size_t size,          /* 4(float) or 8(double) */
           size_t zelem,         /* # of elements in a z-plane */
           size_t nz,            /* # of z-planes */
-          int nbits, double miss,
+          unsigned nbits, double miss,
           FILE *fp)
 {
     double dma_buf[256];
     double *dma = dma_buf;
     double scale0;
     unsigned imiss;
-    size_t nelems, len, plen, packed_len;
-    int i;
+    size_t i, nelems, len, plen, packed_len;
     const char *ptr2;
 #define URXBUFSIZ (32 * 1024)
     unsigned idata[URXBUFSIZ];
     uint32_t packed[URXBUFSIZ];
+    int rval = -1;
 
     assert(URXBUFSIZ % 32 == 0);
 
     if ((dma = tiny_alloc(dma_buf,
                           sizeof dma_buf,
-                          2 * nz * sizeof(double))) == NULL)
-        goto error;
+                          2 * nz * sizeof(double))) == NULL) {
+        gt3_error(SYSERR, NULL);
+        goto finish;
+    }
 
     /*
      * determine scaling parameters (auto-scaling)
@@ -129,7 +138,7 @@ write_urx(const void *ptr,
      * write scaling parameters
      */
     if (write_dwords_into_record(dma, 2 * nz, fp) < 0)
-        goto error;
+        goto finish;
 
     imiss = (1U << nbits) - 1;
     scale0 = (imiss == 1) ? 1. : 1. / (imiss - 1);
@@ -137,7 +146,7 @@ write_urx(const void *ptr,
 
     /* write a header of data-body. */
     if (write_record_sep((uint64_t)4 * packed_len * nz, fp) < 0)
-        goto error;
+        goto finish;
 
     /*
      * write data-body (packed)
@@ -167,8 +176,10 @@ write_urx(const void *ptr,
             if (IS_LITTLE_ENDIAN)
                 reverse_words(packed, plen);
 
-            if (fwrite(packed, 4, plen, fp) != plen)
-                goto error;
+            if (fwrite(packed, 4, plen, fp) != plen) {
+                gt3_error(SYSERR, NULL);
+                goto finish;
+            }
 
             ptr2 += len * size;
             nelems -= len;
@@ -177,22 +188,20 @@ write_urx(const void *ptr,
 
     /* write a trailer of data-body */
     if (write_record_sep((uint64_t)4 * packed_len * nz, fp) < 0)
-        goto error;
+        goto finish;
 
-    tiny_free(dma, dma_buf);
-    return 0;
+    rval = 0;
 
-error:
-    gt3_error(SYSERR, NULL);
+finish:
     tiny_free(dma, dma_buf);
-    return -1;
+    return rval;
 }
 
 
 int
 write_urx_via_double(const void *ptr,
                      size_t zelem, size_t nz,
-                     int nbits, double miss, FILE *fp)
+                     unsigned nbits, double miss, FILE *fp)
 {
     return write_urx(ptr, sizeof(double), zelem, nz, nbits, miss, fp);
 }
@@ -200,7 +209,7 @@ write_urx_via_double(const void *ptr,
 int
 write_urx_via_float(const void *ptr,
                     size_t zelem, size_t nz,
-                    int nbits, double miss, FILE *fp)
+                    unsigned nbits, double miss, FILE *fp)
 {
     return write_urx(ptr, sizeof(float), zelem, nz, nbits, miss, fp);
 }
@@ -210,7 +219,7 @@ static int
 write_mrx(const void *ptr2,
           size_t size,          /* 4 or 8 */
           size_t zelems, size_t nz,
-          int nbits, double miss,
+          unsigned nbits, double miss,
           FILE *fp)
 {
     const char *ptr = ptr2;
@@ -221,11 +230,12 @@ write_mrx(const void *ptr2,
     uint32_t *cnt = cnt_buf;
     uint32_t *plen = plen_buf;
     double *dma = dma_buf;
-    uint64_t plen_all;
+    uint64_t plen_all = 0;
     uint32_t plen_a;
     unsigned imiss;
     double scale0;
     unsigned i;
+    int rval = -1;
 
     if ((cnt = tiny_alloc(cnt_buf,
                           sizeof cnt_buf,
@@ -235,17 +245,20 @@ write_mrx(const void *ptr2,
                               sizeof(uint32_t) * nz)) == NULL
         || (dma = tiny_alloc(dma_buf,
                              sizeof dma_buf,
-                             sizeof(double) * 2 * nz)) == NULL)
-        goto error;
+                             sizeof(double) * 2 * nz)) == NULL) {
+        gt3_error(SYSERR, NULL);
+        goto finish;
+    }
 
     for (ptr = ptr2, i = 0; i < nz; i++, ptr += zelems * size) {
         cnt0 = masked_count(ptr, size, zelems, miss);
         if (cnt0 > 0xffffffffU) {
             gt3_error(GT3_ERR_TOOLONG, "in writing MRX");
-            goto error;
+            goto finish;
         }
         cnt[i] = (uint32_t)cnt0;
         plen[i] = (uint32_t)pack32_len(cnt[i], nbits);
+        plen_all += plen[i];
 
         if (size == 4)
             get_urx_parameterf(dma + 2 * i, (float *)ptr,
@@ -255,12 +268,9 @@ write_mrx(const void *ptr2,
                               zelems, miss, nbits);
     }
 
-    for (plen_all = 0, i = 0; i < nz; i++)
-        plen_all += plen[i];
-
     if (plen_all > 0xffffffffU) {
         gt3_error(GT3_ERR_TOOLONG, "in writing MRY");
-        goto error;
+        goto finish;
     }
     plen_a = (uint32_t)plen_all;
 
@@ -269,16 +279,16 @@ write_mrx(const void *ptr2,
         || write_words_into_record(plen, nz, fp) < 0
         || write_dwords_into_record(dma, 2 * nz, fp) < 0
         || write_mask(ptr2, size, zelems, nz, miss, fp) < 0)
-        goto error;
+        goto finish;
 
     imiss = (1U << nbits) - 1;
     scale0 = (imiss == 1) ? 1. : 1. / (imiss - 1);
 
-    /*
-     * write packed array.
-     */
+    /* HEADER */
     if (write_record_sep(4 * plen_all, fp) < 0)
-        goto error;
+        goto finish;
+
+    /* BODY */
     {
         size_t ncopied, len;
         unsigned idata_buf[32 * 1024];
@@ -297,7 +307,7 @@ write_mrx(const void *ptr2,
 
             tiny_free(idata, idata_buf);
             tiny_free(packed, packed_buf);
-            goto error;
+            goto finish;
         }
 
         for (i = 0; i < nz; i++) {
@@ -321,34 +331,34 @@ write_mrx(const void *ptr2,
             if (IS_LITTLE_ENDIAN)
                 reverse_words(packed, len);
 
-            if (fwrite(packed, 4, len, fp) != len)
-                goto error;
+            if (fwrite(packed, 4, len, fp) != len) {
+                gt3_error(SYSERR, NULL);
+                goto finish;
+            }
         }
 
         tiny_free(idata, idata_buf);
         tiny_free(packed, packed_buf);
     }
+
+    /* TRAILER */
     if (write_record_sep(4 * plen_all, fp) < 0)
-        goto error;
+        goto finish;
 
+    rval = 0;
+
+finish:
     tiny_free(dma, dma_buf);
     tiny_free(plen, plen_buf);
     tiny_free(cnt, cnt_buf);
-    return 0;
-
-error:
-    gt3_error(SYSERR, NULL);
-    tiny_free(dma, dma_buf);
-    tiny_free(plen, plen_buf);
-    tiny_free(cnt, cnt_buf);
-    return -1;
+    return rval;
 }
 
 
 int
 write_mrx_via_double(const void *ptr,
                      size_t zelems, size_t nz,
-                     int nbits, double miss,
+                     unsigned nbits, double miss,
                      FILE *fp)
 {
     return write_mrx(ptr, sizeof(double), zelems, nz, nbits, miss, fp);
@@ -358,7 +368,7 @@ write_mrx_via_double(const void *ptr,
 int
 write_mrx_via_float(const void *ptr,
                     size_t zelems, size_t nz,
-                    int nbits, double miss,
+                    unsigned nbits, double miss,
                     FILE *fp)
 {
     return write_mrx(ptr, sizeof(float), zelems, nz, nbits, miss, fp);

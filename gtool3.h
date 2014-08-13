@@ -303,7 +303,14 @@ int GT3_getHeaderItemID(const char *name);
 int GT3_output_format(char *dfmt, const char *str);
 int GT3_write(const void *ptr, int type,
               int nx, int ny, int nz,
-              const GT3_HEADER *headin, const char *dfmt, FILE *fp);
+              const GT3_HEADER *headin,
+              const char *dfmt, FILE *fp);
+int GT3_write_bitpack(const void *ptr, int type,
+                      int nx, int ny, int nz,
+                      const GT3_HEADER *headin,
+                      double offset, double scale,
+                      unsigned nbits, unsigned is_mask,
+                      FILE *fp);
 
 /* error.c */
 void GT3_clearLastError(void);

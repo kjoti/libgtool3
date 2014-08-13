@@ -8,18 +8,18 @@
 /* write-urx.c */
 int write_urx_via_double(const void *ptr,
                          size_t zelem, size_t nz,
-                         int nbits, double miss, FILE *fp);
+                         unsigned nbits, double miss, FILE *fp);
 int write_urx_via_float(const void *ptr,
                         size_t zelem, size_t nz,
-                        int nbits, double miss, FILE *fp);
+                        unsigned nbits, double miss, FILE *fp);
 
 int write_mrx_via_double(const void *ptr,
                          size_t zelems, size_t nz,
-                         int nbits, double miss,
+                         unsigned nbits, double miss,
                          FILE *fp);
 int write_mrx_via_float(const void *ptr,
                         size_t zelems, size_t nz,
-                        int nbits, double miss,
+                        unsigned nbits, double miss,
                         FILE *fp);
 
 /* write-mask.c */
@@ -45,18 +45,39 @@ int write_mr8_via_float(const float *data, size_t nelems,
 /* write-ury.c */
 int write_ury_via_double(const void *ptr,
                          size_t zelem, size_t nz,
-                         int nbits, double miss, FILE *fp);
+                         unsigned nbits, double miss, FILE *fp);
 int write_ury_via_float(const void *ptr,
                         size_t zelem, size_t nz,
-                        int nbits, double miss, FILE *fp);
+                        unsigned nbits, double miss, FILE *fp);
 
 int write_mry_via_double(const void *ptr,
                          size_t zelems, size_t nz,
-                         int nbits, double miss,
+                         unsigned nbits, double miss,
                          FILE *fp);
 int write_mry_via_float(const void *ptr,
                         size_t zelems, size_t nz,
-                        int nbits, double miss,
+                        unsigned nbits, double miss,
                         FILE *fp);
+
+int write_ury_man_via_double(const void *ptr,
+                             size_t zelem, size_t nz,
+                             unsigned nbits, double miss,
+                             double offset, double scale,
+                             FILE *fp);
+int write_ury_man_via_float(const void *ptr,
+                            size_t zelem, size_t nz,
+                            unsigned nbits, double miss,
+                            double offset, double scale,
+                            FILE *fp);
+int write_mry_man_via_double(const void *ptr,
+                             size_t zelems, size_t nz,
+                             unsigned nbits, double miss,
+                             double offset, double scale,
+                             FILE *fp);
+int write_mry_man_via_float(const void *ptr,
+                            size_t zelems, size_t nz,
+                            unsigned nbits, double miss,
+                            double offset, double scale,
+                            FILE *fp);
 
 #endif

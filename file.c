@@ -799,6 +799,7 @@ main(int argc, char **argv)
 
     printf("sizeof sb.st_size: %d\n", sizeof sb.st_size);
     printf("sizeof(off_t): %d\n", sizeof(off_t));
+    printf("sizeof(size_t): %d\n", sizeof(size_t));
     if (sizeof sb.st_size != 8 || sizeof(off_t) != 8)
         printf("Waring: cannot support a LARGEFILE?");
     return 0;
