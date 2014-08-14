@@ -51,6 +51,38 @@ static struct buffer g_buffer;
 typedef size_t (*output_func)(double *, size_t, FILE *);
 static output_func raw_output = NULL;
 
+/*
+ * special format names.
+ */
+enum {
+    SP_NONE,                    /* dummy */
+    SP_ASIS,
+    SP_MASK,
+    SP_UNMASK,
+    SP_INT,
+    SP_MASKINT
+};
+static struct { const char *key; int value; } sptab[] = {
+    { "ASIS", SP_ASIS },
+    { "MASK", SP_MASK },
+    { "UNMASK", SP_UNMASK },
+    { "INT", SP_INT },
+    { "MASKINT", SP_MASKINT }
+};
+
+
+static int
+lookup_special(const char *key)
+{
+    int i;
+
+    for (i = 0; i < sizeof sptab / sizeof sptab[0]; i++)
+        if (strcmp(key, sptab[i].key) == 0)
+            return sptab[i].value;
+
+    return SP_NONE;
+}
+
 
 /*
  * raw output funcs.
@@ -247,11 +279,13 @@ find_params_for_int(double *param1, unsigned *param2,
 
 
 /*
- * XXX: fmt has enough size.
+ * Assumptions:
+ *   1) fmt has enough size
+ *   2) 'orig' is corrent format name
  *
  * UR4 => MR4, UR8 => MR8, URC => MRY16, URX?? => MRY??, URY?? => MRY??
  */
-static void
+static char *
 masked_format(char *fmt, const char *orig)
 {
     if (   strcmp(orig, "URC") == 0
@@ -261,15 +295,34 @@ masked_format(char *fmt, const char *orig)
     } else {
         strcpy(fmt, orig);
 
-        fmt[0] = 'M';
-        if (fmt[2] == 'X')
+        if (orig[0] == 'U' && orig[1] == 'R') {
+            fmt[0] = 'M';
+            if (fmt[2] == 'X')
+                fmt[2] = 'Y';
+        }
+    }
+    return fmt;
+}
+
+
+/*
+ * Assumptions:
+ *   1) fmt has enough size
+ *   2) 'orig' is corrent format name
+ *
+ * MR4 => UR4, MR8 => UR8, MR[XY]?? => URY??.
+ */
+static char *
+unmasked_format(char *fmt, const char *orig)
+{
+    strcpy(fmt, orig);
+    if (orig[0] == 'M' && orig[1] == 'R') {
+        fmt[0] = 'U';
+
+        if (fmt[2] == 'X')      /* MRX => URY */
             fmt[2] = 'Y';
     }
-
-    if (GT3_format(fmt) < 0) {
-        GT3_clearLastError();
-        fmt[0] = '\0';
-    }
+    return fmt;
 }
 
 
@@ -284,9 +337,7 @@ conv_chunk(FILE *output, const char *dfmt, GT3_Varbuf *var, GT3_File *fp)
     int astr[] = { 1, 1, 1 };
     char key[17];
     char suffix[] = { '1', '2', '3' };
-    char fmtsp[17];
-    unsigned int_flag, mask_flag;
-    int rval;
+    int sptype, rval;
 
     if (GT3_readHeader(&head, fp) < 0) {
         GT3_printErrorMessages(stderr);
@@ -373,27 +424,15 @@ conv_chunk(FILE *output, const char *dfmt, GT3_Varbuf *var, GT3_File *fp)
         GT3_setHeaderInt(&head, "ASTR3", astr[2] + range[2].str);
 
     /*
-     * format 'ASIS' and 'MASK' support.
+     * check special format name.
      */
-    fmtsp[0] = '\0';
-    if (strcmp(dfmt, "ASIS") == 0)
-        GT3_copyHeaderItem(fmtsp, sizeof fmtsp, &head, "DFMT");
-    if (strcmp(dfmt, "MASK") == 0) {
-        char orig[17];
+    sptype = lookup_special(dfmt);
 
-        GT3_copyHeaderItem(orig, sizeof orig, &head, "DFMT");
-        masked_format(fmtsp, orig);
-    }
-
-    /*
-     * format 'INT' support.
-     */
-    rval = 0;
-    int_flag = strcmp(dfmt, "INT") == 0;
-    mask_flag = strcmp(dfmt, "MASK_INT") == 0;
-    if (int_flag || mask_flag) {
-        double scale = 1., miss = -999.;
-        double offset;
+    if (sptype == SP_NONE) {
+        rval = GT3_write(g_buffer.ptr, GT3_TYPE_DOUBLE,
+                         nx, ny, nz, &head, dfmt, output);
+    } else if (sptype == SP_INT || sptype == SP_MASKINT) {
+        double offset, scale = 1., miss = -999.;
         unsigned nbits;
 
         nelems = (size_t)nx * ny * nz;
@@ -401,23 +440,28 @@ conv_chunk(FILE *output, const char *dfmt, GT3_Varbuf *var, GT3_File *fp)
 
         if (find_params_for_int(&offset, &nbits,
                                 g_buffer.ptr, nelems, miss) < 0) {
-
             logging(LOG_ERR, "INT/MASK_INT is not available (overflow).");
             return -1;
         }
-
         rval = GT3_write_bitpack(g_buffer.ptr, GT3_TYPE_DOUBLE,
-                                 nx, ny, nz,
-                                 &head,
+                                 nx, ny, nz, &head,
                                  offset, scale,
-                                 nbits, mask_flag,
+                                 nbits, sptype == SP_MASKINT,
                                  output);
     } else {
+        char newfmt[17], oldfmt[17];
+
+        if (sptype == SP_ASIS)
+            GT3_copyHeaderItem(newfmt, sizeof newfmt, &head, "DFMT");
+        else if (sptype == SP_MASK) {
+            GT3_copyHeaderItem(oldfmt, sizeof oldfmt, &head, "DFMT");
+            masked_format(newfmt, oldfmt);
+        } else if (sptype == SP_UNMASK) {
+            GT3_copyHeaderItem(oldfmt, sizeof oldfmt, &head, "DFMT");
+            unmasked_format(newfmt, oldfmt);
+        }
         rval = GT3_write(g_buffer.ptr, GT3_TYPE_DOUBLE,
-                         nx, ny, nz,
-                         &head,
-                         fmtsp[0] != '\0' ? fmtsp : dfmt,
-                         output);
+                         nx, ny, nz, &head, newfmt, output);
     }
 
     if (rval < 0)
@@ -485,7 +529,7 @@ usage(void)
         "       ury{01,02,...,31}, mry{01,02,...,31}\n"
         "\n"
         "    Special name:\n"
-        "       asis, mask, int, mask_int\n"
+        "       asis, mask, unmask, int, maskint\n"
         "\n"
         "    Raw binary formats:\n"
         "       raw_float  (native-endian)\n"
@@ -520,10 +564,7 @@ main(int argc, char **argv)
             break;
         case 'f':
             toupper_string(optarg);
-            if (strcmp(optarg, "ASIS") != 0
-                && strcmp(optarg, "MASK") != 0
-                && strcmp(optarg, "INT") != 0
-                && strcmp(optarg, "MASK_INT") != 0
+            if (lookup_special(optarg) == SP_NONE
                 && GT3_output_format(dummy, optarg) < 0
                 && find_raw_format(optarg) < 0) {
                 logging(LOG_ERR, "-f: %s: Unknown format", optarg);
