@@ -68,7 +68,7 @@ new_buffer(void)
 
 
 static int
-resize_buffer(struct buffer *buf, int nx, int ny, int nz)
+resize_buffer(struct buffer *buf, size_t nx, size_t ny, size_t nz)
 {
     size_t siz;
     double *data;
