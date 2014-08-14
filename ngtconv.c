@@ -279,23 +279,17 @@ find_params_for_int(double *param1, unsigned *param2,
 
 
 /*
- * Assumptions:
- *   1) fmt has enough size
- *   2) 'orig' is corrent format name
- *
  * UR4 => MR4, UR8 => MR8, URC => MRY16, URX?? => MRY??, URY?? => MRY??
  */
 static char *
-masked_format(char *fmt, const char *orig)
+masked_format(char *fmt)
 {
-    if (   strcmp(orig, "URC") == 0
-        || strcmp(orig, "URC2") == 0
-        || strcmp(orig, "UI2") == 0) {
+    if (   strcmp(fmt, "URC") == 0
+        || strcmp(fmt, "URC2") == 0
+        || strcmp(fmt, "UI2") == 0) {
         strcpy(fmt, "MRY16");
     } else {
-        strcpy(fmt, orig);
-
-        if (orig[0] == 'U' && orig[1] == 'R') {
+        if (fmt[0] == 'U' && fmt[1] == 'R') {
             fmt[0] = 'M';
             if (fmt[2] == 'X')
                 fmt[2] = 'Y';
@@ -306,17 +300,12 @@ masked_format(char *fmt, const char *orig)
 
 
 /*
- * Assumptions:
- *   1) fmt has enough size
- *   2) 'orig' is corrent format name
- *
  * MR4 => UR4, MR8 => UR8, MR[XY]?? => URY??.
  */
 static char *
-unmasked_format(char *fmt, const char *orig)
+unmasked_format(char *fmt)
 {
-    strcpy(fmt, orig);
-    if (orig[0] == 'M' && orig[1] == 'R') {
+    if (fmt[0] == 'M' && fmt[1] == 'R') {
         fmt[0] = 'U';
 
         if (fmt[2] == 'X')      /* MRX => URY */
@@ -449,17 +438,16 @@ conv_chunk(FILE *output, const char *dfmt, GT3_Varbuf *var, GT3_File *fp)
                                  nbits, sptype == SP_MASKINT,
                                  output);
     } else {
-        char newfmt[17], oldfmt[17];
+        char newfmt[17];
 
-        if (sptype == SP_ASIS)
-            GT3_copyHeaderItem(newfmt, sizeof newfmt, &head, "DFMT");
-        else if (sptype == SP_MASK) {
-            GT3_copyHeaderItem(oldfmt, sizeof oldfmt, &head, "DFMT");
-            masked_format(newfmt, oldfmt);
-        } else if (sptype == SP_UNMASK) {
-            GT3_copyHeaderItem(oldfmt, sizeof oldfmt, &head, "DFMT");
-            unmasked_format(newfmt, oldfmt);
-        }
+        /* for SP_ASIS */
+        GT3_copyHeaderItem(newfmt, sizeof newfmt, &head, "DFMT");
+
+        if (sptype == SP_MASK)
+            masked_format(newfmt);
+        else if (sptype == SP_UNMASK)
+            unmasked_format(newfmt);
+
         rval = GT3_write(g_buffer.ptr, GT3_TYPE_DOUBLE,
                          nx, ny, nz, &head, newfmt, output);
     }
