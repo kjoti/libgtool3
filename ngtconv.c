@@ -52,35 +52,35 @@ typedef size_t (*output_func)(double *, size_t, FILE *);
 static output_func raw_output = NULL;
 
 /*
- * special format names.
+ * enum of special operations.
  */
 enum {
-    SP_NONE,                    /* dummy */
-    SP_ASIS,
-    SP_MASK,
-    SP_UNMASK,
-    SP_INT,
-    SP_MASKINT
-};
-static struct { const char *key; int value; } sptab[] = {
-    { "ASIS", SP_ASIS },
-    { "MASK", SP_MASK },
-    { "UNMASK", SP_UNMASK },
-    { "INT", SP_INT },
-    { "MASKINT", SP_MASKINT }
+    OP_NONE,                    /* dummy */
+    OP_ASIS,
+    OP_MASK,
+    OP_UNMASK,
+    OP_INT,
+    OP_MASKINT
 };
 
 
 static int
-lookup_special(const char *key)
+lookup_operation(const char *name)
 {
+    static struct { const char *key; int value; } optab[] = {
+        { "ASIS",    OP_ASIS },
+        { "MASK",    OP_MASK },
+        { "UNMASK",  OP_UNMASK },
+        { "INT",     OP_INT },
+        { "MASKINT", OP_MASKINT }
+    };
     int i;
 
-    for (i = 0; i < sizeof sptab / sizeof sptab[0]; i++)
-        if (strcmp(key, sptab[i].key) == 0)
-            return sptab[i].value;
+    for (i = 0; i < sizeof optab / sizeof optab[0]; i++)
+        if (strcmp(name, optab[i].key) == 0)
+            return optab[i].value;
 
-    return SP_NONE;
+    return OP_NONE;
 }
 
 
@@ -291,7 +291,8 @@ masked_format(char *fmt)
     } else {
         if (fmt[0] == 'U' && fmt[1] == 'R') {
             fmt[0] = 'M';
-            if (fmt[2] == 'X')
+
+            if (fmt[2] == 'X')  /* XXX: MRX is deprecated. */
                 fmt[2] = 'Y';
         }
     }
@@ -308,7 +309,7 @@ unmasked_format(char *fmt)
     if (fmt[0] == 'M' && fmt[1] == 'R') {
         fmt[0] = 'U';
 
-        if (fmt[2] == 'X')      /* MRX => URY */
+        if (fmt[2] == 'X')      /* XXX: URX is deprecated. */
             fmt[2] = 'Y';
     }
     return fmt;
@@ -316,7 +317,8 @@ unmasked_format(char *fmt)
 
 
 static int
-conv_chunk(FILE *output, const char *dfmt, GT3_Varbuf *var, GT3_File *fp)
+conv_chunk(FILE *output, const char *dfmt, int optype,
+           GT3_Varbuf *var, GT3_File *fp)
 {
     GT3_HEADER head;
     int nx, ny, nz;
@@ -326,7 +328,7 @@ conv_chunk(FILE *output, const char *dfmt, GT3_Varbuf *var, GT3_File *fp)
     int astr[] = { 1, 1, 1 };
     char key[17];
     char suffix[] = { '1', '2', '3' };
-    int sptype, rval;
+    int rval;
 
     if (GT3_readHeader(&head, fp) < 0) {
         GT3_printErrorMessages(stderr);
@@ -413,14 +415,12 @@ conv_chunk(FILE *output, const char *dfmt, GT3_Varbuf *var, GT3_File *fp)
         GT3_setHeaderInt(&head, "ASTR3", astr[2] + range[2].str);
 
     /*
-     * check special format name.
+     * check special operations.
      */
-    sptype = lookup_special(dfmt);
-
-    if (sptype == SP_NONE) {
+    if (optype == OP_NONE) {
         rval = GT3_write(g_buffer.ptr, GT3_TYPE_DOUBLE,
                          nx, ny, nz, &head, dfmt, output);
-    } else if (sptype == SP_INT || sptype == SP_MASKINT) {
+    } else if (optype == OP_INT || optype == OP_MASKINT) {
         double offset, scale = 1., miss = -999.;
         unsigned nbits;
 
@@ -435,17 +435,17 @@ conv_chunk(FILE *output, const char *dfmt, GT3_Varbuf *var, GT3_File *fp)
         rval = GT3_write_bitpack(g_buffer.ptr, GT3_TYPE_DOUBLE,
                                  nx, ny, nz, &head,
                                  offset, scale,
-                                 nbits, sptype == SP_MASKINT,
+                                 nbits, optype == OP_MASKINT,
                                  output);
     } else {
         char newfmt[17];
 
-        /* for SP_ASIS */
+        /* for OP_ASIS */
         GT3_copyHeaderItem(newfmt, sizeof newfmt, &head, "DFMT");
 
-        if (sptype == SP_MASK)
+        if (optype == OP_MASK)
             masked_format(newfmt);
-        else if (sptype == SP_UNMASK)
+        else if (optype == OP_UNMASK)
             unmasked_format(newfmt);
 
         rval = GT3_write(g_buffer.ptr, GT3_TYPE_DOUBLE,
@@ -460,7 +460,7 @@ conv_chunk(FILE *output, const char *dfmt, GT3_Varbuf *var, GT3_File *fp)
 
 
 static int
-conv_file(const char *path, const char *fmt, FILE *output,
+conv_file(const char *path, const char *fmt, int optype, FILE *output,
           struct sequence *seq)
 {
     GT3_File *fp;
@@ -481,7 +481,7 @@ conv_file(const char *path, const char *fmt, FILE *output,
         if (stat == ITER_OUTRANGE)
             continue;
 
-        if (conv_chunk(output, fmt, var, fp) < 0)
+        if (conv_chunk(output, fmt, optype, var, fp) < 0)
             goto finish;
     }
     rval = 0;
@@ -504,19 +504,20 @@ usage(void)
         "Options:\n"
         "    -h        print help message\n"
         "    -a        output in append mode\n"
-        "    -f        specify output format (default: UR4)\n"
+        "    -f fmt    specify output format (default: UR4)\n"
         "    -t LIST   specify data No.\n"
         "    -x RANGE  specify X-range\n"
         "    -y RANGE  specify Y-range\n"
         "    -z LIST   specify Z-planes\n";
 
     const char *formats =
-        "Available formats:\n"
+        "Available arguments for the -f option (case-insensitive):\n"
+        "\n"
         "    GTOOL3 formats:\n"
-        "       ur4, ur8, urc mr4, mr8\n"
+        "       ur4, ur8, mr4, mr8\n"
         "       ury{01,02,...,31}, mry{01,02,...,31}\n"
         "\n"
-        "    Special name:\n"
+        "    Special operations:\n"
         "       asis, mask, unmask, int, maskint\n"
         "\n"
         "    Raw binary formats:\n"
@@ -538,6 +539,7 @@ main(int argc, char **argv)
     struct sequence *tseq = NULL;
     const char *mode = "wb";
     char *fmt = "UR4";
+    int optype = OP_NONE;
     char *outpath = "gtool.out";
     FILE *output;
     char dummy[17];
@@ -552,7 +554,7 @@ main(int argc, char **argv)
             break;
         case 'f':
             toupper_string(optarg);
-            if (lookup_special(optarg) == SP_NONE
+            if ((optype = lookup_operation(optarg)) == OP_NONE
                 && GT3_output_format(dummy, optarg) < 0
                 && find_raw_format(optarg) < 0) {
                 logging(LOG_ERR, "-f: %s: Unknown format", optarg);
@@ -613,7 +615,7 @@ main(int argc, char **argv)
         exit(1);
     }
 
-    rval = conv_file(argv[0], fmt, output, tseq);
+    rval = conv_file(argv[0], fmt, optype, output, tseq);
     fclose(output);
     return rval < 0 ? 1 : 0;
 }
