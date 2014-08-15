@@ -18,6 +18,9 @@
 
 #include "write-fmt.h"
 
+#ifndef HUGE_VALF
+#  define HUGE_VALF 1e38
+#endif
 
 static uint32_t
 maxval_uint32(const uint32_t *vals, size_t num)
