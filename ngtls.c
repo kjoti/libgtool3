@@ -171,7 +171,7 @@ usage(void)
         "    -Q          quick access mode\n"
         "    -h          print help message\n"
         "    -n          print axis-length instead of axis-name\n"
-        "    -u          print title and unit\n"
+        "    -u          print title and units\n"
         "    -v          print filename\n"
         "    -t LIST     specify data No.\n";
 
