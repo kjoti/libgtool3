@@ -123,14 +123,15 @@ read_UR8(GT3_Varbuf *var, int zpos, size_t skip, size_t nelem, FILE *fp)
  * load the mask data, setup the mask index, and read data body.
  * (common to MR4 and MR8).
  */
-static size_t
+static int
 read_MRN_pre(void *temp,
+             size_t *nread,
              GT3_Varbuf *var,
              size_t size,       /* size of each data (4 or 8) */
              int zpos, size_t skip, size_t nelem)
 {
     GT3_Datamask *mask;
-    size_t nread;
+    size_t ncount;
     int idx0, interval;
     off_t off;
 
@@ -167,15 +168,16 @@ read_MRN_pre(void *temp,
         return -1;
 
     /*
-     * nread: the # of MASK-ON elements to read.
+     * ncount: the # of MASK-ON elements to read.
      */
-    nread = mask->index[idx0 + nelem / interval] - mask->index[idx0];
-    assert(nread <= nelem);
+    ncount = mask->index[idx0 + nelem / interval] - mask->index[idx0];
+    assert(ncount <= nelem);
 
-    if (xfread(temp, size, nread, var->fp->fp) < 0)
+    if (xfread(temp, size, ncount, var->fp->fp) < 0)
         return -1;
 
-    return nread;
+    *nread = ncount;
+    return 0;
 }
 
 
@@ -195,8 +197,8 @@ read_MR4(GT3_Varbuf *var, int zpos, size_t skip, size_t nelem, FILE *fp)
         return -1;
     }
 
-    if ((nread = read_MRN_pre(masked, var, sizeof(float),
-                              zpos, skip, nelem)) < 0) {
+    if (read_MRN_pre(masked, &nread, var, sizeof(float),
+                     zpos, skip, nelem) < 0) {
         tiny_free(masked, masked_buf);
         return -1;
     }
@@ -238,8 +240,8 @@ read_MR8(GT3_Varbuf *var, int zpos, size_t skip, size_t nelem, FILE *fp)
         return -1;
     }
 
-    if ((nread = read_MRN_pre(masked, var, sizeof(double),
-                              zpos, skip, nelem)) < 0) {
+    if (read_MRN_pre(masked, &nread, var, sizeof(double),
+                     zpos, skip, nelem) < 0) {
         tiny_free(masked, masked_buf);
         return -1;
     }
