@@ -492,6 +492,7 @@ usage(void)
         "calculate mean.\n"
         "\n"
         "Options:\n"
+        "    -a        append to output file\n"
         "    -f fmt    output GTOOL3 format (default: UR4)\n"
         "    -m MODE   mean mode (any combination \"xyzXYZ\")\n"
         "    -n        no shift axes\n"
@@ -516,6 +517,7 @@ main(int argc, char **argv)
     unsigned mode = X_MEAN | Y_MEAN | Z_MEAN | X_WEIGHT | Y_WEIGHT | Z_WEIGHT;
     char *filename = "gtool.out";
     char dummy[17];
+    char *fmode = "wb";
     char *fmt = "UR4";
     FILE *output = NULL;
     struct sequence *tseq = NULL;
@@ -525,8 +527,12 @@ main(int argc, char **argv)
     open_logging(stderr, PROGNAME);
     GT3_setProgname(PROGNAME);
 
-    while ((ch = getopt(argc, argv, "f:m:no:st:x:y:z:h")) != -1)
+    while ((ch = getopt(argc, argv, "af:m:no:st:x:y:z:h")) != -1)
         switch (ch) {
+        case 'a':
+            fmode = "ab";
+            break;
+
         case 'f':
             toupper_string(optarg);
             if (strcmp(optarg, "ASIS") == 0)
@@ -583,7 +589,7 @@ main(int argc, char **argv)
             break;
         }
 
-    if ((output = fopen(filename, "wb")) == NULL) {
+    if ((output = fopen(filename, fmode)) == NULL) {
         logging(LOG_SYSERR, filename);
         exit(1);
     }
