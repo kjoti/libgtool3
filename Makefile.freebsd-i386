@@ -96,7 +96,7 @@ LIBS		= $(SHLIB) $(STLIB) $(INTLIB)
 HEADERS		= gtool3.h libgtool3.f90
 BINS		= ngtcat ngtls ngtsumm ngtstat ngtick \
 		ngthead ngted ngtmkax ngtdiff ngtdump ngtavr \
-		ngtconv ngtredist ngtmean ngtjoin
+		ngtconv ngtredist ngtmean ngtjoin ngtsd
 
 all: $(LIBS) $(BINS) $(HEADERS)
 
@@ -157,6 +157,9 @@ ngtmean: $(LIBS) ngtmean.o
 
 ngtjoin: $(LIBS) ngtjoin.o
 	$(CC) $(LDFLAGS) -L. -o $@ ngtjoin.o $(LDADD)
+
+ngtsd: $(LIBS) ngtsd.o
+	$(CC) $(LDFLAGS) -L. -o $@ ngtsd.o $(LDADD)
 
 install: all
 	$(MKDIR) $(bindir)

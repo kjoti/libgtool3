@@ -43,7 +43,8 @@ bin_PROGRAMS = ngtcat$(EXEEXT) ngtls$(EXEEXT) ngtsumm$(EXEEXT) \
 	ngtstat$(EXEEXT) ngtick$(EXEEXT) ngthead$(EXEEXT) \
 	ngted$(EXEEXT) ngtmkax$(EXEEXT) ngtdiff$(EXEEXT) \
 	ngtdump$(EXEEXT) ngtavr$(EXEEXT) ngtconv$(EXEEXT) \
-	ngtredist$(EXEEXT) ngtmean$(EXEEXT) ngtjoin$(EXEEXT)
+	ngtredist$(EXEEXT) ngtmean$(EXEEXT) ngtjoin$(EXEEXT) \
+	ngtsd$(EXEEXT)
 DIST_COMMON = README $(am__configure_deps) $(include_HEADERS) \
 	$(srcdir)/Makefile.am $(srcdir)/Makefile.in \
 	$(srcdir)/config.h.in $(top_srcdir)/configure INSTALL \
@@ -143,6 +144,10 @@ am_ngtredist_OBJECTS = ngtredist.$(OBJEXT) $(am__objects_1)
 ngtredist_OBJECTS = $(am_ngtredist_OBJECTS)
 ngtredist_LDADD = $(LDADD)
 ngtredist_DEPENDENCIES = libinternal.a libgtool3.la
+am_ngtsd_OBJECTS = ngtsd.$(OBJEXT) $(am__objects_1)
+ngtsd_OBJECTS = $(am_ngtsd_OBJECTS)
+ngtsd_LDADD = $(LDADD)
+ngtsd_DEPENDENCIES = libinternal.a libgtool3.la
 am_ngtstat_OBJECTS = ngtstat.$(OBJEXT) $(am__objects_1)
 ngtstat_OBJECTS = $(am_ngtstat_OBJECTS)
 ngtstat_LDADD = $(LDADD)
@@ -167,13 +172,15 @@ SOURCES = $(libinternal_a_SOURCES) $(libgtool3_la_SOURCES) \
 	$(ngtdiff_SOURCES) $(ngtdump_SOURCES) $(ngted_SOURCES) \
 	$(ngthead_SOURCES) $(ngtick_SOURCES) $(ngtjoin_SOURCES) \
 	$(ngtls_SOURCES) $(ngtmean_SOURCES) $(ngtmkax_SOURCES) \
-	$(ngtredist_SOURCES) $(ngtstat_SOURCES) $(ngtsumm_SOURCES)
+	$(ngtredist_SOURCES) $(ngtsd_SOURCES) $(ngtstat_SOURCES) \
+	$(ngtsumm_SOURCES)
 DIST_SOURCES = $(libinternal_a_SOURCES) $(libgtool3_la_SOURCES) \
 	$(ngtavr_SOURCES) $(ngtcat_SOURCES) $(ngtconv_SOURCES) \
 	$(ngtdiff_SOURCES) $(ngtdump_SOURCES) $(ngted_SOURCES) \
 	$(ngthead_SOURCES) $(ngtick_SOURCES) $(ngtjoin_SOURCES) \
 	$(ngtls_SOURCES) $(ngtmean_SOURCES) $(ngtmkax_SOURCES) \
-	$(ngtredist_SOURCES) $(ngtstat_SOURCES) $(ngtsumm_SOURCES)
+	$(ngtredist_SOURCES) $(ngtsd_SOURCES) $(ngtstat_SOURCES) \
+	$(ngtsumm_SOURCES)
 includeHEADERS_INSTALL = $(INSTALL_HEADER)
 HEADERS = $(include_HEADERS)
 ETAGS = etags
@@ -356,6 +363,7 @@ ngtconv_SOURCES = ngtconv.c $(libinternal_a_SOURCES)
 ngtredist_SOURCES = ngtredist.c $(libinternal_a_SOURCES)
 ngtmean_SOURCES = ngtmean.c $(libinternal_a_SOURCES)
 ngtjoin_SOURCES = ngtjoin.c $(libinternal_a_SOURCES)
+ngtsd_SOURCES = ngtsd.c $(libinternal_a_SOURCES)
 LDADD = libinternal.a libgtool3.la -lm
 TESTLDADD = libinternal.a .libs/libgtool3.a -lm
 TESTSRCS = $(libgtool3_la_SOURCES) $(libinternal_a_SOURCES)
@@ -517,6 +525,9 @@ ngtmkax$(EXEEXT): $(ngtmkax_OBJECTS) $(ngtmkax_DEPENDENCIES)
 ngtredist$(EXEEXT): $(ngtredist_OBJECTS) $(ngtredist_DEPENDENCIES) 
 	@rm -f ngtredist$(EXEEXT)
 	$(LINK) $(ngtredist_LDFLAGS) $(ngtredist_OBJECTS) $(ngtredist_LDADD) $(LIBS)
+ngtsd$(EXEEXT): $(ngtsd_OBJECTS) $(ngtsd_DEPENDENCIES) 
+	@rm -f ngtsd$(EXEEXT)
+	$(LINK) $(ngtsd_LDFLAGS) $(ngtsd_OBJECTS) $(ngtsd_LDADD) $(LIBS)
 ngtstat$(EXEEXT): $(ngtstat_OBJECTS) $(ngtstat_DEPENDENCIES) 
 	@rm -f ngtstat$(EXEEXT)
 	$(LINK) $(ngtstat_LDFLAGS) $(ngtstat_OBJECTS) $(ngtstat_LDADD) $(LIBS)
@@ -561,6 +572,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ngtmean.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ngtmkax.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ngtredist.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ngtsd.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ngtstat.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ngtsumm.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/range.Po@am__quote@
