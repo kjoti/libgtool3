@@ -1,5 +1,5 @@
 /*
- * ngtsd.c -- calculate SD / RSME.
+ * ngtsd.c -- calculate stadard deviation.
  */
 #include "internal.h"
 
@@ -27,17 +27,16 @@
 #define PROGNAME "ngtsd"
 
 struct stddev {
-    double *data;               /* sum of (X[i] - A[i])**2 */
-    double *ref;                /* A[i]: reference data */
+    double *data1;              /* sum of X[i] */
+    double *data2;              /* sum of X[i]**2 */
     unsigned *cnt;              /* N[i]: number of samples (each grid) */
-    double miss;                /* missing value in reference data */
     int shape[3];               /* data shape */
     size_t len;
 
     size_t reserved;            /* reserved data area size (in byte) */
     unsigned numset;            /* the number of used dataset */
 
-    double miss_out;            /* missing value for output */
+    double miss;                /* missing value for output */
     GT3_HEADER head;            /* meta-data for output */
 };
 
@@ -51,6 +50,22 @@ static const char *default_opath = "gtool.out";
 static char *g_format = "UR4";
 
 
+/*
+ * required_zlevel() returns the number of vetical levels to be processed.
+ */
+static int
+required_zlevel(int zmax)
+{
+    if (g_zseq) {
+        reinitSeq(g_zseq, 1, zmax);
+        zmax = countSeq(g_zseq);
+    } else
+        zmax = min(zmax, g_zrange.end) - max(0, g_zrange.str);
+
+    return zmax;
+}
+
+
 static void
 init_stddev(struct stddev *sd)
 {
@@ -61,14 +76,14 @@ init_stddev(struct stddev *sd)
 static void
 free_stddev(struct stddev *sd)
 {
-    free(sd->data);
+    free(sd->data1);
     free(sd->cnt);
     init_stddev(sd);
 }
 
 
 /*
- * resize data area size.
+ * Resize data area size.
  */
 static int
 resize_stddev(struct stddev *sd, const int *dimlen)
@@ -93,8 +108,8 @@ resize_stddev(struct stddev *sd, const int *dimlen)
 
         sd->reserved = len;
 
-        sd->data = dptr;
-        sd->ref = dptr + len;
+        sd->data1 = dptr;
+        sd->data2 = dptr + len;
         sd->cnt = uptr;
     }
 
@@ -107,36 +122,30 @@ resize_stddev(struct stddev *sd, const int *dimlen)
 
 
 /*
- * reinit stddev data with reference data ('var').
+ * Reinit stddev data.
  */
 static int
 reinit_stddev(struct stddev *sd, GT3_Varbuf *var)
 {
-    size_t i, hlen;
-    int z;
+    size_t i;
+    int dimlen[3];
 
-    if (resize_stddev(sd, var->fp->dimlen) < 0)
+    dimlen[0] = var->fp->dimlen[0];
+    dimlen[1] = var->fp->dimlen[1];
+    dimlen[2] = required_zlevel(var->fp->dimlen[2]);
+
+    if (resize_stddev(sd, dimlen) < 0)
         return -1;
 
-    /*
-     * set reference data.
-     */
-    hlen = (size_t)sd->shape[0] * sd->shape[1];
-    for (z = 0; z < sd->shape[2]; z++) {
-        if (GT3_readVarZ(var, z) < 0
-            || GT3_copyVarDouble(sd->ref + z * hlen, hlen,
-                                 var, 0, 1) < 0) {
-            GT3_printErrorMessages(stderr);
-            return -1;
-        }
+    if (GT3_readHeader(&sd->head, var->fp) < 0) {
+        GT3_printErrorMessages(stderr);
+        return -1;
     }
     sd->miss = var->miss;
 
-    /*
-     * clean up.
-     */
     for (i = 0; i < sd->len; i++) {
-        sd->data[i] = 0.;
+        sd->data1[i] = 0.;
+        sd->data2[i] = 0.;
         sd->cnt[i] = 0;
     }
     sd->numset = 0;
@@ -151,47 +160,31 @@ reinit_stddev(struct stddev *sd, GT3_Varbuf *var)
 static int
 add_newdata(struct stddev *sd, GT3_Varbuf *var)
 {
-    double x, a, *sdata, *ref;
+    double x, *a1, *a2;
     unsigned *cnt;
     size_t i, hlen;
     int n, z, zlen;
 
     /*
-     * check the shape of input var.
+     * Check the shape of the input (var).
      */
     if (sd->shape[0] != var->fp->dimlen[0]
         || sd->shape[1] != var->fp->dimlen[1]) {
-        logging(LOG_ERR, "Mismatch data shape: %s (No.%d)",
-                var->fp->path, var->fp->curr + 1);
+        logging(LOG_ERR,
+                "Horizontal shape is changed: from (%dx%d) to (%dx%d)",
+                sd->shape[0], sd->shape[1],
+                var->fp->dimlen[0], var->fp->dimlen[1]);
         return -1;
     }
-
-    if (g_zseq) {
-        reinitSeq(g_zseq, 1, var->fp->dimlen[2]);
-        zlen = countSeq(g_zseq);
-    } else
-        zlen = min(var->fp->dimlen[2], g_zrange.end) - max(0, g_zrange.str);
-
+    zlen = required_zlevel(var->fp->dimlen[2]);
     if (sd->shape[2] != zlen) {
-        logging(LOG_ERR, "Mismatch data shape: %s (No.%d)",
-                var->fp->path, var->fp->curr + 1);
+        logging(LOG_ERR, "Vertical level is changed: from %d to %d",
+                sd->shape[2], zlen);
         return -1;
-    }
-
-    /* set meta-data for output. */
-    if (sd->numset == 0) {
-        if (GT3_readHeader(&sd->head, var->fp) < 0) {
-            GT3_printErrorMessages(stderr);
-            return -1;
-        }
-        if (GT3_decodeHeaderDouble(&x, &sd->head, "MISS") < 0)
-            x = -999.;
-
-        sd->miss_out = x;
     }
 
     /*
-     * Add (x - a)**2.
+     * Add data.
      */
     hlen = (size_t)sd->shape[0] * sd->shape[1];
     for (n = 0; n < sd->shape[2]; n++) {
@@ -208,8 +201,8 @@ add_newdata(struct stddev *sd, GT3_Varbuf *var)
             return -1;
         }
 
-        sdata = sd->data + n * hlen;
-        ref = sd->ref + n * hlen;
+        a1 = sd->data1 + n * hlen;
+        a2 = sd->data2 + n * hlen;
         cnt = sd->cnt + n * hlen;
 
         if (var->type == GT3_TYPE_FLOAT) {
@@ -217,10 +210,9 @@ add_newdata(struct stddev *sd, GT3_Varbuf *var)
 
             for (i = 0; i < hlen; i++) {
                 x = (double)data[i];
-                a = ref[i];
-                if (a != sd->miss && x != var->miss) {
-                    x -= a;
-                    sdata[i] += x * x;
+                if (x != var->miss) {
+                    a1[i] += x;
+                    a2[i] += x * x;
                     cnt[i]++;
                 }
             }
@@ -229,10 +221,9 @@ add_newdata(struct stddev *sd, GT3_Varbuf *var)
 
             for (i = 0; i < hlen; i++) {
                 x = data[i];
-                a = ref[i];
-                if (a != sd->miss && x != var->miss) {
-                    x -= a;
-                    sdata[i] += x * x;
+                if (x != var->miss) {
+                    a1[i] += x;
+                    a2[i] += x * x;
                     cnt[i]++;
                 }
             }
@@ -240,7 +231,33 @@ add_newdata(struct stddev *sd, GT3_Varbuf *var)
     }
 
     sd->numset++;
+
+    logging(LOG_INFO, "Read from %s (No.%d)",
+            var->fp->path, var->fp->curr + 1);
     return 0;
+}
+
+
+/*
+ * Calculate the final result.
+ */
+static void
+calc_stddev(struct stddev *sd)
+{
+    double r, a, v;
+    size_t i;
+
+    for (i = 0; i < sd->len; i++) {
+        if (sd->cnt[i] > 0) {
+            r = 1. / sd->cnt[i];
+            a = sd->data1[i] * r;
+            v = sd->data2[i] * r - a * a;
+            v = sqrt(max(v, 0.));
+        } else
+            v = sd->miss;
+
+        sd->data2[i] = v;
+    }
 }
 
 
@@ -261,34 +278,19 @@ write_stddev(const struct stddev *sd, FILE *fp)
     }
 
     /* MISS */
-    GT3_setHeaderMiss(&head, sd->miss_out);
+    GT3_setHeaderMiss(&head, sd->miss);
 
     /* EDIT */
     snprintf(field, sizeof field - 1, "SD N=%d", sd->numset);
     GT3_setHeaderEdit(&head, field);
 
-    rval = GT3_write(sd->data, GT3_TYPE_DOUBLE,
+    rval = GT3_write(sd->data2, GT3_TYPE_DOUBLE,
                      sd->shape[0], sd->shape[1], sd->shape[2],
                      &head, g_format, fp);
     if (rval < 0)
         GT3_printErrorMessages(stderr);
 
     return rval;
-}
-
-
-/*
- * calculate the final result.
- */
-static void
-calc_stddev(struct stddev *sd)
-{
-    size_t i;
-
-    for (i = 0; i < sd->len; i++)
-        sd->data[i] = (sd->cnt[i] == 0)
-            ? sd->miss_out
-            : sqrt(sd->data[i] / sd->cnt[i]);
 }
 
 
@@ -305,7 +307,6 @@ ngtsd_seq(struct stddev *sd, const char *path, struct sequence *seq)
         GT3_printErrorMessages(stderr);
         return -1;
     }
-    logging(LOG_INFO, "Open %s", path);
 
     if (var == NULL) {
         if ((var = GT3_getVarbuf(fp)) == NULL) {
@@ -326,6 +327,9 @@ ngtsd_seq(struct stddev *sd, const char *path, struct sequence *seq)
         if (stat == ITER_OUTRANGE)
             continue;
 
+        if (sd->numset == 0 && reinit_stddev(sd, var) < 0)
+            goto finish;
+
         if (add_newdata(sd, var) < 0)
             goto finish;
     }
@@ -338,25 +342,15 @@ finish:
 
 
 static int
-ngtsd_cyc(const char *refpath, char **ppath, int nfile,
-          struct sequence *seq, FILE *ofp)
+ngtsd_cyc(char **ppath, int nfile, struct sequence *seq, FILE *ofp)
 {
-    GT3_File *fp = NULL, *fpref = NULL;
-    GT3_Varbuf *var = NULL, *varref = NULL;
+    GT3_File *fp = NULL;
+    GT3_Varbuf *var = NULL;
     struct stddev sd;
     int n, rval = -1;
 
-    if ((fpref = GT3_open(refpath)) == NULL
-        || (varref = GT3_getVarbuf(fpref)) == NULL) {
-        GT3_printErrorMessages(stderr);
-        goto finish;
-    }
-
     init_stddev(&sd);
     while (nextSeq(seq)) {
-        if (reinit_stddev(&sd, varref) < 0)
-            goto finish;
-
         for (n = 0; n < nfile; n++) {
             if ((fp = GT3_open(ppath[n])) == NULL
                 || GT3_seek(fp, seq->curr - 1, SEEK_SET) < 0) {
@@ -370,7 +364,13 @@ ngtsd_cyc(const char *refpath, char **ppath, int nfile,
                     goto finish;
                 }
             } else
-                GT3_reattachVarbuf(var, fp);
+                if (GT3_reattachVarbuf(var, fp) < 0) {
+                    GT3_printErrorMessages(stderr);
+                    goto finish;
+                }
+
+            if (n == 0 && reinit_stddev(&sd, var) < 0)
+                goto finish;
 
             if (add_newdata(&sd, var) < 0)
                 goto finish;
@@ -382,18 +382,14 @@ ngtsd_cyc(const char *refpath, char **ppath, int nfile,
         calc_stddev(&sd);
         if (write_stddev(&sd, ofp) < 0)
             goto finish;
-
-        if (GT3_next(fpref) < 0) {
-            GT3_printErrorMessages(stderr);
-            goto finish;
-        }
     }
     rval = 0;
 
 finish:
-    GT3_close(fpref);
+    if (rval < 0 && n >= 0 && n < nfile)
+        logging(LOG_ERR, "Error in %s.", ppath[n]);
+
     GT3_close(fp);
-    GT3_freeVarbuf(varref);
     GT3_freeVarbuf(var);
     free_stddev(&sd);
     return rval;
@@ -404,9 +400,9 @@ static void
 usage(void)
 {
     const char *usage_message =
-        "Usage: " PROGNAME " [options] reffile file1 ...\n"
+        "Usage: " PROGNAME " [options] file1 ...\n"
         "\n"
-        "Standard Deviation or Root Mean Square Error.\n"
+        "Output standard deviation.\n"
         "\n"
         "Options:\n"
         "    -h        print help message\n"
@@ -491,7 +487,7 @@ main(int argc, char **argv)
     argc -= optind;
     argv += optind;
 
-    if (argc < 2) {
+    if (argc < 1) {
         logging(LOG_NOTICE, "No input data");
         usage();
         exit(1);
@@ -505,7 +501,7 @@ main(int argc, char **argv)
     if (sdmode == CYCLIC_MODE) {
         int chmax;
 
-        if ((chmax = GT3_countChunk(*(argv + 1))) < 0) {
+        if ((chmax = GT3_countChunk(*argv)) < 0) {
             GT3_printErrorMessages(stderr);
             goto finish;
         }
@@ -514,37 +510,12 @@ main(int argc, char **argv)
             seq = initSeq(":", 1, chmax);
 
         reinitSeq(seq, 1, chmax);
-        if (ngtsd_cyc(*argv, argv + 1, argc - 1, seq, output) < 0) {
-            logging(LOG_ERR, "failed to process in cyclic mode.");
+        if (ngtsd_cyc(argv, argc, seq, output) < 0)
             goto finish;
-        }
     } else {
         struct stddev sd;
-        GT3_File *reffp;
-        GT3_Varbuf *refvar;
 
         init_stddev(&sd);
-
-        /*
-         * the first argument.
-         */
-        if ((reffp = GT3_open(*argv)) == NULL
-            || (refvar = GT3_getVarbuf(reffp)) == NULL) {
-            GT3_printErrorMessages(stderr);
-            goto finish;
-        }
-
-        if (reinit_stddev(&sd, refvar) < 0)
-            goto finish;
-
-        GT3_freeVarbuf(refvar);
-        GT3_close(reffp);
-
-        /*
-         * the rest arguments.
-         */
-        argc--;
-        argv++;
         for (;argc > 0 && *argv; argc--, argv++) {
             if (ngtsd_seq(&sd, *argv, seq) < 0) {
                 logging(LOG_ERR, "failed to process %s.", *argv);
