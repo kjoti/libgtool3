@@ -1,5 +1,5 @@
 /*
- * ngtsd.c -- calculate stadard deviation.
+ * ngtsd.c -- Calculate standard deviation.
  */
 #include "internal.h"
 
@@ -13,7 +13,6 @@
 #include "seq.h"
 #include "fileiter.h"
 #include "myutils.h"
-#include "dateiter.h"
 #include "logging.h"
 #include "range.h"
 
@@ -31,7 +30,7 @@ struct stddev {
     double *data2;              /* sum of X[i]**2 */
     unsigned *cnt;              /* N[i]: number of samples (each grid) */
     int shape[3];               /* data shape */
-    size_t len;
+    size_t len;                 /* current data area size (in byte) */
 
     size_t reserved;            /* reserved data area size (in byte) */
     unsigned numset;            /* the number of used dataset */
@@ -132,7 +131,10 @@ reinit_stddev(struct stddev *sd, GT3_Varbuf *var)
 
     dimlen[0] = var->fp->dimlen[0];
     dimlen[1] = var->fp->dimlen[1];
-    dimlen[2] = required_zlevel(var->fp->dimlen[2]);
+    if ((dimlen[2] = required_zlevel(var->fp->dimlen[2])) <= 0) {
+        logging(LOG_ERR, "Invalid z-level is specified with -z option.");
+        return -1;
+    }
 
     if (resize_stddev(sd, dimlen) < 0)
         return -1;
@@ -171,14 +173,14 @@ add_newdata(struct stddev *sd, GT3_Varbuf *var)
     if (sd->shape[0] != var->fp->dimlen[0]
         || sd->shape[1] != var->fp->dimlen[1]) {
         logging(LOG_ERR,
-                "Horizontal shape is changed: from (%dx%d) to (%dx%d)",
+                "Horizontal shape is changed: from (%dx%d) to (%dx%d).",
                 sd->shape[0], sd->shape[1],
                 var->fp->dimlen[0], var->fp->dimlen[1]);
         return -1;
     }
     zlen = required_zlevel(var->fp->dimlen[2]);
     if (sd->shape[2] != zlen) {
-        logging(LOG_ERR, "Vertical level is changed: from %d to %d",
+        logging(LOG_ERR, "Vertical level is changed: from %d to %d.",
                 sd->shape[2], zlen);
         return -1;
     }
@@ -232,7 +234,7 @@ add_newdata(struct stddev *sd, GT3_Varbuf *var)
 
     sd->numset++;
 
-    logging(LOG_INFO, "Read from %s (No.%d)",
+    logging(LOG_INFO, "Read from %s (No.%d).",
             var->fp->path, var->fp->curr + 1);
     return 0;
 }
@@ -280,9 +282,10 @@ write_stddev(const struct stddev *sd, FILE *fp)
     /* MISS */
     GT3_setHeaderMiss(&head, sd->miss);
 
-    /* EDIT */
-    snprintf(field, sizeof field - 1, "SD N=%d", sd->numset);
-    GT3_setHeaderEdit(&head, field);
+    /* EDIT & ETTL */
+    GT3_setHeaderEdit(&head, "SD");
+    snprintf(field, sizeof field - 1, "sd N=%d", sd->numset);
+    GT3_setHeaderEttl(&head, field);
 
     rval = GT3_write(sd->data2, GT3_TYPE_DOUBLE,
                      sd->shape[0], sd->shape[1], sd->shape[2],
@@ -387,7 +390,7 @@ ngtsd_cyc(char **ppath, int nfile, struct sequence *seq, FILE *ofp)
 
 finish:
     if (rval < 0 && n >= 0 && n < nfile)
-        logging(LOG_ERR, "Error in %s.", ppath[n]);
+        logging(LOG_ERR, "%s: failed.", ppath[n]);
 
     GT3_close(fp);
     GT3_freeVarbuf(var);
@@ -410,9 +413,9 @@ usage(void)
         "    -c        cyclic mode\n"
         "    -f fmt    specify output format\n"
         "    -o path   specify output filename\n"
-        "    -t LIST   specify data No. to stddev\n"
+        "    -t LIST   specify data No.\n"
         "    -v        be verbose\n"
-        "    -z LIST   specify z-layer\n";
+        "    -z LIST   specify z-level\n";
 
     fprintf(stderr, "%s\n", GT3_version());
     fprintf(stderr, "%s\n", usage_message);
@@ -447,7 +450,7 @@ main(int argc, char **argv)
         case 'f':
             toupper_string(optarg);
             if (GT3_output_format(dummy, optarg) < 0) {
-                logging(LOG_ERR, "%s: Unknown format name", optarg);
+                logging(LOG_ERR, "%s: Unknown format name.", optarg);
                 exit(1);
             }
             g_format = strdup(optarg);
@@ -488,7 +491,7 @@ main(int argc, char **argv)
     argv += optind;
 
     if (argc < 1) {
-        logging(LOG_NOTICE, "No input data");
+        logging(LOG_NOTICE, "No input data.");
         usage();
         exit(1);
     }
@@ -518,7 +521,7 @@ main(int argc, char **argv)
         init_stddev(&sd);
         for (;argc > 0 && *argv; argc--, argv++) {
             if (ngtsd_seq(&sd, *argv, seq) < 0) {
-                logging(LOG_ERR, "failed to process %s.", *argv);
+                logging(LOG_ERR, "%s: failed.", *argv);
                 goto finish;
             }
             if (seq)
