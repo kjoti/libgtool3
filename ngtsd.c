@@ -4,9 +4,7 @@
 #include "internal.h"
 
 #include <assert.h>
-#include <ctype.h>
 #include <math.h>
-#include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -39,6 +37,7 @@ struct stddev {
     size_t reserved;            /* reserved data area size (in byte) */
     unsigned numset;            /* the number of used dataset */
 
+    double miss_out;            /* missing value for output */
     GT3_HEADER head;            /* meta-data for output */
 };
 
@@ -179,10 +178,16 @@ add_newdata(struct stddev *sd, GT3_Varbuf *var)
         return -1;
     }
 
-    /* copy meta-data. */
-    if (sd->numset == 0 && GT3_readHeader(&sd->head, var->fp) < 0) {
-        GT3_printErrorMessages(stderr);
-        return -1;
+    /* set meta-data for output. */
+    if (sd->numset == 0) {
+        if (GT3_readHeader(&sd->head, var->fp) < 0) {
+            GT3_printErrorMessages(stderr);
+            return -1;
+        }
+        if (GT3_decodeHeaderDouble(&x, &sd->head, "MISS") < 0)
+            x = -999.;
+
+        sd->miss_out = x;
     }
 
     /*
@@ -255,8 +260,11 @@ write_stddev(const struct stddev *sd, FILE *fp)
         GT3_setHeaderInt(&head, "ASTR3", 1);
     }
 
+    /* MISS */
+    GT3_setHeaderMiss(&head, sd->miss_out);
+
     /* EDIT */
-    snprintf(field, sizeof field - 1, "SD=%d", sd->numset);
+    snprintf(field, sizeof field - 1, "SD N=%d", sd->numset);
     GT3_setHeaderEdit(&head, field);
 
     rval = GT3_write(sd->data, GT3_TYPE_DOUBLE,
@@ -279,7 +287,7 @@ calc_stddev(struct stddev *sd)
 
     for (i = 0; i < sd->len; i++)
         sd->data[i] = (sd->cnt[i] == 0)
-            ? sd->miss
+            ? sd->miss_out
             : sqrt(sd->data[i] / sd->cnt[i]);
 }
 
