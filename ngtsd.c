@@ -345,7 +345,7 @@ finish:
 
 
 static int
-ngtsd_cyc(char **ppath, int nfile, struct sequence *seq, FILE *ofp)
+ngtsd_cyc(char **paths, int nfiles, struct sequence *seq, FILE *ofp)
 {
     GT3_File *fp = NULL;
     GT3_Varbuf *var = NULL;
@@ -354,8 +354,8 @@ ngtsd_cyc(char **ppath, int nfile, struct sequence *seq, FILE *ofp)
 
     init_stddev(&sd);
     while (nextSeq(seq)) {
-        for (n = 0; n < nfile; n++) {
-            if ((fp = GT3_open(ppath[n])) == NULL
+        for (n = 0; n < nfiles; n++) {
+            if ((fp = GT3_open(paths[n])) == NULL
                 || GT3_seek(fp, seq->curr - 1, SEEK_SET) < 0) {
                 GT3_printErrorMessages(stderr);
                 goto finish;
@@ -389,8 +389,8 @@ ngtsd_cyc(char **ppath, int nfile, struct sequence *seq, FILE *ofp)
     rval = 0;
 
 finish:
-    if (rval < 0 && n >= 0 && n < nfile)
-        logging(LOG_ERR, "%s: failed.", ppath[n]);
+    if (rval < 0 && n >= 0 && n < nfiles)
+        logging(LOG_ERR, "%s: failed.", paths[n]);
 
     GT3_close(fp);
     GT3_freeVarbuf(var);
