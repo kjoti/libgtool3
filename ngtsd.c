@@ -575,6 +575,7 @@ main(int argc, char **argv)
 
 finish:
     fclose(output);
-    fclose(output2);
+    if (output2)
+        fclose(output2);
     return exitval;
 }
