@@ -619,8 +619,8 @@ main(int argc, char **argv)
     exitval = 0;
 
 finish:
-    fclose(output);
-    if (output2)
+    if (output2 && output2 != output)
         fclose(output2);
+    fclose(output);
     return exitval;
 }
