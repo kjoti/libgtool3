@@ -30,5 +30,6 @@ This package installs the following:
   * ngtmean
   * ngtmkax
   * ngtredist
+  * ngtsd
   * ngtstat
   * ngtsumm
