@@ -82,7 +82,7 @@ free_stddev(struct stddev *sd)
 
 
 /*
- * Resize data area size.
+ * Resize data area.
  */
 static int
 resize_stddev(struct stddev *sd, const int *dimlen)
@@ -255,20 +255,22 @@ calc_stddev(struct stddev *sd)
             a = sd->data1[i] * r;
             v = sd->data2[i] * r - a * a;
             v = sqrt(max(v, 0.));
-        } else
+        } else {
+            a = sd->miss;
             v = sd->miss;
+        }
 
-        sd->data2[i] = v;
+        sd->data1[i] = a;       /* MEAN */
+        sd->data2[i] = v;       /* SD */
     }
 }
 
 
 static int
-write_stddev(const struct stddev *sd, FILE *fp)
+write_stddev(const struct stddev *sd, FILE *fp, FILE *mfp)
 {
-    GT3_HEADER head;
+    GT3_HEADER head, head2;
     char field[17];
-    int rval;
 
     GT3_copyHeader(&head, &sd->head);
 
@@ -282,18 +284,35 @@ write_stddev(const struct stddev *sd, FILE *fp)
     /* MISS */
     GT3_setHeaderMiss(&head, sd->miss);
 
+    if (mfp)
+        GT3_copyHeader(&head2, &head);
+
     /* EDIT & ETTL */
     GT3_setHeaderEdit(&head, "SD");
-    snprintf(field, sizeof field - 1, "sd N=%d", sd->numset);
+    snprintf(field, sizeof field - 1, "sd N=%u", sd->numset);
     GT3_setHeaderEttl(&head, field);
 
-    rval = GT3_write(sd->data2, GT3_TYPE_DOUBLE,
-                     sd->shape[0], sd->shape[1], sd->shape[2],
-                     &head, g_format, fp);
-    if (rval < 0)
+    if (GT3_write(sd->data2, GT3_TYPE_DOUBLE,
+                  sd->shape[0], sd->shape[1], sd->shape[2],
+                  &head, g_format, fp) < 0) {
         GT3_printErrorMessages(stderr);
+        return -1;
+    }
 
-    return rval;
+    if (mfp) {
+        /* EDIT & ETTL */
+        GT3_setHeaderEdit(&head2, "MEAN");
+        snprintf(field, sizeof field - 1, "mean N=%u", sd->numset);
+        GT3_setHeaderEttl(&head2, field);
+
+        if (GT3_write(sd->data1, GT3_TYPE_DOUBLE,
+                      sd->shape[0], sd->shape[1], sd->shape[2],
+                      &head2, g_format, mfp) < 0) {
+            GT3_printErrorMessages(stderr);
+            return -1;
+        }
+    }
+    return 0;
 }
 
 
@@ -345,7 +364,8 @@ finish:
 
 
 static int
-ngtsd_cyc(char **paths, int nfiles, struct sequence *seq, FILE *ofp)
+ngtsd_cyc(char **paths, int nfiles, struct sequence *seq,
+          FILE *ofp, FILE *ofp2)
 {
     GT3_File *fp = NULL;
     GT3_Varbuf *var = NULL;
@@ -383,7 +403,7 @@ ngtsd_cyc(char **paths, int nfiles, struct sequence *seq, FILE *ofp)
         }
 
         calc_stddev(&sd);
-        if (write_stddev(&sd, ofp) < 0)
+        if (write_stddev(&sd, ofp, ofp2) < 0)
             goto finish;
     }
     rval = 0;
@@ -412,7 +432,8 @@ usage(void)
         "    -a        append to output file\n"
         "    -c        cyclic mode\n"
         "    -f fmt    specify output format\n"
-        "    -o path   specify output filename\n"
+        "    -m path   specify output filename (for Mean)\n"
+        "    -o path   specify output filename (for SD)\n"
         "    -t LIST   specify data No.\n"
         "    -v        be verbose\n"
         "    -z LIST   specify z-level\n";
@@ -428,7 +449,8 @@ main(int argc, char **argv)
     struct sequence *seq = NULL;
     int ch, exitval = 1;
     const char *opath = NULL;
-    FILE *output;
+    const char *mpath = NULL;
+    FILE *output, *output2 = NULL;
     char *mode = "wb";
     enum { SEQUENCE_MODE, CYCLIC_MODE };
     int sdmode = SEQUENCE_MODE;
@@ -437,7 +459,7 @@ main(int argc, char **argv)
     open_logging(stderr, PROGNAME);
     GT3_setProgname(PROGNAME);
 
-    while ((ch = getopt(argc, argv, "acf:ho:t:vz:")) != -1)
+    while ((ch = getopt(argc, argv, "acf:hm:o:t:vz:")) != -1)
         switch (ch) {
         case 'a':
             mode = "ab";
@@ -454,6 +476,10 @@ main(int argc, char **argv)
                 exit(1);
             }
             g_format = strdup(optarg);
+            break;
+
+        case 'm':
+            mpath = optarg;
             break;
 
         case 'o':
@@ -501,6 +527,17 @@ main(int argc, char **argv)
         exit(1);
     }
 
+    if (mpath) {
+        if (strcmp(mpath, "-") == 0 || strcmp(mpath, opath) == 0) {
+            output2 = output;
+        } else {
+            if ((output2 = fopen(mpath, mode)) == NULL) {
+                logging(LOG_SYSERR, mpath);
+                exit(1);
+            }
+        }
+    }
+
     if (sdmode == CYCLIC_MODE) {
         int chmax;
 
@@ -513,7 +550,7 @@ main(int argc, char **argv)
             seq = initSeq(":", 1, chmax);
 
         reinitSeq(seq, 1, chmax);
-        if (ngtsd_cyc(argv, argc, seq, output) < 0)
+        if (ngtsd_cyc(argv, argc, seq, output, output2) < 0)
             goto finish;
     } else {
         struct stddev sd;
@@ -529,7 +566,7 @@ main(int argc, char **argv)
         }
 
         calc_stddev(&sd);
-        if (write_stddev(&sd, output) < 0) {
+        if (write_stddev(&sd, output, output2) < 0) {
             logging(LOG_ERR, opath);
             goto finish;
         }
@@ -538,5 +575,6 @@ main(int argc, char **argv)
 
 finish:
     fclose(output);
+    fclose(output2);
     return exitval;
 }
