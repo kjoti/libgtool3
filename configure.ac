@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ(2.59)
-AC_INIT(libgtool3, 1.3.0)
+AC_INIT(libgtool3, 1.3.1)
 AC_CONFIG_SRCDIR([gtool3.h])
 AM_INIT_AUTOMAKE
 AM_MAINTAINER_MODE
@@ -39,6 +39,7 @@ AC_FUNC_MEMCMP
 AC_FUNC_REALLOC
 AC_FUNC_STAT
 AC_FUNC_STRTOD
+AC_CHECK_FUNCS([sysconf])
 AC_CHECK_FUNCS([memset strchr strdup strerror strtol])
 AC_CHECK_FUNCS([pow sqrt round ilogb scalbn])
 AC_CHECK_FUNCS([glob])

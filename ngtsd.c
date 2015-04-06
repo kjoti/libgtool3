@@ -4,6 +4,7 @@
 #include "internal.h"
 
 #include <assert.h>
+#include <limits.h>
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
@@ -47,6 +48,20 @@ static struct range g_zrange = { 0, RANGE_MAX };
 static struct sequence *g_zseq = NULL;
 static const char *default_opath = "gtool.out";
 static char *g_format = "UR4";
+static int alive_limit = 10;
+
+
+static void
+set_alive_limit(void)
+{
+#ifdef HAVE_SYSCONF
+    alive_limit = sysconf(_SC_OPEN_MAX) / 2;
+#elif defined(OPEN_MAX)
+    alive_limit = OPEN_MAX / 2;
+#endif
+
+    alive_limit = min(alive_limit, 100);
+}
 
 
 /*
@@ -367,16 +382,40 @@ static int
 ngtsd_cyc(char **paths, int nfiles, struct sequence *seq,
           FILE *ofp, FILE *ofp2)
 {
+    GT3_File **inputs = NULL;
     GT3_File *fp = NULL;
     GT3_Varbuf *var = NULL;
+    int keep_alive = nfiles <= alive_limit;
     struct stddev sd;
     int n, rval = -1;
 
+    if ((inputs = malloc(sizeof(GT3_File *) * nfiles)) == NULL) {
+        logging(LOG_SYSERR, NULL);
+        return -1;
+    }
+    memset(inputs, 0, sizeof(GT3_File *) * nfiles);
+
     init_stddev(&sd);
+
+    for (n = 0; n < nfiles; n++) {
+        if ((inputs[n] = GT3_open(paths[n])) == NULL) {
+            GT3_printErrorMessages(stderr);
+            goto finish;
+        }
+        if (!keep_alive)
+            GT3_suspend(inputs[n]);
+    }
+
     while (nextSeq(seq)) {
         for (n = 0; n < nfiles; n++) {
-            if ((fp = GT3_open(paths[n])) == NULL
-                || GT3_seek(fp, seq->curr - 1, SEEK_SET) < 0) {
+            fp = inputs[n];
+
+            if (!keep_alive && GT3_resume(fp) < 0) {
+                GT3_printErrorMessages(stderr);
+                goto finish;
+            }
+
+            if (GT3_seek(fp, seq->curr - 1, SEEK_SET) < 0) {
                 GT3_printErrorMessages(stderr);
                 goto finish;
             }
@@ -398,8 +437,10 @@ ngtsd_cyc(char **paths, int nfiles, struct sequence *seq,
             if (add_newdata(&sd, var) < 0)
                 goto finish;
 
-            GT3_close(fp);
-            fp = NULL;
+            if (!keep_alive && GT3_suspend(fp) < 0) {
+                GT3_printErrorMessages(stderr);
+                goto finish;
+            }
         }
 
         calc_stddev(&sd);
@@ -412,8 +453,11 @@ finish:
     if (rval < 0 && n >= 0 && n < nfiles)
         logging(LOG_ERR, "%s: failed.", paths[n]);
 
-    GT3_close(fp);
     GT3_freeVarbuf(var);
+    for (n = 0; n < nfiles; n++)
+        GT3_close(inputs[n]);
+
+    free(inputs);
     free_stddev(&sd);
     return rval;
 }
@@ -458,6 +502,7 @@ main(int argc, char **argv)
 
     open_logging(stderr, PROGNAME);
     GT3_setProgname(PROGNAME);
+    set_alive_limit();
 
     while ((ch = getopt(argc, argv, "acf:hm:o:t:vz:")) != -1)
         switch (ch) {
