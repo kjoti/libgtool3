@@ -402,8 +402,10 @@ ngtsd_cyc(char **paths, int nfiles, struct sequence *seq,
             GT3_printErrorMessages(stderr);
             goto finish;
         }
-        if (!keep_alive)
-            GT3_suspend(inputs[n]);
+        if (!keep_alive && GT3_suspend(inputs[n]) < 0) {
+            GT3_printErrorMessages(stderr);
+            goto finish;
+        }
     }
 
     while (nextSeq(seq)) {
