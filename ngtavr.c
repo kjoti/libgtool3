@@ -5,6 +5,7 @@
 
 #include <assert.h>
 #include <ctype.h>
+#include <limits.h>
 #include <math.h>
 #include <stdarg.h>
 #include <stdlib.h>
@@ -55,6 +56,20 @@ static int calendar_type = GT3_CAL_GREGORIAN;
 static int ignore_tdur = 0;
 static double limit_factor = 0.;
 static char *g_format = "UR4";
+static int alive_limit = 10;
+
+
+static void
+set_alive_limit(void)
+{
+#ifdef HAVE_SYSCONF
+    alive_limit = sysconf(_SC_OPEN_MAX) / 2;
+#elif defined(OPEN_MAX)
+    alive_limit = OPEN_MAX / 2;
+#endif
+
+    alive_limit = min(alive_limit, 0);
+}
 
 
 static void
@@ -625,18 +640,44 @@ finish:
 
 
 static int
-ngtavr_cyc(char **ppath, int nfile, struct sequence *seq, FILE *ofp)
+ngtavr_cyc(char **paths, int nfiles, struct sequence *seq, FILE *ofp)
 {
-    GT3_File *fp = NULL;
+    GT3_File **inputs = NULL;
     GT3_Varbuf *var = NULL;
+    int keep_alive = (nfiles <= alive_limit);
+    GT3_File *fp;
     struct average avr;
     int n, rval = -1;
 
+    if ((inputs = malloc(sizeof(GT3_File *) * nfiles)) == NULL) {
+        logging(LOG_SYSERR, NULL);
+        return -1;
+    }
+    memset(inputs, 0, sizeof(GT3_File *) * nfiles);
+
     init_average(&avr);
+
+    for (n = 0; n < nfiles; n++) {
+        if ((inputs[n] = GT3_open(paths[n])) == NULL) {
+            GT3_printErrorMessages(stderr);
+            goto finish;
+        }
+        if (!keep_alive && GT3_suspend(inputs[n]) < 0) {
+            GT3_printErrorMessages(stderr);
+            goto finish;
+        }
+    }
+
     while (nextSeq(seq)) {
-        for (n = 0; n < nfile; n++) {
-            if ((fp = GT3_open(ppath[n])) == NULL
-                || GT3_seek(fp, seq->curr - 1, SEEK_SET) < 0) {
+        for (n = 0; n < nfiles; n++) {
+            fp = inputs[n];
+
+            if (!keep_alive && GT3_resume(fp) < 0) {
+                GT3_printErrorMessages(stderr);
+                goto finish;
+            }
+
+            if (GT3_seek(fp, seq->curr - 1, SEEK_SET) < 0) {
                 GT3_printErrorMessages(stderr);
                 goto finish;
             }
@@ -655,8 +696,10 @@ ngtavr_cyc(char **ppath, int nfile, struct sequence *seq, FILE *ofp)
             if (integrate_chunk(&avr, var) < 0)
                 goto finish;
 
-            GT3_close(fp);
-            fp = NULL;
+            if (!keep_alive && GT3_suspend(fp) < 0) {
+                GT3_printErrorMessages(stderr);
+                goto finish;
+            }
         }
 
         average(&avr);
@@ -666,9 +709,11 @@ ngtavr_cyc(char **ppath, int nfile, struct sequence *seq, FILE *ofp)
     rval = 0;
 
 finish:
-    GT3_close(fp);
     GT3_freeVarbuf(var);
+    for (n = 0; n < nfiles; n++)
+        GT3_close(inputs[n]);
     free_average(&avr);
+    free(inputs);
     return rval;
 }
 
@@ -769,6 +814,7 @@ main(int argc, char **argv)
 
     open_logging(stderr, PROGNAME);
     GT3_setProgname(PROGNAME);
+    set_alive_limit();
 
     while ((ch = getopt(argc, argv, "acf:l:hm:no:t:vz:")) != -1)
         switch (ch) {
