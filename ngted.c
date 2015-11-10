@@ -623,7 +623,7 @@ usage(void)
         "  " PROGNAME " -e \'title:c2m surface temperature\' file\n";
 
     fprintf(stderr, "%s\n", GT3_version());
-    fprintf(stderr, messages);
+    fprintf(stderr, "%s\n", messages);
 }
 
 
