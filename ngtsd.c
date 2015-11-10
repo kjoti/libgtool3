@@ -31,9 +31,9 @@ struct stddev {
     double *data2;              /* sum of X[i]**2 */
     unsigned *cnt;              /* N[i]: number of samples (each grid) */
     int shape[3];               /* data shape */
-    size_t len;                 /* current data area size (in byte) */
+    size_t len;                 /* current data area size */
 
-    size_t reserved;            /* reserved data area size (in byte) */
+    size_t reserved;            /* reserved data area size */
     unsigned numset;            /* the number of used dataset */
 
     double miss;                /* missing value for output */
