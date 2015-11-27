@@ -191,7 +191,7 @@ gh_snprintf(char *str, size_t size, const char *format,
                 if (!date_cache && (rval = get_date(&date, head, "DATE")) == 0)
                     date_cache = 1;
 
-                nstr = snprintf(str, size, fmt.fmt, (date.year / 10) * 10);
+                nstr = snprintf(str, size, fmt.fmt, date.year / 10);
                 break;
             case PERCENT:
                 nstr = snprintf(str, size, "%%");
