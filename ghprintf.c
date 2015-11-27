@@ -28,6 +28,24 @@ enum {
     PERCENT
 };
 
+/*
+ * Format elements (such as %y, %m, ...).
+ */
+struct format {
+    int type;
+    char key, spec;
+    char *help;
+};
+static struct format format_tab[] = {
+    { DATE_YEAR,   'y', 'd', "year of DATE" },
+    { DATE_MONTH,  'm', 'd', "month of DATE" },
+    { DATE_DAY,    'd', 'd', "day of DATE" },
+    { FILENAME,    'f', 's', "input filename" },
+    { DATA_NO,     'n', 'd', "data No." },
+    { ITEM,        'i', 's', "ITEM" },
+    { DATE_DECADE, 'D', 'd', "decade (year / 10)" }
+};
+
 static GT3_Duration date_shift = { -1, GT3_UNIT_SEC };
 
 
@@ -37,18 +55,6 @@ static GT3_Duration date_shift = { -1, GT3_UNIT_SEC };
 static int
 get_format_element(format_element *fmt, const char *input, char **endptr)
 {
-    struct {
-        int type;
-        char key, spec;
-    } tab[] = {
-        { DATE_YEAR,   'y', 'd' },
-        { DATE_MONTH,  'm', 'd' },
-        { DATE_DAY,    'd', 'd' },
-        { FILENAME,    'f', 's' },
-        { DATA_NO,     'n', 'd' },
-        { ITEM,        'i', 's' },
-        { DATE_DECADE, 'D', 'd' }
-    };
     const char allowed[] = "0123456789+-# .";
     char *dest;
     size_t size;
@@ -72,10 +78,10 @@ get_format_element(format_element *fmt, const char *input, char **endptr)
     dest = fmt->fmt + 1;
     fmt->type = DUMMY;
     while (size > 1 && *input != '\0') {
-        for (i = 0; i < sizeof tab / sizeof tab[0]; i++)
-            if (*input == tab[i].key) {
-                fmt->type = tab[i].type;
-                *dest++ = tab[i].spec;
+        for (i = 0; i < sizeof format_tab / sizeof format_tab[0]; i++)
+            if (*input == format_tab[i].key) {
+                fmt->type = format_tab[i].type;
+                *dest++ = format_tab[i].spec;
                 input++;
                 break;
             }
@@ -218,6 +224,23 @@ ghprintf_shift(int onoff)
 {
     date_shift.value = onoff ? -1 : 0;
     date_shift.unit = GT3_UNIT_SEC;
+}
+
+
+/*
+ * print help message.
+ */
+void
+ghprintf_usage(FILE *output)
+{
+    int i;
+
+    fprintf(output, "Format elements (printf-like):\n");
+    for (i = 0; i < sizeof format_tab / sizeof format_tab[0]; i++) {
+        fprintf(output, "    %%%c: %s\n",
+                format_tab[i].key,
+                format_tab[i].help);
+    }
 }
 
 

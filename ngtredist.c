@@ -282,11 +282,33 @@ usage(void)
         "    -s        do not shift -1sec in DATE\n"
         "    -n        dryrun\n"
         "    -v        verbose mode\n"
-        "    -h        print help message\n"
-        "\n";
+        "    -h        print help message\n";
+    const char *examples[] = {
+        "RSTA_%03n RSTA",
+        "Split into RSTA_001, RSTA_002, ...",
+
+        "RSTA_%03n_%i RSTA",
+        "Split into RSTA_001_GAU, RSTA_002_GAV, ...",
+
+        "y%04y/ATM/olr y1990-1909/ATM/olr",
+        "Split into y1990/ATM/olr, y1991/ATM/olr, ..",
+
+        "y%04y/ATM/olr y19*-m\?\?/ATM/olr",
+        "Merge into y1900/ATM/olr, y1901/ATM/olr, ..."
+    };
+    int i;
 
     fprintf(stderr, "%s\n", GT3_version());
     fprintf(stderr, "%s\n", usage_message);
+    ghprintf_usage(stderr);
+
+    fprintf(stderr, "\nExamples:\n");
+    for (i = 0; i < sizeof examples / sizeof examples[0]; i += 2)
+        fprintf(stderr,
+                "    $ %s %s\n    # %s\n\n",
+                PROGNAME,
+                examples[i],
+                examples[i+1]);
 }
 
 
