@@ -293,7 +293,7 @@ usage(void)
         "y%04y/ATM/olr y1990-1909/ATM/olr",
         "Split into y1990/ATM/olr, y1991/ATM/olr, ..",
 
-        "y%04y/ATM/olr y19*-m\?\?/ATM/olr",
+        "-a y%04y/ATM/olr y19*-m\?\?/ATM/olr",
         "Merge into y1900/ATM/olr, y1901/ATM/olr, ..."
     };
     int i;
