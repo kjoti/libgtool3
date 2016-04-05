@@ -46,14 +46,19 @@ enum {
     TOLOWER
 };
 
-struct { char key; int value; } cmd_type_map[] = {
-    { 'C', CHANGE_STR  },
-    { 'c', CHANGE  },
-    { 'a', APPEND  },
-    { 'i', INSERT  },
-    { 's', SUBST   },
-    { 'l', TOLOWER },
-    { 'u', TOUPPER },
+struct {
+    char key;
+    int value;
+    const char *help;
+} cmd_type_map[] = {
+    { 'c', CHANGE, "change (one argument)" },
+    { 'a', APPEND, "append (one argument)" },
+    { 'i', INSERT, "insert (one argument)" },
+    { 's', SUBST, "substitute (two arguments)" },
+    { 'l', TOLOWER, "lowercase (no argument)" },
+    { 'u', TOUPPER, "uppercase (no argument)" },
+    { 'C', CHANGE_STR,
+      "overwrite with string regardless of field type (one argument)" },
 };
 
 
@@ -607,6 +612,7 @@ edit_file(const char *path, struct edit_command *list,
 static void
 usage(void)
 {
+    int i;
     const char *messages =
         "Usage: " PROGNAME " [options] file...\n"
         "\n"
@@ -618,12 +624,48 @@ usage(void)
         "    -e COMMAND  specify edit commmand"
         " (can be appeared in any number of times)\n"
         "\n"
-        "Examples:\n"
-        "  " PROGNAME " -e aitm2:s/GGLA320I/GGLA160Ix2/ file\n"
-        "  " PROGNAME " -e \'title:c2m surface temperature\' file\n";
+        "Edit command:\n"
+        "    edit command := field-selector command [argument ...]\n"
+        "\n"
+        "    field-selector:\n"
+        "        field-selector := number from 1 to 64\n"
+        "                       := field name followed by colon (e.g., item:)";
+
+    const char *examples[] = {
+        "dset:c\"ERA Interim\"",
+        "set DSET field to ERA Interim",
+
+        "2c\"ERA Interim\"",
+        "same as above (\"dset:\" can be replaced by 2)",
+
+        "styp:c2",
+        "set STYP to 2 (logarithm)",
+
+        "item:u",
+        "convert ITEM field to uppercase",
+
+        "unit:s/mb/hPa/",
+        "substitute \"hPa\" for \"mb\" in UNIT field",
+
+        "unit:s@mb@hPa@",
+        "same as above (delimiter can be any character)",
+
+        "title:\"s/_/ /\"",
+        "substitute spaces for underscores in TITLE field",
+    };
 
     fprintf(stderr, "%s\n", GT3_version());
     fprintf(stderr, "%s\n", messages);
+
+    fprintf(stderr, "\n    command:\n");
+    for (i = 0; i < sizeof cmd_type_map / sizeof cmd_type_map[0]; i++)
+        fprintf(stderr, "        %c  %s\n",
+                cmd_type_map[i].key, cmd_type_map[i].help);
+
+    fprintf(stderr, "\nExamples of edit command:\n");
+    for (i = 0; i < sizeof examples / sizeof examples[0]; i += 2)
+        fprintf(stderr, "    %-20s  %s\n", examples[i], examples[i+1]);
+    fprintf(stderr, "\n");
 }
 
 
