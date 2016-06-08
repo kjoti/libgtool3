@@ -1,0 +1,229 @@
+# -*- Makefile -*-
+#
+# Makefile for NEC-SX
+#
+.SUFFIXES:
+.SUFFIXES: .c .o .So
+
+MAJOR_VERSION	= 1
+
+SHELL		?= /bin/sh
+
+prefix		= $(HOME)/SUPER-UX-SX-ACE
+bindir		= $(prefix)/bin
+libdir		= $(prefix)/lib
+includedir	= $(prefix)/include
+
+CC		= sxcc
+AR		= sxar
+RANLIB		= :
+#INSTALL	= ./install-sh
+#MKDIR		= ./install-sh -d
+INSTALL		?= /usr/bin/install
+MKDIR		= /usr/bin/install -d
+LN_S		= ln -sf
+DEBUG		= #-g
+
+DEFS		= -UHAVE_CONFIG_H -DWORDS_BIGENDIAN \
+		-DHAVE_FSEEKO -DHAVE_ILOGB -DHAVE_SCALBN \
+		-DHAVE_STDINT_H -DHAVE_UINT32_T \
+		-DHAVE_GLOB -DHAVE_GLOB_H -DHAVE_ROUND
+
+LDFLAGS		+= $(DEBUG)
+CFLAGS		+= $(DEBUG) $(DEFS) \
+		-C hopt -w all \
+		-R diaglist fmtlist transform \
+		-O fullmsg -pi auto fullmsg -pvctl fullmsg
+
+# make size_t 64-bit.
+CFLAGS		+= -size_t64
+LDFLAGS		+= -size_t64
+
+OBJS		= \
+		bits_set.o \
+		caltime.o \
+		error.o \
+		file.o \
+		gauss-legendre.o \
+		grid.o \
+		gtdim.o \
+		header.o \
+		if_fortran.o \
+		int_pack.o \
+		mask.o \
+		read_urc.o \
+		read_ury.o \
+		record.o \
+		reverse.o \
+		scaling.o \
+		talloc.o \
+		timedim.o \
+		urc_pack.o \
+		varbuf.o \
+		vcat.o \
+		version.o \
+		write-mask.o \
+		write-urx.o \
+		write-ury.o \
+		write.o \
+		xfread.o
+
+SHLIBNAME	= libgtool3.so
+SHLIB		= libgtool3.so.$(MAJOR_VERSION)
+STLIB		= libgtool3.a
+INTLIB		= libinternal.a # Not installed.
+
+LDADD		= $(INTLIB) $(STLIB) -lm   # use static library for bin
+#LDADD		= $(INTLIB) $(SHLIB) -lm
+
+UTILS		= \
+		copysubst.o \
+		dateiter.o \
+		fileiter.o \
+		get_ints.o \
+		ghprintf.o \
+		logging.o \
+		mkpath.o \
+		range.o \
+		seq.o \
+		split.o \
+		strman.o
+
+PICFLAG		= -fpic
+SONAME		= $(SHLIB)
+SOBJS		= $(OBJS:.o=.So)
+
+LIBSOURCES	= $(OBJS:.o=.c)
+UTILSOURCES	= $(UTILS:.o=.c)
+SOURCES		= $(LIBSOURCES) $(UTILSOURCES)
+
+#
+#  targets
+#
+LIBS		= $(STLIB) $(INTLIB)
+HEADERS		= gtool3.h libgtool3.f90
+BINS		= ngtcat ngtls ngtsumm ngtstat ngtick \
+		ngthead ngted ngtmkax ngtdiff ngtdump ngtavr \
+		ngtconv ngtredist ngtmean ngtjoin ngtsd
+
+all: $(LIBS) $(BINS) $(HEADERS)
+
+$(STLIB): $(OBJS)
+	$(AR) $(ARFLAGS) $@ $(OBJS)
+	$(RANLIB) $@
+
+$(SHLIB): $(SOBJS)
+	$(CC) $(LDFLAGS) -shared -Wl,-x \
+	    -o $@ -Wl,-soname,$(SONAME) \
+	    `lorder $(SOBJS) | tsort -q`
+
+$(INTLIB): $(UTILS)
+	$(AR) $(ARFLAGS) $@ $(UTILS)
+	$(RANLIB) $@
+
+ngtcat: $(LIBS) ngtcat.o
+	$(CC) $(LDFLAGS) -L. -o $@ ngtcat.o $(LDADD)
+
+ngtls: $(LIBS) ngtls.o
+	$(CC) $(LDFLAGS) -L. -o $@ ngtls.o $(LDADD)
+
+ngtsumm: $(LIBS) ngtsumm.o
+	$(CC) $(LDFLAGS) -L. -o $@ ngtsumm.o $(LDADD)
+
+ngtstat: $(LIBS) ngtstat.o
+	$(CC) $(LDFLAGS) -L. -o $@ ngtstat.o $(LDADD)
+
+ngtick: $(LIBS) ngtick.o
+	$(CC) $(LDFLAGS) -L. -o $@ ngtick.o $(LDADD)
+
+ngted: $(LIBS) ngted.o
+	$(CC) $(LDFLAGS) -L. -o $@ ngted.o $(LDADD)
+
+ngtmkax: $(LIBS) ngtmkax.o
+	$(CC) $(LDFLAGS) -L. -o $@ ngtmkax.o $(LDADD)
+
+ngtdiff: $(LIBS) ngtdiff.o
+	$(CC) $(LDFLAGS) -L. -o $@ ngtdiff.o $(LDADD)
+
+ngtdump: $(LIBS) ngtdump.o
+	$(CC) $(LDFLAGS) -L. -o $@ ngtdump.o $(LDADD)
+
+ngthead: ngthead.o
+	$(CC) $(LDFLAGS) -o $@ ngthead.o
+
+ngtavr: $(LIBS) ngtavr.o
+	$(CC) $(LDFLAGS) -L. -o $@ ngtavr.o $(LDADD)
+
+ngtconv: $(LIBS) ngtconv.o
+	$(CC) $(LDFLAGS) -L. -o $@ ngtconv.o $(LDADD)
+
+ngtredist: $(LIBS) ngtredist.o
+	$(CC) $(LDFLAGS) -L. -o $@ ngtredist.o $(LDADD)
+
+ngtmean: $(LIBS) ngtmean.o
+	$(CC) $(LDFLAGS) -L. -o $@ ngtmean.o $(LDADD)
+
+ngtjoin: $(LIBS) ngtjoin.o
+	$(CC) $(LDFLAGS) -L. -o $@ ngtjoin.o $(LDADD)
+
+ngtsd: $(LIBS) ngtsd.o
+	$(CC) $(LDFLAGS) -L. -o $@ ngtsd.o $(LDADD)
+
+install: all
+	$(MKDIR) $(bindir)
+	$(MKDIR) $(libdir)
+	$(MKDIR) $(includedir)
+	$(INSTALL) $(BINS) $(bindir)
+	$(INSTALL) -m 644 $(STLIB) $(libdir)
+	$(INSTALL) -m 644 $(HEADERS) $(includedir)
+
+tags: TAGS
+
+TAGS: $(SOURCES)
+	etags $(SOURCES)
+
+.c.So:
+	$(CC) $(PICFLAG) -DPIC $(CFLAGS) -c -o $@ $<
+
+#
+TESTCC	= $(CC) -DTEST_MAIN $(LDFLAGS) $(CFLAGS)
+
+test: $(LIBS)
+	@-for obj in $(OBJS) $(UTILS); do \
+	    f=`basename $$obj .o`.c ; \
+	    grep "ifdef  *TEST_MAIN" $$f > /dev/null; \
+	    if [ $$? -eq 0 ]; then \
+	        echo "**** TESTING $$f ****"; \
+	        $(TESTCC) -L. $$f $(LDADD); \
+	        if [ $$? -ne 0 ]; then \
+	            echo "**** $$f: ERROR AT COMPILE-TIME."; \
+	            exit; \
+	        fi; \
+	        ./a.out; \
+	        if [ $$? -ne 0 ]; then \
+	            echo "**** $$f: FAILED."; \
+	            rm a.out; \
+	            exit; \
+	        fi; \
+	        rm a.out; \
+	    fi; \
+	done; \
+	echo "**** All tests passed."
+
+clean:
+	@rm -f $(LIBS) $(BINS) a.out $(OBJS) $(SOBJS) $(UITLS) *.o *.L
+
+##
+MAIN_HEADERS	= gtool3.h internal.h
+
+bits_set.o: bits_set.h
+error.o: $(MAIN_HEADERS)
+file.o: $(MAIN_HEADERS)
+grid.o: $(MAIN_HEADERS)
+gtdim.o: $(MAIN_HEADERS)
+header.o: $(MAIN_HEADERS)
+ngtls.o: $(MAIN_HEADERS)
+reverse.o: $(MAIN_HEADERS)
+urc_pack.o: $(MAIN_HEADERS)
+varbuf.o: $(MAIN_HEADERS)
+write.o: $(MAIN_HEADERS)
