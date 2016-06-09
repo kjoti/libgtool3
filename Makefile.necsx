@@ -7,7 +7,7 @@
 
 MAJOR_VERSION	= 1
 
-SHELL		?= /bin/sh
+SHELL		= /bin/sh
 
 prefix		= $(HOME)/SUPER-UX-SX-ACE
 bindir		= $(prefix)/bin
@@ -17,9 +17,7 @@ includedir	= $(prefix)/include
 CC		= sxcc
 AR		= sxar
 RANLIB		= :
-#INSTALL	= ./install-sh
-#MKDIR		= ./install-sh -d
-INSTALL		?= /usr/bin/install
+INSTALL		= /usr/bin/install
 MKDIR		= /usr/bin/install -d
 LN_S		= ln -sf
 DEBUG		= #-g
@@ -33,7 +31,10 @@ LDFLAGS		+= $(DEBUG)
 CFLAGS		+= $(DEBUG) $(DEFS) \
 		-C hopt -w all \
 		-R diaglist fmtlist transform \
-		-O fullmsg -pi auto fullmsg -pvctl fullmsg
+		-O fullmsg -pvctl fullmsg
+
+# enable inline expansion.
+#CFLAGS		+= -pi auto fullmsg
 
 # make size_t 64-bit.
 CFLAGS		+= -size_t64
