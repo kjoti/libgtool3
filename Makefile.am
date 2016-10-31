@@ -77,18 +77,18 @@ test: $(lib_LTLIBRARIES) $(noinst_LIBRARIES)
 	    grep "ifdef  *TEST_MAIN" $$f > /dev/null; \
 	    if [ $$? -eq 0 ]; then \
 	        echo "**** TESTING $$f ****"; \
-		$(COMPILE) -L.libs -DTEST_MAIN $$f $(TESTLDADD); \
+		$(COMPILE) -o a.exe -L.libs -DTEST_MAIN $$f $(TESTLDADD); \
 	        if [ $$? -ne 0 ]; then \
 		    echo "**** $$f: ERROR IN COMPILE-TIME."; \
 		    exit; \
 	        fi; \
-	        ./a.out; \
+	        ./a.exe; \
 	        if [ $$? -ne 0 ]; then \
 		    echo "**** $$f: FAILED."; \
-		    rm a.out; \
+		    rm a.exe; \
 		    exit; \
 	        fi; \
-	        rm a.out; \
+	        rm a.exe; \
 	    fi; \
 	done; \
 	echo "**** All tests passed."
