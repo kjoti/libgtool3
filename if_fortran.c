@@ -373,7 +373,7 @@ NAME(get_item_date)(int *values,
 
 
 /*
- * write a gtool3 data into an output stream, opened via open_output_stream.
+ * write a gtool3 data into an output stream, opened via open_output.
  */
 void
 NAME(write)(const int *iu,
