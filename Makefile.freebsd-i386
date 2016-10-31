@@ -7,7 +7,7 @@
 
 MAJOR_VERSION	= 1
 
-SHELL		?= /bin/sh
+SHELL		= /bin/sh
 
 prefix		= /usr/local
 bindir		= $(prefix)/bin
