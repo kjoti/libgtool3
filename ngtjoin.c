@@ -17,14 +17,10 @@
 #include "myutils.h"
 #include "seq.h"
 
-#ifdef OPEN_MAX
-#  define ALIVE_MAX (OPEN_MAX - 5)
-#else
-#  define ALIVE_MAX 15
-#endif
 #define RANGE_MAX 0x7fffffff
 
 #define PROGNAME "ngtjoin"
+static int alive_limit = 15;
 
 
 /*
@@ -320,7 +316,7 @@ make_input_set(char * const paths[], int ninputs)
     /*
      * set members in input set.
      */
-    inset->keep_alive = ninputs <= ALIVE_MAX;
+    inset->keep_alive = ninputs <= alive_limit;
     for (i = 0; i < ninputs; i++) {
         if ((inset->fp[i] = GT3_open(paths[i])) == NULL) {
             GT3_printErrorMessages(stderr);
@@ -460,6 +456,9 @@ main(int argc, char **argv)
 
     open_logging(stderr, PROGNAME);
     GT3_setProgname(PROGNAME);
+#ifdef HAVE_SYSCONF
+    alive_limit = sysconf(_SC_OPEN_MAX) / 2;
+#endif
 
     while ((ch = getopt(argc, argv, "f:o:s:t:vxyzh")) != -1)
         switch (ch) {
