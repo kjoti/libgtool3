@@ -25,7 +25,7 @@ int
 mkpath(const char *path)
 {
     struct stat sb;
-    char buf[PATH_MAX + 1];
+    char buf[PATH_MAX];
     char *dest, *tail, prev;
 
     if (path == NULL || path[0] == '\0')

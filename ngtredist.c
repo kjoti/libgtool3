@@ -51,10 +51,10 @@ identical_file(const char *path1, const char *path2)
 }
 
 
-char *
+static char *
 dirname(const char *path)
 {
-    static char buffer[PATH_MAX + 1];
+    static char buffer[PATH_MAX];
     const char *tail;
     size_t tpos;
 
@@ -76,8 +76,8 @@ dirname(const char *path)
         buffer[1] = '\0';
     } else {
         tpos = tail - path;
-        if (tpos > PATH_MAX)
-            tpos = PATH_MAX;
+        if (tpos > sizeof buffer - 1)
+            tpos = sizeof buffer - 1;
 
         memcpy(buffer, path, tpos);
         buffer[tpos] = '\0';
@@ -200,7 +200,7 @@ redist(const char *path, const char *format, struct sequence *seq)
     int rval = -1;
     int err, stat;
     int sw = 0;
-    char outpath[2][PATH_MAX + 1];
+    char outpath[2][PATH_MAX];
 
     if ((fp = GT3_open(path)) == NULL) {
         err = GT3_getLastError();

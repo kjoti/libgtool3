@@ -22,9 +22,10 @@
 int
 make_axisfile(const char *name, const char *outdir, const char *fmt)
 {
-    char path[PATH_MAX + 1];
+    char path[PATH_MAX];
     GT3_Dim *dim;
     FILE *fp;
+    int splen;
 
     if ((dim = GT3_getBuiltinDim(name)) == NULL) {
         if (GT3_ErrorCount() > 0)
@@ -37,7 +38,11 @@ make_axisfile(const char *name, const char *outdir, const char *fmt)
     /*
      * write GTAXLOC.*
      */
-    snprintf(path, sizeof path, "%s/GTAXLOC.%s", outdir, name);
+    splen = snprintf(path, sizeof path, "%s/GTAXLOC.%s", outdir, name);
+    if (splen >= sizeof path) {
+        logging(LOG_ERR, "%s: Too long path (truncated)", path);
+        return -1;
+    }
     if ((fp = fopen(path, "wb")) == NULL) {
         logging(LOG_SYSERR, path);
         return -1;
@@ -112,10 +117,6 @@ main(int argc, char **argv)
 
         case 'o':
             outdir = strdup(optarg);
-            if (strlen(outdir) > PATH_MAX - 32) {
-                logging(LOG_ERR, "%s: Too long path", optarg);
-                exit(1);
-            }
             break;
 
         case 'h':

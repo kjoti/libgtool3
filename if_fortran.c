@@ -141,11 +141,11 @@ NAME(print_error)(void)
 void
 NAME(open_output)(int *iu, const char *path, const int *append, int pathlen)
 {
-    char path_[PATH_MAX + 1];
+    char path_[PATH_MAX];
     FILE *fp;
     int i;
 
-    copy_f2c(path_, sizeof(path_), path, pathlen);
+    copy_f2c(path_, sizeof path_, path, pathlen);
 
     *iu = -1;
     for (i = 0; i < MAX_NOUTPUTS; i++) {
@@ -463,11 +463,11 @@ get_varbuf(GT3_File *fp)
 void
 NAME(open_input)(int *iu, const char *path, int pathlen)
 {
-    char path_[PATH_MAX + 1];
+    char path_[PATH_MAX];
     GT3_File *fp;
 
     *iu = -1;
-    copy_f2c(path_, sizeof(path_), path, pathlen);
+    copy_f2c(path_, sizeof path_, path, pathlen);
     if ((fp = GT3_open(path_)) != NULL) {
         *iu = get_varbuf(fp);
         if (*iu < 0)
@@ -484,11 +484,11 @@ NAME(open_input)(int *iu, const char *path, int pathlen)
 void
 NAME(open_input2)(int *iu, const char *path, int pathlen)
 {
-    char path_[PATH_MAX + 1];
+    char path_[PATH_MAX];
     GT3_File *fp;
 
     *iu = -1;
-    copy_f2c(path_, sizeof(path_), path, pathlen);
+    copy_f2c(path_, sizeof path_, path, pathlen);
     if ((fp = GT3_openHistFile(path_)) != NULL) {
         *iu = get_varbuf(fp);
         if (*iu < 0)
@@ -700,9 +700,9 @@ NAME(read_header)(const int *iu, char *head, int *status, int dummy)
 void
 NAME(count_chunk)(int *num, const char *path, int pathlen)
 {
-    char path_[PATH_MAX + 1];
+    char path_[PATH_MAX];
 
-    copy_f2c(path_, sizeof(path_), path, pathlen);
+    copy_f2c(path_, sizeof path_, path, pathlen);
     *num = GT3_countChunk(path_);
 }
 

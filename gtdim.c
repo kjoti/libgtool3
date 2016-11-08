@@ -430,7 +430,7 @@ make_num(int len, int idiv, unsigned flag)
 static GT3_File *
 open_axisfile2(const char *name, const char *pathlist, const char *kind)
 {
-    char path[PATH_MAX + 1];
+    char path[PATH_MAX];
     char base[32];
     const char *head, *next, *tail;
     int len, baselen;
@@ -471,7 +471,7 @@ open_axisfile2(const char *name, const char *pathlist, const char *kind)
 static GT3_File *
 open_axisfile(const char *name, const char *kind)
 {
-    char path[PATH_MAX + 1];
+    char path[PATH_MAX];
     GT3_File *fp;
     char *gtax_path, *gtax_dir;
 
