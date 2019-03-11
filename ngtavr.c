@@ -58,6 +58,9 @@ static double limit_factor = 0.;
 static char *g_format = "UR4";
 static int alive_limit = 10;
 
+static int integrating_mode = 0;
+static double timedur_factor = 0.;
+
 
 static void
 set_alive_limit(void)
@@ -402,15 +405,19 @@ static void
 average(struct average *avr)
 {
     int i;
-    double thres;
+    double thres, x;
 
     thres = limit_factor * avr->total_wght;
 
     for (i = 0; i < avr->len; i++) {
         if (avr->wght[i] < thres || avr->wght[i] == 0.)
-            avr->data[i] = avr->miss;
+            x = avr->miss;
+        else if (integrating_mode)
+            x = avr->data[i] * timedur_factor;
         else
-            avr->data[i] /= avr->wght[i];
+            x = avr->data[i] / avr->wght[i];
+
+        avr->data[i] = x;
     }
 }
 
@@ -760,6 +767,40 @@ setStepsize(GT3_Date *step, const char *str)
 }
 
 
+/*
+ * Get a value from the argument of -s option.
+ */
+static int
+get_timedur_factor(double *value, const char *str)
+{
+    int i;
+    double x;
+    char *endptr;
+    struct {
+        const char *key;
+        double value;
+    } tab[] = {
+        {"sec", 3600.},
+        {"min", 60.},
+        {"hour", 1.},
+        {"day", 1. / 24.},
+    };
+
+    for (i = 0; i < sizeof tab / sizeof tab[0]; i++)
+        if (strcmp(str, tab[i].key) == 0) {
+            *value = tab[i].value;
+            return 0;
+        }
+
+    x = strtod(str, &endptr);
+    if (str != endptr && *endptr == '\0') {
+        *value = x;
+        return 0;
+    }
+    return -1;
+}
+
+
 static void
 usage(void)
 {
@@ -777,6 +818,7 @@ usage(void)
         "    -m tdur   specify time-duration\n"
         "    -n        ignore TDUR (weight of integration)\n"
         "    -o path   specify output filename\n"
+        "    -s tunit  integrating mode (tunit: sec, min, hour, day)\n"
         "    -t LIST   specify data No. to average\n"
         "    -v        be verbose\n"
         "    -z LIST   specify z-layer\n";
@@ -816,7 +858,7 @@ main(int argc, char **argv)
     GT3_setProgname(PROGNAME);
     set_alive_limit();
 
-    while ((ch = getopt(argc, argv, "acf:l:hm:no:t:vz:")) != -1)
+    while ((ch = getopt(argc, argv, "acf:l:hm:no:s:t:vz:")) != -1)
         switch (ch) {
         case 'a':
             mode = "ab";
@@ -861,6 +903,14 @@ main(int argc, char **argv)
 
         case 'o':
             ofile = optarg;
+            break;
+
+        case 's':
+            if (get_timedur_factor(&timedur_factor, optarg) < 0) {
+                logging(LOG_ERR, "%s: invalid argument for -s option", optarg);
+                exit(1);
+            }
+            integrating_mode = 1;
             break;
 
         case 't':
