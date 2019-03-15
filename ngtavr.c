@@ -177,7 +177,7 @@ get_calendar_type(const char *path)
         GT3_printErrorMessages(stderr);
 
     if (ctype >= 0 && ctype < sizeof cname / sizeof cname[0])
-        logging(LOG_NOTICE, "CalendarType: %s", cname[ctype]);
+        logging(LOG_INFO, "CalendarType: %s", cname[ctype]);
     else {
         logging(LOG_ERR, "Unknown calendar type. Assuming Gregorian.");
         ctype = GT3_CAL_GREGORIAN;

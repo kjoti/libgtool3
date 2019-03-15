@@ -296,7 +296,7 @@ tick_file(const char *path, GT3_Date *start, const GT3_Duration *intv,
                     " Use Gregorian.");
             ctype = GT3_CAL_GREGORIAN;
         } else
-            logging(LOG_NOTICE, "Calendar type is %s.",
+            logging(LOG_INFO, "Calendar type is %s.",
                     GT3_calendar_name(ctype));
         calendar = ctype;
     }
