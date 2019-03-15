@@ -509,6 +509,7 @@ usage(void)
         "    -h        print help message\n"
         "    -a        output in append mode\n"
         "    -f fmt    specify output format (default: UR4)\n"
+        "    -v        be verbose\n"
         "    -t LIST   specify data No.\n"
         "    -x RANGE  specify X-range\n"
         "    -y RANGE  specify Y-range\n"
@@ -552,7 +553,7 @@ main(int argc, char **argv)
 
     open_logging(stderr, PROGNAME);
     GT3_setProgname(PROGNAME);
-    while ((ch = getopt(argc, argv, "af:o:t:x:y:z:h")) != -1)
+    while ((ch = getopt(argc, argv, "af:o:t:vx:y:z:h")) != -1)
         switch (ch) {
         case 'a':
             mode = "ab";
@@ -575,6 +576,9 @@ main(int argc, char **argv)
                 logging(LOG_SYSERR, NULL);
                 exit(1);
             }
+            break;
+        case 'v':
+            set_logging_level("verbose");
             break;
         case 'x':
             if (get_range(g_range, optarg, 1, RANGE_MAX) < 0) {
@@ -646,6 +650,7 @@ main(int argc, char **argv)
         if (tseq)
             reinitSeq(tseq, 1, RANGE_MAX);
 
+        logging(LOG_INFO, "Copying %s", argv[i]);
         if ((rval = conv_file(argv[i], fmt, optype, output, tseq)) < 0)
             break;
     }
