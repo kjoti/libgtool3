@@ -807,8 +807,8 @@ usage(void)
     const char *usage_message =
         "Usage: " PROGNAME " [options] File1 ...\n"
         "\n"
-        "Average files.\n"
-        "\n"
+        "Average files.\n";
+    const char *options =
         "Options:\n"
         "    -h        print help message\n"
         "    -a        append to output file\n"
@@ -833,9 +833,9 @@ usage(void)
         "  " PROGNAME " -o T -m 1yr y19*/1dy/T  # "
         "Convert daily mean to annual mean.\n";
 
-
     fprintf(stderr, "%s\n", GT3_version());
     fprintf(stderr, "%s\n", usage_message);
+    fprintf(stderr, "%s\n", options);
     fprintf(stderr, "%s\n", examples);
 }
 
