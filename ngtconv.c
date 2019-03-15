@@ -497,7 +497,9 @@ void
 usage(void)
 {
     const char *usage_message =
-        "Usage: " PROGNAME " [options] inputfile [outputfile]\n"
+        "Usage:\n"
+        "       " PROGNAME " [options] input [output]\n"
+        "       " PROGNAME " -o output [options] input1 [input2 ...]\n"
         "\n"
         "File format converter.\n"
         "\n"
@@ -540,14 +542,15 @@ main(int argc, char **argv)
     const char *mode = "wb";
     char *fmt = "UR4";
     int optype = OP_NONE;
-    char *outpath = "gtool.out";
+    char *outpath = NULL;
     FILE *output;
     char dummy[17];
-    int rval;
+    int i, num_inputs;
+    int rval = 0;
 
     open_logging(stderr, PROGNAME);
     GT3_setProgname(PROGNAME);
-    while ((ch = getopt(argc, argv, "af:t:x:y:z:h")) != -1)
+    while ((ch = getopt(argc, argv, "af:o:t:x:y:z:h")) != -1)
         switch (ch) {
         case 'a':
             mode = "ab";
@@ -561,6 +564,9 @@ main(int argc, char **argv)
                 exit(1);
             }
             fmt = optarg;
+            break;
+        case 'o':
+            outpath = optarg;
             break;
         case 't':
             if ((tseq = initSeq(optarg, 1, RANGE_MAX)) == NULL) {
@@ -596,26 +602,52 @@ main(int argc, char **argv)
 
     argc -= optind;
     argv += optind;
-    if (argc == 0) {
-        usage();
-        exit(1);
+
+    if (outpath) {
+        /*
+         * All the arguments are input files.
+         */
+        if (argc == 0) {
+            usage();
+            exit(1);
+        }
+        num_inputs = argc;
+    } else {
+        /*
+         * Only the first argument is an input file.
+         * And the second argument (if any) is an output file.
+         */
+        if (argc == 0 || argc > 2) {
+            usage();
+            exit(1);
+        }
+        num_inputs = 1;
+        outpath = (argc == 2) ? argv[1] : "gtool.out";
     }
 
-    if (argc > 1)
-        outpath = argv[1];
-
-    if (identical_file(argv[0], outpath) == 1) {
-        logging(LOG_ERR, "\"%s\" is identical to \"%s\".",
-                outpath, argv[0]);
-        exit(1);
-    }
+    /*
+     * Check the common catastrophic mistake.
+     */
+    for (i = 0; i < num_inputs; i++)
+        if (identical_file(argv[i], outpath) == 1) {
+            logging(LOG_ERR, "\"%s\" is identical to \"%s\".",
+                    outpath, argv[i]);
+            exit(1);
+        }
 
     if ((output = fopen(outpath, mode)) == NULL) {
         logging(LOG_SYSERR, outpath);
         exit(1);
     }
 
-    rval = conv_file(argv[0], fmt, optype, output, tseq);
+    for (i = 0; i < num_inputs; i++) {
+        if (tseq)
+            reinitSeq(tseq, 1, RANGE_MAX);
+
+        if ((rval = conv_file(argv[i], fmt, optype, output, tseq)) < 0)
+            break;
+    }
+
     fclose(output);
     return rval < 0 ? 1 : 0;
 }
