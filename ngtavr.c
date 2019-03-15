@@ -784,6 +784,7 @@ get_timedur_factor(double *value, const char *str)
         {"min", 60.},
         {"hour", 1.},
         {"day", 1. / 24.},
+        {"yr", 1. / (24. * 365.25)},
     };
 
     for (i = 0; i < sizeof tab / sizeof tab[0]; i++)
@@ -818,7 +819,7 @@ usage(void)
         "    -m tdur   specify time-duration\n"
         "    -n        ignore TDUR (weight of integration)\n"
         "    -o path   specify output filename\n"
-        "    -s tunit  integrating mode (tunit: sec, min, hour, day)\n"
+        "    -s tunit  integrating mode (tunit: sec, min, hour, day, yr)\n"
         "    -t LIST   specify data No. to average\n"
         "    -v        be verbose\n"
         "    -z LIST   specify z-layer\n";
