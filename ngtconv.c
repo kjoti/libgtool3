@@ -414,16 +414,14 @@ conv_chunk(FILE *output, const char *dfmt, int optype,
     } else
         GT3_setHeaderInt(&head, "ASTR3", astr[2] + range[2].str);
 
-    /*
-     * check special operations.
-     */
-    if (optype == OP_NONE) {
-        rval = GT3_write(g_buffer.ptr, GT3_TYPE_DOUBLE,
-                         nx, ny, nz, &head, dfmt, output);
-    } else if (optype == OP_INT || optype == OP_MASKINT) {
+    if (optype == OP_INT || optype == OP_MASKINT) {
         double offset, scale = 1., miss = -999.;
         unsigned nbits;
 
+        /*
+         * OP_INT || OP_MASKINT:
+         * Bit packing for integers (normal and masked).
+         */
         nelems = (size_t)nx * ny * nz;
         GT3_decodeHeaderDouble(&miss, &head, "MISS");
 
@@ -438,20 +436,24 @@ conv_chunk(FILE *output, const char *dfmt, int optype,
                                  nbits, optype == OP_MASKINT,
                                  output);
     } else {
-        char newfmt[17];
+        char asis[17];
+        const char *p;
 
-        /* for OP_ASIS */
-        GT3_copyHeaderItem(newfmt, sizeof newfmt, &head, "DFMT");
+        if (optype == OP_NONE) {
+            p = dfmt;
+        } else {
+            p = asis;
+            GT3_copyHeaderItem(asis, sizeof asis, &head, "DFMT");
 
-        if (optype == OP_MASK)
-            masked_format(newfmt);
-        else if (optype == OP_UNMASK)
-            unmasked_format(newfmt);
-
+            /* Tweak the asis for masking or unmasking. */
+            if (optype == OP_MASK)
+                masked_format(asis);
+            if (optype == OP_UNMASK)
+                unmasked_format(asis);
+        }
         rval = GT3_write(g_buffer.ptr, GT3_TYPE_DOUBLE,
-                         nx, ny, nz, &head, newfmt, output);
+                         nx, ny, nz, &head, p, output);
     }
-
     if (rval < 0)
         GT3_printErrorMessages(stderr);
 
