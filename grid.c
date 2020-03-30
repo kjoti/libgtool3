@@ -73,6 +73,11 @@ uniform_bnd(double *grid, double x0, double x1, int len)
     if (len < 2)
         return -1;
 
+    if (len == 2) {
+        grid[0] = x0;
+        grid[1] = x1;
+        return 0;
+    }
     if (x0 == -x1) {
         half = len / 2;
 
@@ -83,7 +88,6 @@ uniform_bnd(double *grid, double x0, double x1, int len)
 
         for (i = 0; i < half; i++)
             grid[i] = -grid[len - 1 - i];
-        return 0;
     } else
         bound(grid, x0, x1, len);
 
