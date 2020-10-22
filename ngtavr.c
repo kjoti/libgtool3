@@ -695,7 +695,10 @@ ngtavr_cyc(char **paths, int nfiles, struct sequence *seq, FILE *ofp)
                     goto finish;
                 }
             } else
-                GT3_reattachVarbuf(var, fp);
+                if (GT3_reattachVarbuf(var, fp) < 0) {
+                    GT3_printErrorMessages(stderr);
+                    goto finish;
+                }
 
             if (n == 0 && setup_average(&avr, var) < 0)
                 goto finish;
