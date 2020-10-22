@@ -71,7 +71,7 @@ set_alive_limit(void)
     alive_limit = OPEN_MAX / 2;
 #endif
 
-    alive_limit = min(alive_limit, 0);
+    alive_limit = min(alive_limit, 100);
 }
 
 
