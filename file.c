@@ -645,8 +645,6 @@ GT3_rewind(GT3_File *fp)
 int
 GT3_seek(GT3_File *fp, int dest, int whence)
 {
-    int num;
-
     /*
      * chunk number of dest
      */
@@ -687,12 +685,11 @@ GT3_seek(GT3_File *fp, int dest, int whence)
     if (dest < fp->curr && GT3_rewind(fp) < 0) /* backward */
         return -1;
 
-    num = dest - fp->curr;
-    while (num-- > 0 && !GT3_eof(fp))
+    while (fp->curr != dest && !GT3_eof(fp))
         if (GT3_next(fp) < 0)
             return -1;          /* I/O error or broken file ? */
 
-    if (num > 0) {
+    if (fp->curr != dest) {
         gt3_error(GT3_ERR_INDEX, "GT3_seek() %d", dest);
         return -1;
     }
