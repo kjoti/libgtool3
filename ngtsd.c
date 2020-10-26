@@ -49,6 +49,7 @@ static struct sequence *g_zseq = NULL;
 static const char *default_opath = "gtool.out";
 static char *g_format = "UR4";
 static int alive_limit = 10;
+static int skip_leapday = 0;
 
 
 static void
@@ -61,6 +62,19 @@ set_alive_limit(void)
 #endif
 
     alive_limit = min(alive_limit, 100);
+}
+
+
+static int
+is_leapday(GT3_File *fp)
+{
+    GT3_HEADER head;
+    GT3_Date date;
+
+    return GT3_readHeader(&head, fp) == 0
+        && GT3_decodeHeaderDate(&date, &head, "DATE") == 0
+        && date.mon == 2
+        && date.day == 29;
 }
 
 
@@ -287,6 +301,9 @@ write_stddev(const struct stddev *sd, FILE *fp, FILE *mfp)
     GT3_HEADER head, head2;
     char field[17];
 
+    if (sd->numset == 0)
+        return 0;               /* do nothing */
+
     GT3_copyHeader(&head, &sd->head);
 
     /* ASTR3 */
@@ -307,6 +324,7 @@ write_stddev(const struct stddev *sd, FILE *fp, FILE *mfp)
     snprintf(field, sizeof field - 1, "sd N=%u", sd->numset);
     GT3_setHeaderEttl(&head, field);
 
+    logging(LOG_INFO, "Write %s", field);
     if (GT3_write(sd->data2, GT3_TYPE_DOUBLE,
                   sd->shape[0], sd->shape[1], sd->shape[2],
                   &head, g_format, fp) < 0) {
@@ -320,6 +338,7 @@ write_stddev(const struct stddev *sd, FILE *fp, FILE *mfp)
         snprintf(field, sizeof field - 1, "mean N=%u", sd->numset);
         GT3_setHeaderEttl(&head2, field);
 
+        logging(LOG_INFO, "Write %s", field);
         if (GT3_write(sd->data1, GT3_TYPE_DOUBLE,
                       sd->shape[0], sd->shape[1], sd->shape[2],
                       &head2, g_format, mfp) < 0) {
@@ -379,8 +398,112 @@ finish:
 
 
 static int
-ngtsd_cyc(char **paths, int nfiles, struct sequence *seq,
-          FILE *ofp, FILE *ofp2)
+ngtsd_cyc(char **paths, int nfiles, FILE *ofp, FILE *ofp2)
+{
+    GT3_File **inputs = NULL;
+    GT3_File *fp = NULL;
+    GT3_Varbuf *var = NULL;
+    int keep_alive = nfiles <= alive_limit;
+    struct stddev sd;
+    int n, rval = -1;
+    int first_data;
+
+    if ((inputs = malloc(sizeof(GT3_File *) * nfiles)) == NULL) {
+        logging(LOG_SYSERR, NULL);
+        return -1;
+    }
+    memset(inputs, 0, sizeof(GT3_File *) * nfiles);
+
+    init_stddev(&sd);
+
+    for (n = 0; n < nfiles; n++) {
+        if ((inputs[n] = GT3_open(paths[n])) == NULL) {
+            GT3_printErrorMessages(stderr);
+            goto finish;
+        }
+        if (!keep_alive && GT3_suspend(inputs[n]) < 0) {
+            GT3_printErrorMessages(stderr);
+            goto finish;
+        }
+    }
+
+    for (;;) {
+        first_data = 1;
+        for (n = 0; n < nfiles; n++) {
+            fp = inputs[n];
+            if (GT3_eof(fp))
+                continue;
+
+            if (!keep_alive && GT3_resume(fp) < 0) {
+                GT3_printErrorMessages(stderr);
+                goto finish;
+            }
+
+            if (var == NULL) {
+                if ((var = GT3_getVarbuf(fp)) == NULL) {
+                    GT3_printErrorMessages(stderr);
+                    goto finish;
+                }
+            } else
+                if (GT3_reattachVarbuf(var, fp) < 0) {
+                    GT3_printErrorMessages(stderr);
+                    goto finish;
+                }
+
+            if (first_data) {
+                if (reinit_stddev(&sd, var) < 0)
+                    goto finish;
+                first_data = 0;
+            }
+
+            while (skip_leapday && is_leapday(fp)) {
+                logging(LOG_NOTICE, "%s (No.%d) skip leap day",
+                        fp->path, fp->curr + 1);
+
+                if (GT3_next(fp) < 0) {
+                    GT3_printErrorMessages(stderr);
+                    goto finish;
+                }
+            }
+
+            if (!GT3_eof(fp) && add_newdata(&sd, var) < 0)
+                goto finish;
+
+            if (GT3_next(fp) < 0) {
+                GT3_printErrorMessages(stderr);
+                goto finish;
+            }
+            if (!keep_alive && GT3_suspend(fp) < 0) {
+                GT3_printErrorMessages(stderr);
+                goto finish;
+            }
+        }
+        if (first_data || sd.numset == 0)
+            break;
+
+        calc_stddev(&sd);
+        if (write_stddev(&sd, ofp, ofp2) < 0)
+            goto finish;
+    }
+    rval = 0;
+
+finish:
+    if (rval < 0 && n >= 0 && n < nfiles)
+        logging(LOG_ERR, "%s: failed.", paths[n]);
+
+    GT3_freeVarbuf(var);
+    for (n = 0; n < nfiles; n++)
+        GT3_close(inputs[n]);
+
+    free(inputs);
+    free_stddev(&sd);
+    return rval;
+}
+
+
+static int
+ngtsd_cyc_seq(char **paths, int nfiles, struct sequence *seq,
+              FILE *ofp, FILE *ofp2)
 {
     GT3_File **inputs = NULL;
     GT3_File *fp = NULL;
@@ -478,6 +601,7 @@ usage(void)
         "    -a        append to output file\n"
         "    -c        cyclic mode\n"
         "    -f fmt    specify output format\n"
+        "    -k        skip leap day\n"
         "    -m path   specify output filename (for Mean)\n"
         "    -o path   specify output filename (for SD)\n"
         "    -t LIST   specify data No.\n"
@@ -506,7 +630,7 @@ main(int argc, char **argv)
     GT3_setProgname(PROGNAME);
     set_alive_limit();
 
-    while ((ch = getopt(argc, argv, "acf:hm:o:t:vz:")) != -1)
+    while ((ch = getopt(argc, argv, "acf:hkm:o:t:vz:")) != -1)
         switch (ch) {
         case 'a':
             mode = "ab";
@@ -523,6 +647,10 @@ main(int argc, char **argv)
                 exit(1);
             }
             g_format = strdup(optarg);
+            break;
+
+        case 'k':
+            skip_leapday = 1;
             break;
 
         case 'm':
@@ -586,19 +714,28 @@ main(int argc, char **argv)
     }
 
     if (sdmode == CYCLIC_MODE) {
-        int chmax;
+        int rc;
 
-        if ((chmax = GT3_countChunk(*argv)) < 0) {
-            GT3_printErrorMessages(stderr);
+        if (seq) {
+            int chmax;
+
+            if (skip_leapday)
+                logging(LOG_WARN, "'-k' option does not work"
+                        " with '-t' option.");
+
+            if ((chmax = GT3_countChunk(*argv)) < 0) {
+                GT3_printErrorMessages(stderr);
+                goto finish;
+            }
+            reinitSeq(seq, 1, chmax);
+            rc = ngtsd_cyc_seq(argv, argc, seq, output, output2);
+        } else
+            rc = ngtsd_cyc(argv, argc, output, output2);
+
+        if (rc < 0) {
+            logging(LOG_ERR, "failed in cyclic mode.");
             goto finish;
         }
-
-        if (!seq)
-            seq = initSeq(":", 1, chmax);
-
-        reinitSeq(seq, 1, chmax);
-        if (ngtsd_cyc(argv, argc, seq, output, output2) < 0)
-            goto finish;
     } else {
         struct stddev sd;
 

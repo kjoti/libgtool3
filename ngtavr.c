@@ -60,6 +60,7 @@ static int alive_limit = 10;
 
 static int integrating_mode = 0;
 static double timedur_factor = 0.;
+static int skip_leapday = 0;
 
 
 static void
@@ -72,6 +73,19 @@ set_alive_limit(void)
 #endif
 
     alive_limit = min(alive_limit, 100);
+}
+
+
+static int
+is_leapday(GT3_File *fp)
+{
+    GT3_HEADER head;
+    GT3_Date date;
+
+    return GT3_readHeader(&head, fp) == 0
+        && GT3_decodeHeaderDate(&date, &head, "DATE") == 0
+        && date.mon == 2
+        && date.day == 29;
 }
 
 
@@ -429,7 +443,6 @@ static int
 integrate_chunk(struct average *avr, GT3_Varbuf *var)
 {
     double dt;
-    char item[17];
     GT3_HEADER head;
     GT3_Date date1, date2;
     int date_missing = 0;
@@ -470,8 +483,6 @@ integrate_chunk(struct average *avr, GT3_Varbuf *var)
         return -1;
     }
 
-    GT3_copyHeaderItem(item, sizeof item, &head, "ITEM");
-
     /*
      * integral
      */
@@ -493,8 +504,8 @@ integrate_chunk(struct average *avr, GT3_Varbuf *var)
     avr->duration += dt;
     avr->total_wght += wght;
 
-    logging(LOG_INFO, "Read %s (No.%d), weight(%g), count(%d)",
-            item, var->fp->curr + 1, wght, avr->count);
+    logging(LOG_INFO, "Read from %s (No.%d), weight(%g), count(%d)",
+            var->fp->path, var->fp->curr + 1, wght, avr->count);
     return 0;
 }
 
@@ -646,8 +657,115 @@ finish:
 }
 
 
+/*
+ * Cyclic mode without `sequence`.
+ * Process each chunk from the beginning of the file.
+ */
 static int
-ngtavr_cyc(char **paths, int nfiles, struct sequence *seq, FILE *ofp)
+ngtavr_cyc(char **paths, int nfiles, FILE *ofp)
+{
+    GT3_File **inputs = NULL;
+    GT3_Varbuf *var = NULL;
+    int keep_alive = (nfiles <= alive_limit);
+    GT3_File *fp;
+    struct average avr;
+    int n, rval = -1;
+    int first_data;
+
+    if ((inputs = malloc(sizeof(GT3_File *) * nfiles)) == NULL) {
+        logging(LOG_SYSERR, NULL);
+        return -1;
+    }
+    memset(inputs, 0, sizeof(GT3_File *) * nfiles);
+
+    init_average(&avr);
+
+    for (n = 0; n < nfiles; n++) {
+        if ((inputs[n] = GT3_open(paths[n])) == NULL) {
+            GT3_printErrorMessages(stderr);
+            goto finish;
+        }
+        if (!keep_alive && GT3_suspend(inputs[n]) < 0) {
+            GT3_printErrorMessages(stderr);
+            goto finish;
+        }
+    }
+
+    for (;;) {
+        first_data = 1;
+        for (n = 0; n < nfiles; n++) {
+            fp = inputs[n];
+            if (GT3_eof(fp))
+                continue;
+
+            if (!keep_alive && GT3_resume(fp) < 0) {
+                GT3_printErrorMessages(stderr);
+                goto finish;
+            }
+            if (var == NULL) {
+                if ((var = GT3_getVarbuf(fp)) == NULL) {
+                    GT3_printErrorMessages(stderr);
+                    goto finish;
+                }
+            } else
+                if (GT3_reattachVarbuf(var, fp) < 0) {
+                    GT3_printErrorMessages(stderr);
+                    goto finish;
+                }
+
+            if (first_data) {
+                if (setup_average(&avr, var) < 0)
+                    goto finish;
+                first_data = 0;
+            }
+
+            while (skip_leapday && is_leapday(fp)) {
+                logging(LOG_NOTICE, "%s (No.%d) skip leap day",
+                        fp->path, fp->curr + 1);
+
+                if (GT3_next(fp) < 0) {
+                    GT3_printErrorMessages(stderr);
+                    goto finish;
+                }
+            }
+
+            if (!GT3_eof(fp) && integrate_chunk(&avr, var) < 0)
+                goto finish;
+
+            if (GT3_next(fp) < 0) {
+                GT3_printErrorMessages(stderr);
+                goto finish;
+            }
+            if (!keep_alive && GT3_suspend(fp) < 0) {
+                GT3_printErrorMessages(stderr);
+                goto finish;
+            }
+        }
+        if (first_data || avr.count == 0)
+            break;
+
+        average(&avr);
+        if (write_average(&avr, ofp) < 0)
+            goto finish;
+    }
+    rval = 0;
+
+finish:
+    GT3_freeVarbuf(var);
+    for (n = 0; n < nfiles; n++)
+        GT3_close(inputs[n]);
+    free_average(&avr);
+    free(inputs);
+    return rval;
+}
+
+
+/*
+ * Cyclic mode with `sequence`.
+ * (`skip_leayday` is not supported in this func).
+ */
+static int
+ngtavr_cyc_seq(char **paths, int nfiles, struct sequence *seq, FILE *ofp)
 {
     GT3_File **inputs = NULL;
     GT3_Varbuf *var = NULL;
@@ -818,6 +936,7 @@ usage(void)
         "    -a        append to output file\n"
         "    -c        cyclic mode\n"
         "    -f fmt    specify output format\n"
+        "    -k        skip leap day\n"
         "    -l dble   specify limit factor (by default 0.)\n"
         "    -m tdur   specify time-duration\n"
         "    -n        ignore TDUR (weight of integration)\n"
@@ -862,7 +981,7 @@ main(int argc, char **argv)
     GT3_setProgname(PROGNAME);
     set_alive_limit();
 
-    while ((ch = getopt(argc, argv, "acf:l:hm:no:s:t:vz:")) != -1)
+    while ((ch = getopt(argc, argv, "acf:kl:hm:no:s:t:vz:")) != -1)
         switch (ch) {
         case 'a':
             mode = "ab";
@@ -879,6 +998,10 @@ main(int argc, char **argv)
                 exit(1);
             }
             g_format = strdup(optarg);
+            break;
+
+        case 'k':
+            skip_leapday = 1;
             break;
 
         case 'l':
@@ -978,19 +1101,26 @@ main(int argc, char **argv)
             }
         }
     } else if (avrmode == CYCLIC_MODE) {
-        int chmax;
+        int rc;
 
-        if ((chmax = GT3_countChunk(*argv)) < 0) {
-            GT3_printErrorMessages(stderr);
-            exit(1);
-        }
         calendar_type = get_calendar_type(*argv);
+        if (seq) {
+            int chmax;
 
-        if (!seq)
-            seq = initSeq(":", 1, chmax);
+            if (skip_leapday)
+                logging(LOG_WARN, "'-k' option does not work"
+                        " with '-t' option.");
 
-        reinitSeq(seq, 1, chmax);
-        if (ngtavr_cyc(argv, argc, seq, ofp) < 0) {
+            if ((chmax = GT3_countChunk(*argv)) < 0) {
+                GT3_printErrorMessages(stderr);
+                exit(1);
+            }
+            reinitSeq(seq, 1, chmax);
+            rc = ngtavr_cyc_seq(argv, argc, seq, ofp);
+        } else
+            rc = ngtavr_cyc(argv, argc, ofp);
+
+        if (rc < 0) {
             logging(LOG_ERR, "failed to process in cyclic mode.");
             exitval = 1;
         }
