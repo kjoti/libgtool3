@@ -743,7 +743,6 @@ GT3_suspend(GT3_File *fp)
 int
 GT3_resume(GT3_File *fp)
 {
-    GT3_HEADER head;
     const char *mode;
 
     if (fp->fp) {
@@ -758,12 +757,6 @@ GT3_resume(GT3_File *fp)
     mode = (fp->mode & GT3_FILE_WRITABLE) ? "r+b" :  "rb";
     if ((fp->fp = fopen(fp->path, mode)) == NULL) {
         gt3_error(SYSERR, fp->path);
-        return -1;
-    }
-
-    if (GT3_readHeader(&head, fp) < 0 || update(fp, &head) < 0) {
-        fclose(fp->fp);
-        fp->fp = NULL;
         return -1;
     }
     return 0;
