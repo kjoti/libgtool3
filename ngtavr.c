@@ -713,12 +713,6 @@ ngtavr_cyc(char **paths, int nfiles, FILE *ofp)
                     goto finish;
                 }
 
-            if (first_data) {
-                if (setup_average(&avr, var) < 0)
-                    goto finish;
-                first_data = 0;
-            }
-
             while (skip_leapday && is_leapday(fp)) {
                 logging(LOG_NOTICE, "%s (No.%d) skip leap day",
                         fp->path, fp->curr + 1);
@@ -727,6 +721,12 @@ ngtavr_cyc(char **paths, int nfiles, FILE *ofp)
                     GT3_printErrorMessages(stderr);
                     goto finish;
                 }
+            }
+
+            if (first_data) {
+                if (setup_average(&avr, var) < 0)
+                    goto finish;
+                first_data = 0;
             }
 
             if (!GT3_eof(fp) && integrate_chunk(&avr, var) < 0)
@@ -741,7 +741,7 @@ ngtavr_cyc(char **paths, int nfiles, FILE *ofp)
                 goto finish;
             }
         }
-        if (first_data || avr.count == 0)
+        if (first_data)
             break;
 
         average(&avr);

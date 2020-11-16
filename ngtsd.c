@@ -450,12 +450,6 @@ ngtsd_cyc(char **paths, int nfiles, FILE *ofp, FILE *ofp2)
                     goto finish;
                 }
 
-            if (first_data) {
-                if (reinit_stddev(&sd, var) < 0)
-                    goto finish;
-                first_data = 0;
-            }
-
             while (skip_leapday && is_leapday(fp)) {
                 logging(LOG_NOTICE, "%s (No.%d) skip leap day",
                         fp->path, fp->curr + 1);
@@ -464,6 +458,12 @@ ngtsd_cyc(char **paths, int nfiles, FILE *ofp, FILE *ofp2)
                     GT3_printErrorMessages(stderr);
                     goto finish;
                 }
+            }
+
+            if (first_data) {
+                if (reinit_stddev(&sd, var) < 0)
+                    goto finish;
+                first_data = 0;
             }
 
             if (!GT3_eof(fp) && add_newdata(&sd, var) < 0)
@@ -478,7 +478,7 @@ ngtsd_cyc(char **paths, int nfiles, FILE *ofp, FILE *ofp2)
                 goto finish;
             }
         }
-        if (first_data || sd.numset == 0)
+        if (first_data)
             break;
 
         calc_stddev(&sd);
