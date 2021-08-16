@@ -197,7 +197,7 @@ write_mr4(const void *ptr2,
      */
     cnt0 = masked_count(ptr2, size, nelems, miss);
     if (cnt0 > 0xffffffffU) {
-        gt3_error(GT3_ERR_TOOLONG, "in writing MR4");
+        gt3_error(GT3_ERR_TOOLONG, "Use UR4");
         return -1;
     }
     cnt = (uint32_t)cnt0;
@@ -260,7 +260,7 @@ write_mr8(const void *ptr2,
      */
     cnt0 = masked_count(ptr2, size, nelems, miss);
     if (cnt0 > 0xffffffffU) {
-        gt3_error(GT3_ERR_TOOLONG, "in writing MR8");
+        gt3_error(GT3_ERR_TOOLONG, "Use UR8");
         return -1;
     }
     cnt = (uint32_t)cnt0;

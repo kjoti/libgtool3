@@ -256,7 +256,7 @@ write_mrx(const void *ptr2,
     for (ptr = ptr2, i = 0; i < nz; i++, ptr += zelems * size) {
         cnt0 = masked_count(ptr, size, zelems, miss);
         if (cnt0 > 0xffffffffU) {
-            gt3_error(GT3_ERR_TOOLONG, "in writing MRX");
+            gt3_error(GT3_ERR_TOOLONG, "Use URY");
             goto finish;
         }
         cnt[i] = (uint32_t)cnt0;
@@ -271,8 +271,8 @@ write_mrx(const void *ptr2,
                               zelems, miss, nbits);
     }
 
-    if (plen_all > 0xffffffffU) {
-        gt3_error(GT3_ERR_TOOLONG, "in writing MRY");
+    if (4 * plen_all > 0xffffffffU) {
+        gt3_error(GT3_ERR_TOOLONG, "Use URY");
         goto finish;
     }
     plen_a = (uint32_t)plen_all;
