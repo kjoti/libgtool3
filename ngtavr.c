@@ -166,7 +166,7 @@ setup_average(struct average *avr, GT3_Varbuf *var)
         return -1;
     }
 
-    if (alloc_average(avr, dimlen[0] * dimlen[1] * zlen) < 0)
+    if (alloc_average(avr, (size_t)dimlen[0] * dimlen[1] * zlen) < 0)
         return -1;
 
     avr->shape[0] = dimlen[0];
@@ -418,7 +418,7 @@ write_average(const struct average *avr, FILE *fp)
 static void
 average(struct average *avr)
 {
-    int i;
+    size_t i;
     double thres, x;
 
     thres = limit_factor * avr->total_wght;

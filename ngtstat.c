@@ -40,7 +40,7 @@ static int quick_mode = 0;
 /* stat for each layer */
 struct statics {
     int zidx;                   /* index of z-layers */
-    int count;                  /* the # of samples */
+    size_t count;               /* the # of samples */
     double avr;                 /* average */
     double sd;                  /* standard deviation */
     double min, max;            /* min & max */
@@ -56,7 +56,7 @@ NAME(void *ptr, const GT3_Varbuf *var, const struct range *range) \
     const TYPE *data = (const TYPE *)var->data; \
     TYPE *output = (TYPE *)ptr; \
     TYPE miss = (TYPE)var->miss; \
-    int i, j, off; \
+    size_t i, j, off; \
  \
     if (!slicing) \
         for (i = 0; i < var->dimlen[0] * var->dimlen[1]; i++) { \
@@ -190,7 +190,7 @@ print_stat1(const struct statics *stat, int num, int tidx,
 
     if (each_plane) {
         for (i = 0; i < num; i++)
-            printf("%14s %3d %11.5g %11.5g %11.5g %11.5g %10d\n",
+            printf("%14s %3d %11.5g %11.5g %11.5g %11.5g %10zu\n",
                    prefix,
                    stat[i].zidx,
                    stat[i].avr,
@@ -205,7 +205,7 @@ print_stat1(const struct statics *stat, int num, int tidx,
 
         memset(&stat_all, 0, sizeof(struct statics));
         sumup_stat(&stat_all, stat, num);
-        printf("%14s ALL %11.5g %11.5g %11.5g %11.5g %10d\n",
+        printf("%14s ALL %11.5g %11.5g %11.5g %11.5g %10zu\n",
                prefix,
                stat_all.avr,
                stat_all.sd,
@@ -237,7 +237,7 @@ print_stat2(const struct statics *stat, int num, int tidx,
                 smax = (stat[i].max - stat[i].avr) / stat[i].sd;
             }
 
-            printf("%14s %3d %11.5g %11.5g %+11.4g %+11.4g %10d\n",
+            printf("%14s %3d %11.5g %11.5g %+11.4g %+11.4g %10zu\n",
                    prefix,
                    stat[i].zidx,
                    stat[i].avr,
@@ -260,7 +260,7 @@ print_stat2(const struct statics *stat, int num, int tidx,
             smin = (stat_all.min - stat_all.avr) / stat_all.sd;
             smax = (stat_all.max - stat_all.avr) / stat_all.sd;
         }
-        printf("%14s ALL %11.5g %11.5g %+11.4g %+11.4g %10d\n",
+        printf("%14s ALL %11.5g %11.5g %+11.4g %+11.4g %10zu\n",
                prefix,
                stat_all.avr,
                stat_all.sd,

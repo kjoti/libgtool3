@@ -200,13 +200,13 @@ diff_var(GT3_Varbuf *var1, GT3_Varbuf *var2)
     unsigned miss1, miss2;
     unsigned flag = 0;
     int i, j, ij, z, z1;
-    int cnt = 0, total = 0;
+    size_t cnt = 0, total = 0;
     double v1, v2;
     double err, maxerr = 0.;
     double rms = 0.;
-    int nrms = 0;
+    size_t nrms = 0;
     int ioff = 1, joff = 1, koff = 1;
-    int numA = 0, numB = 0;
+    size_t numA = 0, numB = 0;
     double sumA = 0., sumB = 0., sumA2 = 0.;
     int sameshape;
 
@@ -322,7 +322,7 @@ diff_var(GT3_Varbuf *var1, GT3_Varbuf *var2)
         }
         printf("#\n# Summary:\n");
         printf("%18s: %s vs %s\n", "ITEMS", item1 + 2, item2 + 2);
-        printf("%18s: %d / %d grids\n", "differ.", cnt, total);
+        printf("%18s: %zu / %zu grids\n", "differ.", cnt, total);
         if (numA > 0) {
             sumA /= numA;
             sumA2 = sqrt(sumA2 / numA);

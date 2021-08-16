@@ -29,7 +29,7 @@ static int slicing = 0;
 
 
 struct data_profile {
-    int miss_cnt, nan_cnt, pinf_cnt, minf_cnt;
+    size_t miss_cnt, nan_cnt, pinf_cnt, minf_cnt;
 
     double miss; /* used as input data */
 };
@@ -46,12 +46,12 @@ init_profile(struct data_profile *prof)
 
 
 void
-get_dataprof_float(const void *ptr, int len, struct data_profile *prof)
+get_dataprof_float(const void *ptr, size_t len, struct data_profile *prof)
 {
     const float *data = (const float *)ptr;
-    int mcnt = 0, nan_cnt = 0, minf = 0, pinf = 0;
+    size_t mcnt = 0, nan_cnt = 0, minf = 0, pinf = 0;
     float miss;
-    int i;
+    size_t i;
 
     miss = (float)prof->miss;
     for (i = 0; i < len; i++) {
@@ -80,12 +80,12 @@ get_dataprof_float(const void *ptr, int len, struct data_profile *prof)
 
 
 void
-get_dataprof_double(const void *ptr, int len, struct data_profile *prof)
+get_dataprof_double(const void *ptr, size_t len, struct data_profile *prof)
 {
     const double *data = (const double *)ptr;
-    int mcnt = 0, nan_cnt = 0, minf = 0, pinf = 0;
+    size_t mcnt = 0, nan_cnt = 0, minf = 0, pinf = 0;
     double miss;
-    int i;
+    size_t i;
 
     miss = prof->miss;
     for (i = 0; i < len; i++) {
@@ -113,14 +113,14 @@ get_dataprof_double(const void *ptr, int len, struct data_profile *prof)
 }
 
 
-int
+size_t
 pack_slice_float(void *ptr, const GT3_Varbuf *var)
 {
     const float *data = (const float *)var->data;
     float *output = (float *)ptr;
-    int cnt = 0;
-    int i, j;
-    int xmax, ymax;
+    size_t cnt = 0;
+    size_t i, j;
+    size_t xmax, ymax;
 
     xmax = min(xrange[1], var->dimlen[0]);
     ymax = min(yrange[1], var->dimlen[1]);
@@ -132,14 +132,14 @@ pack_slice_float(void *ptr, const GT3_Varbuf *var)
 }
 
 
-int
+size_t
 pack_slice_double(void *ptr, const GT3_Varbuf *var)
 {
     const double *data = (const double *)var->data;
     double *output = (double *)ptr;
-    int cnt = 0;
-    int i, j;
-    int xmax, ymax;
+    size_t cnt = 0;
+    size_t i, j;
+    size_t xmax, ymax;
 
     xmax = min(xrange[1], var->dimlen[0]);
     ymax = min(yrange[1], var->dimlen[1]);
@@ -167,7 +167,7 @@ void
 print_profile(FILE *output, struct data_profile *prof, const char *prefix)
 {
     fprintf(output,
-            "%-27s %10d %10d %10d %10d\n",
+            "%-27s %10zu %10zu %10zu %10zu\n",
             prefix, prof->miss_cnt, prof->nan_cnt,
             prof->pinf_cnt, prof->minf_cnt);
 }
@@ -179,9 +179,10 @@ print_summary(FILE *output, GT3_Varbuf *var)
     int z, zmax;
     struct data_profile prof;
     char item[32], prefix[32];
-    void (*get_dataprof)(const void *, int, struct data_profile *);
-    int (*pack_slice)(void *, const GT3_Varbuf *);
-    int zstr, rval, len = 0, elem_size;
+    void (*get_dataprof)(const void *, size_t, struct data_profile *);
+    size_t (*pack_slice)(void *, const GT3_Varbuf *);
+    int zstr, rval;
+    size_t len = 0, elem_size;
     void *data;
 
     if (GT3_readVarZ(var, 0) < 0)
@@ -201,7 +202,7 @@ print_summary(FILE *output, GT3_Varbuf *var)
     }
 
     if (slicing) {
-        int xlen, ylen;
+        size_t xlen, ylen;
 
         xlen = min(var->dimlen[0], xrange[1] - xrange[0]);
         ylen = min(var->dimlen[1], yrange[1] - yrange[0]);

@@ -29,7 +29,7 @@ static int alive_limit = 15;
 struct input_set {
     int num;
     GT3_File **fp;              /* lenght: num */
-    int *offset;                /* length: num */
+    size_t *offset;             /* length: num */
     unsigned keep_alive;
 
     GT3_Varbuf *vbuf;
@@ -164,7 +164,8 @@ static int
 update_offset_index(struct input_set *inset,
                     const int *gsize, const int *pattern)
 {
-    int n, pos[3];
+    int n;
+    size_t pos[3];
 
     inset->offset[0] = pos[0] = pos[1] = pos[2] = 0;
     for (n = 1; n < inset->num; n++) {
@@ -190,7 +191,8 @@ static int
 join_chunk(struct buffer *dest, struct input_set *inset, const int *pattern)
 {
     int gsize[3];
-    int n, y, z, offset;
+    int n, y, z;
+    size_t offset;
     int ncopied;
 
     if (check_joint(inset, pattern) < 0) {
@@ -235,7 +237,7 @@ join_chunk(struct buffer *dest, struct input_set *inset, const int *pattern)
             }
             for (y = 0; y < inset->fp[n]->dimlen[1]; y++) {
                 offset = inset->offset[n]
-                    + dest->shape[0] * (y + dest->shape[1] * z);
+                    + dest->shape[0] * (y + (size_t)dest->shape[1] * z);
 
                 /* assert(offset + inset->fp[n]->dimlen[0] <= dest->size); */
                 ncopied = GT3_copyVarDouble(dest->data + offset,
@@ -308,7 +310,7 @@ make_input_set(char * const paths[], int ninputs)
         return NULL;
 
     if ((inset->fp = malloc(sizeof(GT3_File *) * ninputs)) == NULL
-        || (inset->offset = malloc(sizeof(int) * ninputs)) == NULL) {
+        || (inset->offset = malloc(sizeof(size_t) * ninputs)) == NULL) {
         logging(LOG_SYSERR, NULL);
         goto error;
     }
