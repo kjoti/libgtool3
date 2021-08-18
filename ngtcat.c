@@ -147,7 +147,7 @@ slicecopy2(FILE *dest, GT3_File *fp, size_t esize,
 static int
 slicecopy(FILE *dest, GT3_File *fp)
 {
-    size_t siz, esize, ssize;
+    size_t esize, ssize;
     GT3_HEADER head;
     struct sequence *zseq;
     int xrange[2];
@@ -224,13 +224,9 @@ slicecopy(FILE *dest, GT3_File *fp)
     /*
      * For UR4 or UR8, write Fortran header.
      */
-    if (fp->fmt == GT3_FMT_UR4 || fp->fmt == GT3_FMT_UR8) {
-        siz = esize * xynum * znum;
-        if (IS_LITTLE_ENDIAN)
-            reverse_words(&siz, 1);
-
-        if (fwrite(&siz, 1, FH_SIZE, dest) != FH_SIZE)
-            return -1;
+    if ((fp->fmt == GT3_FMT_UR4 || fp->fmt == GT3_FMT_UR8)
+        && write_record_sep((uint64_t)esize * xynum * znum, dest) < 0) {
+        return -1;
     }
 
     /*
@@ -290,9 +286,10 @@ slicecopy(FILE *dest, GT3_File *fp)
     /*
      * For UR4 or UR8, write Fortran trailer.
      */
-    if (fp->fmt == GT3_FMT_UR4 || fp->fmt == GT3_FMT_UR8)
-        if (fwrite(&siz, 1, FH_SIZE, dest) != FH_SIZE)
-            return -1;
+    if ((fp->fmt == GT3_FMT_UR4 || fp->fmt == GT3_FMT_UR8)
+        && write_record_sep((uint64_t)esize * xynum * znum, dest) < 0) {
+        return -1;
+    }
 
     freeSeq(zseq);
     free(zseq);
@@ -316,7 +313,7 @@ mcopy(FILE *dest, GT3_File *fp)
             if (fp->fmt == support_slice[i])
                 return slicecopy(dest, fp);
 
-        logging(LOG_ERR, "Slicing unsupported in this format");
+        logging(LOG_ERR, "Slicing is not supported in this format");
         return -1;
     } else
         return fcopy(dest, fp->fp, fp->chsize);
