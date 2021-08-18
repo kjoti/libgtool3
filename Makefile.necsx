@@ -3,43 +3,32 @@
 # Makefile for NEC-SX
 #
 .SUFFIXES:
-.SUFFIXES: .c .o .So
+.SUFFIXES: .c .o
 
 MAJOR_VERSION	= 1
 
 SHELL		= /bin/sh
 
-prefix		= $(HOME)/SUPER-UX-SX-ACE
+prefix		= $(HOME)/NEC/ve
 bindir		= $(prefix)/bin
 libdir		= $(prefix)/lib
 includedir	= $(prefix)/include
 
-CC		= sxcc
-AR		= sxar
+CC		= ncc
+AR		= nar
 RANLIB		= :
 INSTALL		= /usr/bin/install
 MKDIR		= /usr/bin/install -d
 LN_S		= ln -sf
-DEBUG		= #-g
 
-DEFS		= -UHAVE_CONFIG_H -DWORDS_BIGENDIAN \
+CPPFLAGS	= -UHAVE_CONFIG_H \
 		-DHAVE_FSEEKO -DHAVE_ILOGB -DHAVE_SCALBN \
 		-DHAVE_STDINT_H -DHAVE_UINT32_T \
 		-DHAVE_SYSCONF \
 		-DHAVE_GLOB -DHAVE_GLOB_H -DHAVE_ROUND
 
-LDFLAGS		+= $(DEBUG)
-CFLAGS		+= $(DEBUG) $(DEFS) \
-		-C hopt -w all \
-		-R diaglist fmtlist transform \
-		-O fullmsg -pvctl fullmsg
-
-# enable inline expansion.
-#CFLAGS		+= -pi auto fullmsg
-
-# make size_t 64-bit.
-CFLAGS		+= -size_t64
-LDFLAGS		+= -size_t64
+LDFLAGS	=
+CFLAGS		= -report-all -Wall -O3
 
 OBJS		= \
 		bits_set.o \
@@ -70,13 +59,10 @@ OBJS		= \
 		write.o \
 		xfread.o
 
-SHLIBNAME	= libgtool3.so
-SHLIB		= libgtool3.so.$(MAJOR_VERSION)
 STLIB		= libgtool3.a
 INTLIB		= libinternal.a # Not installed.
 
 LDADD		= $(INTLIB) $(STLIB) -lm   # use static library for bin
-#LDADD		= $(INTLIB) $(SHLIB) -lm
 
 UTILS		= \
 		copysubst.o \
@@ -91,16 +77,12 @@ UTILS		= \
 		split.o \
 		strman.o
 
-PICFLAG		= -fpic
-SONAME		= $(SHLIB)
-SOBJS		= $(OBJS:.o=.So)
-
 LIBSOURCES	= $(OBJS:.o=.c)
 UTILSOURCES	= $(UTILS:.o=.c)
 SOURCES		= $(LIBSOURCES) $(UTILSOURCES)
 
 #
-#  targets
+# targets
 #
 LIBS		= $(STLIB) $(INTLIB)
 HEADERS		= gtool3.h libgtool3.f90
@@ -113,11 +95,6 @@ all: $(LIBS) $(BINS) $(HEADERS)
 $(STLIB): $(OBJS)
 	$(AR) $(ARFLAGS) $@ $(OBJS)
 	$(RANLIB) $@
-
-$(SHLIB): $(SOBJS)
-	$(CC) $(LDFLAGS) -shared -Wl,-x \
-	    -o $@ -Wl,-soname,$(SONAME) \
-	    `lorder $(SOBJS) | tsort -q`
 
 $(INTLIB): $(UTILS)
 	$(AR) $(ARFLAGS) $@ $(UTILS)
@@ -184,11 +161,8 @@ tags: TAGS
 TAGS: $(SOURCES)
 	etags $(SOURCES)
 
-.c.So:
-	$(CC) $(PICFLAG) -DPIC $(CFLAGS) -c -o $@ $<
-
 #
-TESTCC	= $(CC) -DTEST_MAIN $(LDFLAGS) $(CFLAGS)
+TESTCC	= $(CC) -DTEST_MAIN $(LDFLAGS) $(CFLAGS) $(CPPFLAGS)
 
 test: $(LIBS)
 	@-for obj in $(OBJS) $(UTILS); do \
@@ -213,7 +187,7 @@ test: $(LIBS)
 	echo "**** All tests passed."
 
 clean:
-	@rm -f $(LIBS) $(BINS) a.out $(OBJS) $(SOBJS) $(UITLS) *.o *.L
+	@rm -f $(LIBS) $(BINS) a.out $(OBJS) $(UITLS) *.o *.L
 
 ##
 MAIN_HEADERS	= gtool3.h internal.h
