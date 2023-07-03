@@ -1,0 +1,15 @@
+*~
+*.orig
+*.lo
+*.o
+*.a
+*.la
+.libs
+.deps
+/Makefile
+/config.h
+/config.log
+/config.status
+libtool
+stamp-h1
+autom4te.cache
