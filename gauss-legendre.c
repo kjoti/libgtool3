@@ -1,5 +1,11 @@
 /*
  * gauss-legendre.c -- Gaussian Quadratures
+ *
+ * Note:
+ * - https://www.jstor.org/stable/1989641
+ *   Gabriel Szego, Inequalities for the Zeros of Legendre Polynomials
+ *   and Related Functions, Transactions of the American Mathematical
+ *   Society, Vol. 39, No. 1 (1936)
  */
 #include <math.h>
 
